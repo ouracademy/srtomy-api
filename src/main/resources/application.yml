@@ -1,0 +1,18 @@
+spring:
+  # security:
+  #   oauth2:
+  #     resourceserver:
+  #       jwt:
+  #         audiences: https://farmacia-unmsm.org
+  #         issuer-uri: https://dev-jeb53xnc.us.auth0.com/
+  # web:
+  #   resources:
+  #     add-mappings: false # disables static resources
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/srtommy
+    username: root
+    password: somesecretpassword
+  # data:
+  #   rest:
+  #     detection-strategy: ANNOTATED
+# cors_origin: "*"
