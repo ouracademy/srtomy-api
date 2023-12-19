@@ -38,7 +38,7 @@ public class OrganizationController {
     }
 
     @PutMapping("{id}")
-    public Organization create(@RequestParam Long id, @RequestBody @Valid Organization organization) {
+    public Organization edit(@RequestParam Long id, @RequestBody @Valid Organization organization) {
         organization.id = id;
         return organizationRepository.save(organization);
     }
