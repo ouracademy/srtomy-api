@@ -1,0 +1,49 @@
+spring:
+  sql.init.mode: always
+  jpa:
+    # TODO: remove when moving to production
+    defer-datasource-initialization: true
+    hibernate:
+      # only initially for prototype, then use flyway
+      ddl-auto: create-drop
+    # use only if you need debug (1)
+    properties:
+      hibernate:
+        show-sql: true
+        format_sql: true
+# see https://stackoverflow.com/questions/31585698/spring-boot-jpa2-hibernate-enable-second-level-cache
+
+# flyway:
+#   locations: classpath:/db/migration,classpath:/db/testdata
+
+# use only if you need debug (1)
+# logging:
+#   level:
+#     org:
+#       hibernate:
+#         SQL: DEBUG
+# type.descriptor.sql.BasicBinder: TRACE # to show parameter (values) of sql queries
+
+# monitoring, more on: https://docs.spring.io/spring-boot/docs/current/reference/html/appendix-application-properties.html#common-application-properties-actuator
+# management:
+#   endpoints:
+#     web:
+#       exposure:
+#         include: "*"
+
+# swagger
+# springdoc:
+#   api-docs:
+#     path: /api-docs
+# security:
+#   jwt:
+#     token:
+#       secret-key: 33d9b2ae-0275-11eb-adc1-0242ac120002
+
+# logging
+# logbook:
+#   include: /**
+#   exclude: /actuator/health
+# more on https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#boot-features-logging-file-output
+# logging.file.name = /var/tmp/casilla.log
+# logging.level.org.zalando.logbook: TRACE
