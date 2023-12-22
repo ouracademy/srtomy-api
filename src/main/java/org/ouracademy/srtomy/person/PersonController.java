@@ -1,7 +1,7 @@
 package org.ouracademy.srtomy.person;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,9 +24,9 @@ public class PersonController {
     PersonRepository personRepository;
 
     @GetMapping
-    public List<Person> findAll() {
-        // TODO: list organizations of a user
-        return personRepository.findAll();
+    public Page<Person> findAll(Pageable pageable) {
+        // TODO: list person of organization
+        return personRepository.findAll(pageable);
     }
 
     @GetMapping("{id}")
