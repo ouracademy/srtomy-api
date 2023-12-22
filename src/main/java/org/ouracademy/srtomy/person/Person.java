@@ -35,4 +35,8 @@ public class Person {
     Integer age;
     @PastOrPresent
     LocalDate birthdate;
+
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
 }
