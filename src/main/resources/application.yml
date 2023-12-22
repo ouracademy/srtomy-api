@@ -15,4 +15,4 @@ spring:
   # data:
   #   rest:
   #     detection-strategy: ANNOTATED
-# cors_origin: "*"
+cors_origin: "*"
