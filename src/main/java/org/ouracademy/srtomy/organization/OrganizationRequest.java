@@ -1,0 +1,16 @@
+package org.ouracademy.srtomy.organization;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+
+@Data
+public class OrganizationRequest {
+    @NotBlank
+    String name;
+
+    String address;
+
+    String phoneNumber;
+
+    Long parentId;
+}

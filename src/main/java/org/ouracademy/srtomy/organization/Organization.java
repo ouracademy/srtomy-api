@@ -22,4 +22,12 @@ public class Organization {
 
     @ManyToOne
     Organization parent;
+
+    Organization() {
+        // jpa only
+    }
+
+    Organization(String name) {
+        this.name = name;
+    }
 }
