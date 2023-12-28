@@ -41,7 +41,8 @@ public class OrganizationController {
     public Organization create(@RequestBody @Valid OrganizationRequest organizationRequest) {
         var organization = new Organization(organizationRequest.name);
         organization.phoneNumber = organizationRequest.phoneNumber;
-        organization.parent = organizationRepository.getReferenceById(organizationRequest.parentId);
+        organization.address = organizationRequest.address;
+        organization.parent = organizationRequest.parentId == null? null: organizationRepository.getReferenceById(organizationRequest.parentId);
 
         return organizationRepository.save(organization);
     }
@@ -52,7 +53,8 @@ public class OrganizationController {
         return organizationRepository.findById(id).map(organization -> {
             organization.name = organizationRequest.name;
             organization.phoneNumber = organizationRequest.phoneNumber;
-            organization.parent = organizationRepository.getReferenceById(organizationRequest.parentId);
+            organization.address = organizationRequest.address;    
+            organization.parent = organizationRequest.parentId == null? null: organizationRepository.getReferenceById(organizationRequest.parentId);
 
             return ResponseEntity.ok(organizationRepository.save(organization));
         }).orElse(ResponseEntity.notFound().build());
