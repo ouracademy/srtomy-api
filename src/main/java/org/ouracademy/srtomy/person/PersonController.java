@@ -26,8 +26,12 @@ public class PersonController {
     PersonRepository personRepository;
 
     @GetMapping
-    public Page<Person> findAll(Pageable pageable) {
+    public Page<Person> findAll(String searchText, Pageable pageable) {
         // TODO: list person of organization
+        if (searchText != null) {
+            return personRepository.findByName(searchText, pageable);
+        }
+
         return personRepository.findAll(pageable);
     }
 
