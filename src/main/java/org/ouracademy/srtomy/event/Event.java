@@ -1,6 +1,8 @@
 package org.ouracademy.srtomy.event;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.ouracademy.srtomy.person.Person;
 
@@ -8,7 +10,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 
 @Entity
 public class Event {
@@ -18,8 +20,8 @@ public class Event {
 
     String name;
 
-    @ManyToOne // opcional (ver 1 y 2)
-    Person speaker;
+    @OneToMany // opcional (ver 1 y 2)
+    List<Person> speakers = new ArrayList<>();
 
     // opcional en caso que solo quiera registrar asistencia (ver 5)
     LocalDateTime startTime;
@@ -43,5 +45,15 @@ public class Event {
     // TODO: para casos complejos?
     // 10 { name: "Sobredosis Garden" }, // jueves 27-30 de agosto (ver:
     // https://www.facebook.com/photo/?fbid=673593008144144&set=pcb.673593201477458)
+
+    public Event() {
+        // jpa only
+    }
+
+    public Event(String name, LocalDateTime startTime, LocalDateTime endTime) {
+        this.name = name;
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
 
 }
