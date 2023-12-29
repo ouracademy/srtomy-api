@@ -4,12 +4,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.ouracademy.srtomy.organization.Organization;
 import org.ouracademy.srtomy.person.Person;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 
 @Entity
@@ -27,6 +29,11 @@ public class Event {
     LocalDateTime startTime;
     // opcional? (ver 1, 2 y 3)
     LocalDateTime endTime;
+
+    String address;
+
+    @ManyToOne(optional = false)
+    Organization organization;
 
     // 1 { name: "Viernes con Jesús" }, 24 de noviembre, 7:30pm, jose mena
     // 2 { name: "Reunión de hombres" }, 28 de octubre, 7:30pm

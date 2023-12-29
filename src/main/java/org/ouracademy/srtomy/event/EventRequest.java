@@ -19,4 +19,9 @@ public class EventRequest {
     LocalDateTime endTime;
 
     List<Long> speakerIds = new ArrayList<>();
+
+    String address;
+
+    @NotNull
+    Long organizationId;
 }

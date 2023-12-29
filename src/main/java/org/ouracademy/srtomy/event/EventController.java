@@ -2,6 +2,7 @@ package org.ouracademy.srtomy.event;
 
 import java.util.List;
 
+import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,7 @@ public class EventController {
 
     EventRepository eventRepository;
     PersonRepository personRepository;
+    OrganizationRepository organizationRepository;
 
     @GetMapping
     public List<Event> findAll() {
@@ -41,6 +43,8 @@ public class EventController {
     @ResponseStatus(code = HttpStatus.CREATED)
     public Event create(@RequestBody @Valid EventRequest eventRequest) {
         var event = new Event(eventRequest.name, eventRequest.startTime, eventRequest.endTime);
+        event.organization = organizationRepository.getReferenceById(eventRequest.organizationId);
+        event.address = eventRequest.address;
         event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
         return eventRepository.save(event);
     }
