@@ -1,18 +1,14 @@
 package org.ouracademy.srtomy.organization;
 
+import org.ouracademy.srtomy.domain.DomainObject;
+
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 
 @Entity
 @Getter
-public class Organization {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+public class Organization extends DomainObject {
 
     String name;
 

@@ -47,10 +47,11 @@ public class PersonController {
         return personRepository.save(person);
     }
 
-    @PutMapping("{id}")
-    public Person edit(@PathVariable Long id, @RequestBody @Valid Person person) {
-        person.id = id;
-        return personRepository.save(person);
-    }
+    // @PutMapping("{id}")
+    // public Person edit(@PathVariable Long id, @RequestBody @Valid Person person)
+    // {
+    // person.id = id;
+    // return personRepository.save(person);
+    // }
 
 }

@@ -1,18 +1,13 @@
 package org.ouracademy.srtomy.event;
 
+import org.ouracademy.srtomy.domain.DomainObject;
 import org.ouracademy.srtomy.person.Person;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 
 @Entity
-public class Attendance {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+public class Attendance extends DomainObject {
 
     @ManyToOne(optional = false)
     Person person;
