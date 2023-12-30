@@ -6,9 +6,11 @@ import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -27,6 +29,7 @@ public class EventController {
     EventRepository eventRepository;
     PersonRepository personRepository;
     OrganizationRepository organizationRepository;
+    AttendanceRepository attendanceRepository;
 
     @GetMapping
     public List<Event> findAll() {
@@ -47,6 +50,18 @@ public class EventController {
         event.address = eventRequest.address;
         event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
         return eventRepository.save(event);
+    }
+
+    @PutMapping("{id}/attendance")
+    @ResponseStatus(code = HttpStatus.CREATED)
+    @Transactional
+    public void registerAttendance(@PathVariable Long id, @RequestBody @Valid AttendanceRequest attendanceRequest) {
+        var event = eventRepository.getReferenceById(id);
+        var attendances = attendanceRequest.personIds.stream()
+                .map(personId -> new Attendance(event, personRepository.getReferenceById(personId)))
+                .toList();
+        attendanceRepository.deleteAllByEvent(event);
+        attendanceRepository.saveAll(attendances);
     }
 
     // @PutMapping("{id}")

@@ -19,4 +19,14 @@ public class Attendance {
 
     @ManyToOne(optional = false)
     Event event;
+
+    public Attendance(Event event, Person person) {
+        this.event = event;
+        this.person = person;
+    }
+
+    Attendance() {
+        // jpa only
+    }
+
 }
