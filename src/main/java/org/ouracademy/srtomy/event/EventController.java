@@ -52,6 +52,12 @@ public class EventController {
         return eventRepository.save(event);
     }
 
+    @GetMapping("{id}/attendance")
+    public List<Long> getAttendance(@PathVariable Long id) {
+        var personIds = attendanceRepository.findPersonIdsByEventId(id);
+        return personIds;
+    }
+
     @PutMapping("{id}/attendance")
     @ResponseStatus(code = HttpStatus.CREATED)
     @Transactional
