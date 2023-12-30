@@ -1,5 +1,6 @@
 package org.ouracademy.srtomy.person;
 
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,7 @@ public class PersonController {
     PersonRepository personRepository;
 
     @GetMapping
-    public Page<Person> findAll(String searchText, Pageable pageable) {
+    public Page<Person> findAll(String searchText, @ParameterObject Pageable pageable) {
         // TODO: list person of organization
         if (searchText != null) {
             return personRepository.findByName(searchText, pageable);
