@@ -47,11 +47,17 @@ public class PersonController {
         return personRepository.save(person);
     }
 
-    // @PutMapping("{id}")
-    // public Person edit(@PathVariable Long id, @RequestBody @Valid Person person)
-    // {
-    // person.id = id;
-    // return personRepository.save(person);
-    // }
+    @PutMapping("{id}")
+    public ResponseEntity<Person> edit(@PathVariable Long id, @RequestBody @Valid Person personRequest) {
+        return personRepository.findById(id).map(person -> {
+            person.firstName = personRequest.firstName;
+            person.lastName = personRequest.lastName;
+            person.phoneNumber = personRequest.phoneNumber;
+            person.age = personRequest.age;
+            person.birthdate = personRequest.birthdate;
+
+            return ResponseEntity.ok(personRepository.save(person));
+        }).orElse(ResponseEntity.notFound().build());
+    }
 
 }
