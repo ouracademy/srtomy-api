@@ -1,5 +1,6 @@
 package org.ouracademy.srtomy.person;
 
+import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ import lombok.AllArgsConstructor;
 public class PersonController {
 
     PersonRepository personRepository;
+    OrganizationRepository organizationRepository;
 
     @GetMapping
     public Page<Person> findAll(String searchText, @ParameterObject Pageable pageable) {
@@ -43,21 +45,27 @@ public class PersonController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
-    public Person create(@RequestBody @Valid Person person) {
-        return personRepository.save(person);
+    public Person create(@RequestBody @Valid PersonRequest personRequest) {
+        return personRepository.save(toModel(personRequest, new Person()));
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<Person> edit(@PathVariable Long id, @RequestBody @Valid Person personRequest) {
+    public ResponseEntity<Person> edit(@PathVariable Long id, @RequestBody @Valid PersonRequest personRequest) {
         return personRepository.findById(id).map(person -> {
-            person.firstName = personRequest.firstName;
-            person.lastName = personRequest.lastName;
-            person.phoneNumber = personRequest.phoneNumber;
-            person.age = personRequest.age;
-            person.birthdate = personRequest.birthdate;
+            toModel(personRequest, person);
 
             return ResponseEntity.ok(personRepository.save(person));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    private Person toModel(PersonRequest personRequest, Person person) {
+        person.firstName = personRequest.firstName;
+        person.lastName = personRequest.lastName;
+        person.phoneNumber = personRequest.phoneNumber;
+        person.age = personRequest.age;
+        person.birthdate = personRequest.birthdate;
+        person.organization = organizationRepository.getReferenceById(personRequest.organizationId);
+        return person;
     }
 
 }

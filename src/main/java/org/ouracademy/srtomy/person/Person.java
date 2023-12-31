@@ -3,11 +3,10 @@ package org.ouracademy.srtomy.person;
 import java.time.LocalDate;
 
 import org.ouracademy.srtomy.domain.DomainObject;
+import org.ouracademy.srtomy.organization.Organization;
 
 import jakarta.persistence.Entity;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PastOrPresent;
-import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,18 +15,16 @@ import lombok.Setter;
 @Setter
 public class Person extends DomainObject {
 
-    @NotBlank
     String firstName;
-    @NotBlank
     String lastName;
 
     // TODO: validate
     String phoneNumber;
-
-    @PositiveOrZero
     Integer age;
-    @PastOrPresent
     LocalDate birthdate;
+
+    @ManyToOne(optional = false)
+    Organization organization;
 
     public String getFullName() {
         return firstName + " " + lastName;
