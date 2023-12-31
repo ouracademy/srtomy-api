@@ -45,16 +45,16 @@ public class PersonController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
-    public Person create(@RequestBody @Valid PersonRequest personRequest) {
-        return personRepository.save(toModel(personRequest, new Person()));
+    public Long create(@RequestBody @Valid PersonRequest personRequest) {
+        var person = personRepository.save(toModel(personRequest, new Person()));
+        return person.getId();
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<Person> edit(@PathVariable Long id, @RequestBody @Valid PersonRequest personRequest) {
+    public ResponseEntity<Long> edit(@PathVariable Long id, @RequestBody @Valid PersonRequest personRequest) {
         return personRepository.findById(id).map(person -> {
             toModel(personRequest, person);
-
-            return ResponseEntity.ok(personRepository.save(person));
+            return ResponseEntity.ok(personRepository.save(person).getId());
         }).orElse(ResponseEntity.notFound().build());
     }
 
