@@ -4,6 +4,9 @@ import java.util.List;
 
 import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.person.PersonRepository;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,9 +35,9 @@ public class EventController {
     AttendanceRepository attendanceRepository;
 
     @GetMapping
-    public List<Event> findAll() {
+    public Page<EventSimpleItem> findAll(@ParameterObject Pageable pageable) {
         // TODO: list events of an org
-        return eventRepository.findAll();
+        return eventRepository.findSimpleBy(pageable);
     }
 
     @GetMapping("{id}")
