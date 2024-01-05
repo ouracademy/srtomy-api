@@ -47,13 +47,13 @@ public class EventController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
-    public Event create(@RequestBody @Valid EventRequest eventRequest) {
+    public Long create(@RequestBody @Valid EventRequest eventRequest) {
         var event = new Event(eventRequest.name, eventRequest.startTime, eventRequest.endTime);
         event.organization = organizationRepository.getReferenceById(eventRequest.organizationId);
         event.address = eventRequest.address;
         event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
         event.description = eventRequest.description;
-        return eventRepository.save(event);
+        return eventRepository.save(event).getId();
     }
 
     @GetMapping("{id}/attendance")
