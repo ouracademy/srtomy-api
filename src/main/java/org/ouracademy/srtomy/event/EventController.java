@@ -52,6 +52,7 @@ public class EventController {
         event.organization = organizationRepository.getReferenceById(eventRequest.organizationId);
         event.address = eventRequest.address;
         event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
+        event.description = eventRequest.description;
         return eventRepository.save(event);
     }
 

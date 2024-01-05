@@ -24,4 +24,6 @@ public class EventRequest {
 
     @NotNull
     Long organizationId;
+
+    String description;
 }

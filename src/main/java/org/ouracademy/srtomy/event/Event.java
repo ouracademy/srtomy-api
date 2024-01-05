@@ -32,7 +32,7 @@ public class Event extends DomainObject implements EventSimpleItem {
     @ManyToOne(optional = false)
     Organization organization;
 
-    // String description;
+    String description;
 
     // 1 { name: "Viernes con Jesús" }, 24 de noviembre, 7:30pm, jose mena
     // 2 { name: "Reunión de hombres" }, 28 de octubre, 7:30pm
