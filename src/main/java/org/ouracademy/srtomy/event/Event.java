@@ -1,6 +1,6 @@
 package org.ouracademy.srtomy.event;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,9 +23,9 @@ public class Event extends DomainObject implements EventSimpleItem {
     List<Person> speakers = new ArrayList<>();
 
     // opcional en caso que solo quiera registrar asistencia (ver 5)
-    LocalDateTime startTime;
+    ZonedDateTime startTime;
     // opcional? (ver 1, 2 y 3)
-    LocalDateTime endTime;
+    ZonedDateTime endTime;
 
     String address;
 
@@ -56,7 +56,7 @@ public class Event extends DomainObject implements EventSimpleItem {
         // jpa only
     }
 
-    public Event(String name, LocalDateTime startTime, LocalDateTime endTime) {
+    public Event(String name, ZonedDateTime startTime, ZonedDateTime endTime) {
         this.name = name;
         this.startTime = startTime;
         this.endTime = endTime;

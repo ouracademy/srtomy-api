@@ -1,13 +1,13 @@
 package org.ouracademy.srtomy.event;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 public interface EventSimpleItem {
     Long getId();
 
     String getName();
 
-    LocalDateTime getStartTime();
+    ZonedDateTime getStartTime();
 
-    LocalDateTime getEndTime();
+    ZonedDateTime getEndTime();
 }

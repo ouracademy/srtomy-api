@@ -1,6 +1,6 @@
 package org.ouracademy.srtomy.event;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,9 +14,9 @@ public class EventRequest {
     String name;
 
     @NotNull
-    LocalDateTime startTime;
+    ZonedDateTime startTime;
     @NotNull
-    LocalDateTime endTime;
+    ZonedDateTime endTime;
 
     List<Long> speakerIds = new ArrayList<>();
 

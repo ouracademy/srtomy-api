@@ -21,6 +21,9 @@ public class DomainObject {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
+    // TODO: maybe ZonedDateTime?
+    // check if apply the same in LocalDate
+
     @CreatedDate
     LocalDateTime createDate;
 
