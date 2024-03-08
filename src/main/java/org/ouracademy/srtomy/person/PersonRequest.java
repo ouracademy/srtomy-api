@@ -24,6 +24,8 @@ public class PersonRequest {
     @PastOrPresent
     LocalDate birthdate;
 
+    Boolean hasBeenBaptized;
+
     @NotNull
     Long organizationId;
 }

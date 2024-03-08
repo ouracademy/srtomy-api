@@ -65,6 +65,7 @@ public class PersonController {
         person.age = personRequest.age;
         person.birthdate = personRequest.birthdate;
         person.organization = organizationRepository.getReferenceById(personRequest.organizationId);
+        person.hasBeenBaptized = personRequest.hasBeenBaptized;
         return person;
     }
 

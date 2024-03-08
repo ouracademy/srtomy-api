@@ -22,6 +22,7 @@ public class Person extends DomainObject {
     String phoneNumber;
     Integer age;
     LocalDate birthdate;
+    Boolean hasBeenBaptized;
 
     @ManyToOne(optional = false)
     Organization organization;
