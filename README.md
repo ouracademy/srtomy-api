@@ -16,8 +16,17 @@ Un sistema para iglesias
 
 `gcloud auth application-default login --impersonate-service-account farmacia-unmsm-dev-app@farmacia-unmsm-dev.iam.gserviceaccount.com`
 
-### Deploy to appengine
+### Deploy to cloudrun
 
-<!-- `gcloud app deploy` -->
+```sh
+export PROJECT_ID=$(gcloud config get-value project)
+gcloud auth configure-docker
+gcloud auth configure-docker southamerica-west1-docker.pkg.dev
+docker push gcr.io/${PROJECT_ID}/sr-tommy-api
+```
 
-`./mvnw -DskipTests package appengine:deploy`
+```sh
+./mvnw spring-boot:build-image \
+  -Dspring-boot.build-image.imageName=gcr.io/${PROJECT_ID}/sr-tommy-api \
+  -Dspring-boot.build-image.builder=gcr.io/buildpacks/builder
+```
