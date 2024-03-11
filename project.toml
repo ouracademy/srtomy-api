@@ -1,3 +1,5 @@
 [[build.env]]
 name = "GOOGLE_RUNTIME_VERSION"
 value = "17"
+name = "SPRING_PROFILES_ACTIVE"
+value = "prod"
