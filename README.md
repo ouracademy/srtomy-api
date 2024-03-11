@@ -14,6 +14,12 @@ Un sistema para iglesias
 
 ### Credentials authenticate
 
+<!-- arthur only -->
+
+`gcloud auth application-default login`
+
+<!-- for other devs -->
+
 `gcloud auth application-default login --impersonate-service-account farmacia-unmsm-dev-app@farmacia-unmsm-dev.iam.gserviceaccount.com`
 
 ### Deploy to cloudrun

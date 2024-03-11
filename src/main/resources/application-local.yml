@@ -1,4 +1,8 @@
 spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/srtommy
+    username: root
+    password: somesecretpassword
   sql.init.mode: always
   jpa:
     # TODO: remove when moving to production

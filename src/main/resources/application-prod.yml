@@ -1,0 +1,13 @@
+spring:
+  config.import: sm://
+  datasource:
+    url: ${sm://db-url}
+    username: ${sm://db-user}
+    password: ${sm://db-password}
+  ## TODO: remove here...START
+  sql.init.mode: always
+  jpa:
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: create-drop
+  ## TODO: remove here...END
