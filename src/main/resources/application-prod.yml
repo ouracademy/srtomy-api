@@ -6,6 +6,13 @@ spring:
     password: ${sm://db-password}
   ## TODO: remove here...START
   jpa:
+    # TODO: remove when moving to production
     hibernate:
+      # only initially for prototype, then use flyway
       ddl-auto: create-drop
+    # use only if you need debug (1)
+    properties:
+      hibernate:
+        show-sql: true
+        format_sql: true
   ## TODO: remove here...END
