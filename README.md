@@ -20,7 +20,7 @@ Un sistema para iglesias
 
 <!-- for other devs -->
 
-`gcloud auth application-default login --impersonate-service-account farmacia-unmsm-dev-app@farmacia-unmsm-dev.iam.gserviceaccount.com`
+`gcloud auth application-default login --impersonate-service-account sr-tommy-dev-api@sr-tommy-dev.iam.gserviceaccount.com`
 
 ### Deploy to appengine
 
