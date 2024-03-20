@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,9 +36,11 @@ public class EventController {
     AttendanceRepository attendanceRepository;
 
     @GetMapping
-    public Page<EventSimpleItem> findAll(@ParameterObject Pageable pageable) {
+    public Page<EventSimpleItem> findAll(
+            @ParameterObject Pageable pageable,
+            @RequestParam(defaultValue = "false") Boolean isACourse) {
         // TODO: list events of an org
-        return eventRepository.findSimpleBy(pageable);
+        return eventRepository.findSimpleByIsACourse(pageable, isACourse);
     }
 
     @GetMapping("{id}")
@@ -53,6 +56,7 @@ public class EventController {
         event.address = eventRequest.address;
         event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
         event.description = eventRequest.description;
+        event.isACourse = eventRequest.isACourse;
         return eventRepository.save(event).getId();
     }
 

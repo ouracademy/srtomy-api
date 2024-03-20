@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
-    Page<EventSimpleItem> findSimpleBy(Pageable pageable);
+    Page<EventSimpleItem> findSimpleByIsACourse(Pageable pageable, Boolean isACourse);
 }

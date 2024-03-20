@@ -26,4 +26,6 @@ public class EventRequest {
     Long organizationId;
 
     String description;
+
+    Boolean isACourse = false;
 }

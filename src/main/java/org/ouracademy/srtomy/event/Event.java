@@ -8,6 +8,7 @@ import org.ouracademy.srtomy.domain.DomainObject;
 import org.ouracademy.srtomy.organization.Organization;
 import org.ouracademy.srtomy.person.Person;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -33,6 +34,9 @@ public class Event extends DomainObject implements EventSimpleItem {
     Organization organization;
 
     String description;
+
+    @Column(name = "is_a_course")
+    Boolean isACourse = false;
 
     // 1 { name: "Viernes con Jesús" }, 24 de noviembre, 7:30pm, jose mena
     // 2 { name: "Reunión de hombres" }, 28 de octubre, 7:30pm
