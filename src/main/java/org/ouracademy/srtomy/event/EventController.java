@@ -1,7 +1,5 @@
 package org.ouracademy.srtomy.event;
 
-import java.util.List;
-
 import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springdoc.core.annotations.ParameterObject;
@@ -33,7 +31,7 @@ public class EventController {
     EventRepository eventRepository;
     PersonRepository personRepository;
     OrganizationRepository organizationRepository;
-    AttendanceRepository attendanceRepository;
+    EventAttendanceRepository eventAttendanceRepository;
 
     @GetMapping
     public Page<EventSimpleItem> findAll(
@@ -61,21 +59,25 @@ public class EventController {
     }
 
     @GetMapping("{id}/attendance")
-    public List<Long> getAttendance(@PathVariable Long id) {
-        var personIds = attendanceRepository.findPersonIdsByEventId(id);
-        return personIds;
+    public ResponseEntity<EventAttendance> getAttendance(@PathVariable Long id) {
+        return ResponseEntity.of(eventAttendanceRepository.findByEventId(id));
     }
 
     @PutMapping("{id}/attendance")
     @ResponseStatus(code = HttpStatus.CREATED)
     @Transactional
     public void registerAttendance(@PathVariable Long id, @RequestBody @Valid AttendanceRequest attendanceRequest) {
-        var event = eventRepository.getReferenceById(id);
-        var attendances = attendanceRequest.personIds.stream()
-                .map(personId -> new Attendance(event, personRepository.getReferenceById(personId)))
-                .toList();
-        attendanceRepository.deleteAllByEvent(event);
-        attendanceRepository.saveAll(attendances);
+        var eventAttendance = eventAttendanceRepository.findByEventId(id).orElse(
+                new EventAttendance(eventRepository.getReferenceById(id)));
+
+        eventAttendance.setPeople(
+                attendanceRequest.personIds.stream()
+                        .map(personId -> personRepository.getReferenceById(personId))
+                        .toList());
+        eventAttendance.setNumberOfVisitors(attendanceRequest.getNumberOfVisitors());
+        eventAttendance.setVisitorsDescription(attendanceRequest.getVisitorsDescription());
+
+        eventAttendanceRepository.save(eventAttendance);
     }
 
     // @PutMapping("{id}")
