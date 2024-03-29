@@ -59,8 +59,15 @@ public class EventController {
     }
 
     @GetMapping("{id}/attendance")
-    public ResponseEntity<EventAttendance> getAttendance(@PathVariable Long id) {
-        return ResponseEntity.of(eventAttendanceRepository.findByEventId(id));
+    public ResponseEntity<EventAttendanceResponse> getAttendance(@PathVariable Long id) {
+        return ResponseEntity.of(
+                eventAttendanceRepository
+                        .findByEventId(id)
+                        .map(x -> EventAttendanceResponse.builder()
+                                .numberOfVisitors(x.getNumberOfVisitors())
+                                .visitorsDescription(x.getVisitorsDescription())
+                                .personIds(x.getPersonIds())
+                                .build()));
     }
 
     @PutMapping("{id}/attendance")
@@ -70,14 +77,13 @@ public class EventController {
         var eventAttendance = eventAttendanceRepository.findByEventId(id).orElse(
                 new EventAttendance(eventRepository.getReferenceById(id)));
 
+        eventAttendance.setNumberOfVisitors(attendanceRequest.getNumberOfVisitors());
+        eventAttendance.setVisitorsDescription(attendanceRequest.getVisitorsDescription());
+        eventAttendanceRepository.save(eventAttendance);
         eventAttendance.setPeople(
                 attendanceRequest.personIds.stream()
                         .map(personId -> personRepository.getReferenceById(personId))
                         .toList());
-        eventAttendance.setNumberOfVisitors(attendanceRequest.getNumberOfVisitors());
-        eventAttendance.setVisitorsDescription(attendanceRequest.getVisitorsDescription());
-
-        eventAttendanceRepository.save(eventAttendance);
     }
 
     // @PutMapping("{id}")

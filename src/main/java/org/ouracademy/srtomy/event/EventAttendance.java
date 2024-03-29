@@ -1,32 +1,39 @@
 package org.ouracademy.srtomy.event;
 
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 
-import org.ouracademy.srtomy.domain.DomainObject;
 import org.ouracademy.srtomy.person.Person;
 import org.ouracademy.srtomy.utils.JpaLists;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Id;
+import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Setter
 @Getter
-public class EventAttendance extends DomainObject {
+public class EventAttendance {
 
-    @ManyToOne(optional = false)
+    @Id
+    Long id;
+
+    @MapsId
+    @OneToOne(optional = false)
     Event event;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    List<Person> people = new ArrayList<>();
-
+    @Setter
     Integer numberOfVisitors;
+
+    @Setter
     String visitorsDescription;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "eventAttendance")
+    List<PersonEventAttendance> personEventAttendances;
 
     public EventAttendance() {
         // jpa only
@@ -36,7 +43,15 @@ public class EventAttendance extends DomainObject {
         this.event = event;
     }
 
+    public List<Long> getPersonIds() {
+        return personEventAttendances.stream().map(x -> x.getPerson().getId()).toList();
+    }
+
     public void setPeople(List<Person> people) {
-        JpaLists.set(this.people, people);
+        JpaLists.set(
+                this.personEventAttendances,
+                people.stream()
+                        .map(person -> new PersonEventAttendance(this, person, LocalDateTime.now()))
+                        .toList());
     }
 }
