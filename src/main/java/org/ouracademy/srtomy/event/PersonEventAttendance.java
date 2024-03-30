@@ -5,8 +5,10 @@ import java.time.LocalDateTime;
 
 import org.ouracademy.srtomy.person.Person;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
@@ -14,6 +16,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+@Entity
 @Getter
 public class PersonEventAttendance {
 
@@ -23,7 +26,9 @@ public class PersonEventAttendance {
     @NoArgsConstructor // jpa only
     @EqualsAndHashCode
     public static class Id implements Serializable {
+        @Column(name = "event_attendance_id")
         private Long eventAttendanceId;
+        @Column(name = "person_id")
         private Long personId;
     }
 
@@ -43,6 +48,7 @@ public class PersonEventAttendance {
     public PersonEventAttendance(EventAttendance eventAttendance, Person person, LocalDateTime dateTime) {
         this.eventAttendance = eventAttendance;
         this.person = person;
+        this.id = new Id(this.eventAttendance.getId(), this.person.getId());
         this.dateTime = dateTime;
     }
 

@@ -7,6 +7,7 @@ import org.ouracademy.srtomy.person.Person;
 import org.ouracademy.srtomy.utils.JpaLists;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.MapsId;
@@ -30,10 +31,14 @@ public class EventAttendance {
     Integer numberOfVisitors;
 
     @Setter
+    @Column(columnDefinition = "text")
     String visitorsDescription;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "eventAttendance")
     List<PersonEventAttendance> personEventAttendances;
+
+    @Column(nullable = false)
+    LocalDateTime dateTime;
 
     public EventAttendance() {
         // jpa only
@@ -41,6 +46,7 @@ public class EventAttendance {
 
     EventAttendance(Event event) {
         this.event = event;
+        this.dateTime = LocalDateTime.now();
     }
 
     public List<Long> getPersonIds() {
@@ -51,7 +57,7 @@ public class EventAttendance {
         JpaLists.set(
                 this.personEventAttendances,
                 people.stream()
-                        .map(person -> new PersonEventAttendance(this, person, LocalDateTime.now()))
+                        .map(person -> new PersonEventAttendance(this, person, this.dateTime))
                         .toList());
     }
 }
