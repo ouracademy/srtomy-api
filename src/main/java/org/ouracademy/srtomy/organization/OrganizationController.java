@@ -2,6 +2,7 @@ package org.ouracademy.srtomy.organization;
 
 import java.util.List;
 
+import org.ouracademy.srtomy.organization.Organization.Type;
 import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.springframework.http.HttpStatus;
@@ -41,12 +42,30 @@ public class OrganizationController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
-    public Organization create(@RequestBody @Valid OrganizationRequest organizationRequest) {
+    public Organization create(@RequestBody @Valid OrganizationRequest request) {
+        return createOrg(request, Type.CHURCH);
+    }
+
+    @PostMapping("/location")
+    @ResponseStatus(code = HttpStatus.CREATED)
+    public Organization createLocation(@RequestBody @Valid LocationRequest request) {
+        return createOrg(request, Type.LOCATION);
+    }
+
+    @PostMapping("/location/child")
+    @ResponseStatus(code = HttpStatus.CREATED)
+    public Organization createLocationChild(@RequestBody @Valid LocationChildRequest request) {
+        return createOrg(request, request.type);
+    }
+
+    private Organization createOrg(OrganizationRequest organizationRequest, Type type) {
         var organization = new Organization(organizationRequest.name);
+        organization.description = organizationRequest.description;
         organization.phoneNumber = organizationRequest.phoneNumber;
         organization.address = organizationRequest.address;
-        organization.parent = organizationRequest.parentId == null ? null
-                : organizationRepository.getReferenceById(organizationRequest.parentId);
+        organization.type = type;
+        // organization.parent = organizationRequest.parentId == null ? null
+        // : organizationRepository.getReferenceById(organizationRequest.parentId);
 
         return organizationRepository.save(organization);
     }
@@ -56,10 +75,9 @@ public class OrganizationController {
             @RequestBody @Valid OrganizationRequest organizationRequest) {
         return organizationRepository.findById(id).map(organization -> {
             organization.name = organizationRequest.name;
+            organization.description = organizationRequest.description;
             organization.phoneNumber = organizationRequest.phoneNumber;
             organization.address = organizationRequest.address;
-            organization.parent = organizationRequest.parentId == null ? null
-                    : organizationRepository.getReferenceById(organizationRequest.parentId);
 
             return ResponseEntity.ok(organizationRepository.save(organization));
         }).orElse(ResponseEntity.notFound().build());

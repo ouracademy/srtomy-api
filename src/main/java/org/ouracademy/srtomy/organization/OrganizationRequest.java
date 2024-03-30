@@ -8,9 +8,9 @@ public class OrganizationRequest {
     @NotBlank
     String name;
 
+    String description;
+
     String address;
 
     String phoneNumber;
-
-    Long parentId;
 }
