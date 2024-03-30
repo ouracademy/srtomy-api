@@ -2,6 +2,8 @@ package org.ouracademy.srtomy.organization;
 
 import java.util.List;
 
+import org.ouracademy.srtomy.person.Accountability;
+import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +26,7 @@ import lombok.AllArgsConstructor;
 public class OrganizationController {
 
     OrganizationRepository organizationRepository;
+    AccountabilityRepository accountabilityRepository;
 
     @GetMapping
     public List<Organization> findAll() {
@@ -60,6 +63,11 @@ public class OrganizationController {
 
             return ResponseEntity.ok(organizationRepository.save(organization));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("{id}/member-state")
+    public List<Accountability> getMemberState(@PathVariable Long id) {
+        return accountabilityRepository.findByOrganizationIdAndTypeIn(id, Accountability.MEMBER_ACCOUNTABILITIES);
     }
 
 }
