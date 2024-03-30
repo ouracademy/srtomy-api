@@ -45,26 +45,27 @@ public class PersonController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
-    public Long create(@RequestBody @Valid PersonRequest personRequest) {
-        var person = personRepository.save(toModel(personRequest, new Person()));
+    public Long create(@RequestBody @Valid CreatePersonRequest personRequest) {
+        var person = toModel(personRequest, new Person());
+        person.organization = organizationRepository.getReferenceById(personRequest.organizationId);
+        person = personRepository.save(person);
         return person.getId();
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<Long> edit(@PathVariable Long id, @RequestBody @Valid PersonRequest personRequest) {
+    public ResponseEntity<Long> edit(@PathVariable Long id, @RequestBody @Valid UpdatePersonRequest personRequest) {
         return personRepository.findById(id).map(person -> {
             toModel(personRequest, person);
             return ResponseEntity.ok(personRepository.save(person).getId());
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    private Person toModel(PersonRequest personRequest, Person person) {
+    private Person toModel(UpdatePersonRequest personRequest, Person person) {
         person.firstName = personRequest.firstName;
         person.lastName = personRequest.lastName;
         person.phoneNumber = personRequest.phoneNumber;
         person.age = personRequest.age;
         person.birthdate = personRequest.birthdate;
-        person.organization = organizationRepository.getReferenceById(personRequest.organizationId);
         person.hasBeenBaptized = personRequest.hasBeenBaptized;
         return person;
     }
