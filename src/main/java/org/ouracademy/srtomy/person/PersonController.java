@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +26,7 @@ import lombok.AllArgsConstructor;
 @Tag(name = "people")
 public class PersonController {
 
+    AccountabilityRepository accountabilityRepository;
     PersonRepository personRepository;
     OrganizationRepository organizationRepository;
 
@@ -45,10 +47,14 @@ public class PersonController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
+    @Transactional
     public Long create(@RequestBody @Valid CreatePersonRequest personRequest) {
         var person = toModel(personRequest, new Person());
-        person.organization = organizationRepository.getReferenceById(personRequest.organizationId);
         person = personRepository.save(person);
+
+        var organization = organizationRepository.getReferenceById(personRequest.organizationId);
+        accountabilityRepository.save(
+                new Accountability(person, organization, Accountability.Type.VISITOR));
         return person.getId();
     }
 
