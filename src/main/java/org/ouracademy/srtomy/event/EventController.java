@@ -60,14 +60,15 @@ public class EventController {
 
     @GetMapping("{id}/attendance")
     public ResponseEntity<EventAttendanceResponse> getAttendance(@PathVariable Long id) {
-        return ResponseEntity.of(
-                eventAttendanceRepository
-                        .findByEventId(id)
-                        .map(x -> EventAttendanceResponse.builder()
-                                .numberOfVisitors(x.getNumberOfVisitors())
-                                .visitorsDescription(x.getVisitorsDescription())
-                                .personIds(x.getPersonIds())
-                                .build()));
+        return eventAttendanceRepository
+                .findByEventId(id)
+                .map(x -> EventAttendanceResponse.builder()
+                        .numberOfVisitors(x.getNumberOfVisitors())
+                        .visitorsDescription(x.getVisitorsDescription())
+                        .personIds(x.getPersonIds())
+                        .build())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
     }
 
     @PutMapping("{id}/attendance")
