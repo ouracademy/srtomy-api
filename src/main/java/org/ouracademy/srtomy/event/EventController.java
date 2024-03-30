@@ -79,11 +79,12 @@ public class EventController {
 
         eventAttendance.setNumberOfVisitors(attendanceRequest.getNumberOfVisitors());
         eventAttendance.setVisitorsDescription(attendanceRequest.getVisitorsDescription());
-        eventAttendanceRepository.save(eventAttendance);
+        eventAttendance = eventAttendanceRepository.save(eventAttendance);
         eventAttendance.setPeople(
                 attendanceRequest.personIds.stream()
                         .map(personId -> personRepository.getReferenceById(personId))
                         .toList());
+        eventAttendanceRepository.save(eventAttendance);
     }
 
     // @PutMapping("{id}")

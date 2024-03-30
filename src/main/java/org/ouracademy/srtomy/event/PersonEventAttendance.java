@@ -52,4 +52,8 @@ public class PersonEventAttendance {
         this.dateTime = dateTime;
     }
 
+    PersonEventAttendance() {
+        // jpa only
+    }
+
 }

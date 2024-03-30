@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.event;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.ouracademy.srtomy.person.Person;
@@ -10,6 +11,7 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
@@ -25,6 +27,7 @@ public class EventAttendance {
 
     @MapsId
     @OneToOne(optional = false)
+    @JoinColumn(name = "id")
     Event event;
 
     @Setter
@@ -35,7 +38,7 @@ public class EventAttendance {
     String visitorsDescription;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "eventAttendance")
-    List<PersonEventAttendance> personEventAttendances;
+    List<PersonEventAttendance> personEventAttendances = new ArrayList<>();
 
     @Column(nullable = false)
     LocalDateTime dateTime;
