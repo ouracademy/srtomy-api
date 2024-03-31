@@ -29,9 +29,10 @@ public class OrganizationController {
     OrganizationRepository organizationRepository;
     AccountabilityRepository accountabilityRepository;
 
-    @GetMapping
+    @GetMapping("{id}/childs")
     public List<Organization> findAll() {
         // TODO: list organizations of a user
+        // TODO: add authorization
         return organizationRepository.findAll();
     }
 
@@ -46,13 +47,13 @@ public class OrganizationController {
         return createOrg(request, Type.CHURCH);
     }
 
-    @PostMapping("/location")
+    @PostMapping("/locations")
     @ResponseStatus(code = HttpStatus.CREATED)
     public Organization createLocation(@RequestBody @Valid LocationRequest request) {
         return createOrg(request, Type.LOCATION);
     }
 
-    @PostMapping("/location/child")
+    @PostMapping("/locations/childs")
     @ResponseStatus(code = HttpStatus.CREATED)
     public Organization createLocationChild(@RequestBody @Valid LocationChildRequest request) {
         return createOrg(request, request.type);
