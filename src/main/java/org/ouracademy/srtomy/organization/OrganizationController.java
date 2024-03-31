@@ -7,6 +7,7 @@ import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -59,14 +60,20 @@ public class OrganizationController {
         return createOrg(request, request.type);
     }
 
-    private Organization createOrg(OrganizationRequest organizationRequest, Type type) {
+    @Transactional
+    public Organization createOrg(OrganizationRequest organizationRequest, Type type) {
         var organization = new Organization(organizationRequest.name);
         fillInfo(organizationRequest, organization);
         organization.type = type;
-        // organization.parent = organizationRequest.parentId == null ? null
-        // : organizationRepository.getReferenceById(organizationRequest.parentId);
+        organization = organizationRepository.save(organization);
 
-        return organizationRepository.save(organization);
+        if (organizationRequest.parentId != null) {
+            var parent = organizationRepository.getReferenceById(organizationRequest.parentId);
+            accountabilityRepository.save(
+                    new Accountability(organization, parent, Accountability.Type.IS_PART_OF));
+        }
+
+        return organization;
     }
 
     @PutMapping("{id}")

@@ -13,4 +13,6 @@ public class OrganizationRequest {
     String address;
 
     String phoneNumber;
+
+    Long parentId;
 }

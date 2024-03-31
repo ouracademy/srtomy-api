@@ -23,7 +23,7 @@ public class Accountability extends DomainObject {
     @Enumerated(EnumType.STRING)
     Type type;
 
-    enum Type {
+    public enum Type {
         // Person and Org (like location, group or ministry)
         VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER,
         // Org and Org
@@ -36,7 +36,7 @@ public class Accountability extends DomainObject {
         // jpa only
     }
 
-    Accountability(Party child, Party parent, Type type) {
+    public Accountability(Party child, Party parent, Type type) {
         this.child = child;
         this.parent = parent;
         this.type = type;
