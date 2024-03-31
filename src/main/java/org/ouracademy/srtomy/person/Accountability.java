@@ -3,7 +3,6 @@ package org.ouracademy.srtomy.person;
 import java.util.List;
 
 import org.ouracademy.srtomy.domain.DomainObject;
-import org.ouracademy.srtomy.organization.Organization;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,16 +15,19 @@ import lombok.Getter;
 public class Accountability extends DomainObject {
 
     @ManyToOne(optional = false)
-    Person person;
+    Party child;
 
     @ManyToOne(optional = false)
-    Organization organization;
+    Party parent;
 
     @Enumerated(EnumType.STRING)
     Type type;
 
     enum Type {
-        VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER
+        // Person and Org (like location, group or ministry)
+        VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER,
+        // Org and Org
+        IS_PART_OF
     }
 
     public static List<Type> MEMBER_ACCOUNTABILITIES = List.of(Type.VISITOR, Type.MEMBERSHIP_IN_PROGRESS, Type.MEMBER);
@@ -34,9 +36,9 @@ public class Accountability extends DomainObject {
         // jpa only
     }
 
-    Accountability(Person person, Organization organization, Type type) {
-        this.person = person;
-        this.organization = organization;
+    Accountability(Party child, Party parent, Type type) {
+        this.child = child;
+        this.parent = parent;
         this.type = type;
     }
 

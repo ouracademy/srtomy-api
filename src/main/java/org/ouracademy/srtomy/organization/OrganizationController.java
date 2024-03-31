@@ -61,9 +61,7 @@ public class OrganizationController {
 
     private Organization createOrg(OrganizationRequest organizationRequest, Type type) {
         var organization = new Organization(organizationRequest.name);
-        organization.description = organizationRequest.description;
-        organization.phoneNumber = organizationRequest.phoneNumber;
-        organization.address = organizationRequest.address;
+        fillInfo(organizationRequest, organization);
         organization.type = type;
         // organization.parent = organizationRequest.parentId == null ? null
         // : organizationRepository.getReferenceById(organizationRequest.parentId);
@@ -75,18 +73,22 @@ public class OrganizationController {
     public ResponseEntity<Organization> edit(@PathVariable Long id,
             @RequestBody @Valid OrganizationRequest organizationRequest) {
         return organizationRepository.findById(id).map(organization -> {
-            organization.name = organizationRequest.name;
-            organization.description = organizationRequest.description;
-            organization.phoneNumber = organizationRequest.phoneNumber;
-            organization.address = organizationRequest.address;
+            organization.setName(organizationRequest.name);
+            fillInfo(organizationRequest, organization);
 
             return ResponseEntity.ok(organizationRepository.save(organization));
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    private void fillInfo(OrganizationRequest organizationRequest, Organization organization) {
+        organization.setDescription(organizationRequest.description);
+        organization.setPhoneNumber(organizationRequest.phoneNumber);
+        organization.setAddress(organizationRequest.address);
+    }
+
     @GetMapping("{id}/member-state")
     public List<Accountability> getMemberState(@PathVariable Long id) {
-        return accountabilityRepository.findByOrganizationIdAndTypeIn(id, Accountability.MEMBER_ACCOUNTABILITIES);
+        return accountabilityRepository.findByParentIdAndTypeIn(id, Accountability.MEMBER_ACCOUNTABILITIES);
     }
 
 }

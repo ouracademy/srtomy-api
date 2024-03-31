@@ -69,6 +69,7 @@ public class PersonController {
     private Person toModel(UpdatePersonRequest personRequest, Person person) {
         person.firstName = personRequest.firstName;
         person.lastName = personRequest.lastName;
+        person.name = personRequest.firstName + " " + personRequest.lastName;
         person.phoneNumber = personRequest.phoneNumber;
         person.age = personRequest.age;
         person.birthdate = personRequest.birthdate;

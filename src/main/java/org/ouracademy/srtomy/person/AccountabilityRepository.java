@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AccountabilityRepository extends JpaRepository<Accountability, Long> {
 
-    List<Accountability> findByOrganizationIdAndTypeIn(Long id, List<Type> types);
+    List<Accountability> findByParentIdAndTypeIn(Long id, List<Type> types);
 }
