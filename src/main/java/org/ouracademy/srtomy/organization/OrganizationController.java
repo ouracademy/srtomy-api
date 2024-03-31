@@ -31,10 +31,12 @@ public class OrganizationController {
     AccountabilityRepository accountabilityRepository;
 
     @GetMapping("{id}/childs")
-    public List<Organization> findAll() {
+    public List<Organization> findAll(@PathVariable Long id) {
         // TODO: list organizations of a user
         // TODO: add authorization
-        return organizationRepository.findAll();
+        return accountabilityRepository.findByParentIdAndTypeIn(id, List.of(Accountability.Type.IS_PART_OF)).stream()
+                .map(x -> (Organization) x.getChild())
+                .toList();
     }
 
     @GetMapping("{id}")
