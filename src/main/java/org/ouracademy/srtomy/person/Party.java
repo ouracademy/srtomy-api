@@ -26,5 +26,6 @@ public abstract class Party extends DomainObject {
     protected String phoneNumber;
 
     @Setter
+    @Column(columnDefinition = "text")
     protected String address;
 }
