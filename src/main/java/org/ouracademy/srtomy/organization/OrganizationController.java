@@ -2,8 +2,12 @@ package org.ouracademy.srtomy.organization;
 
 import java.util.List;
 
+import org.ouracademy.srtomy.organization.Organization.Type;
+import org.ouracademy.srtomy.person.Accountability;
+import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,11 +28,15 @@ import lombok.AllArgsConstructor;
 public class OrganizationController {
 
     OrganizationRepository organizationRepository;
+    AccountabilityRepository accountabilityRepository;
 
-    @GetMapping
-    public List<Organization> findAll() {
+    @GetMapping("{id}/childs")
+    public List<Organization> findAll(@PathVariable Long id) {
         // TODO: list organizations of a user
-        return organizationRepository.findAll();
+        // TODO: add authorization
+        return accountabilityRepository.findByParentIdAndTypeIn(id, List.of(Accountability.Type.IS_PART_OF)).stream()
+                .map(x -> (Organization) x.getChild())
+                .toList();
     }
 
     @GetMapping("{id}")
@@ -38,28 +46,58 @@ public class OrganizationController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
-    public Organization create(@RequestBody @Valid OrganizationRequest organizationRequest) {
-        var organization = new Organization(organizationRequest.name);
-        organization.phoneNumber = organizationRequest.phoneNumber;
-        organization.address = organizationRequest.address;
-        organization.parent = organizationRequest.parentId == null ? null
-                : organizationRepository.getReferenceById(organizationRequest.parentId);
+    public Organization create(@RequestBody @Valid OrganizationRequest request) {
+        return createOrg(request, Type.CHURCH);
+    }
 
-        return organizationRepository.save(organization);
+    @PostMapping("/locations")
+    @ResponseStatus(code = HttpStatus.CREATED)
+    public Organization createLocation(@RequestBody @Valid LocationRequest request) {
+        return createOrg(request, Type.LOCATION);
+    }
+
+    @PostMapping("/locations/childs")
+    @ResponseStatus(code = HttpStatus.CREATED)
+    public Organization createLocationChild(@RequestBody @Valid LocationChildRequest request) {
+        return createOrg(request, request.type);
+    }
+
+    @Transactional
+    public Organization createOrg(OrganizationRequest organizationRequest, Type type) {
+        var organization = new Organization(organizationRequest.name);
+        fillInfo(organizationRequest, organization);
+        organization.type = type;
+        organization = organizationRepository.save(organization);
+
+        if (organizationRequest.parentId != null) {
+            var parent = organizationRepository.getReferenceById(organizationRequest.parentId);
+            accountabilityRepository.save(
+                    new Accountability(organization, parent, Accountability.Type.IS_PART_OF));
+        }
+
+        return organization;
     }
 
     @PutMapping("{id}")
     public ResponseEntity<Organization> edit(@PathVariable Long id,
             @RequestBody @Valid OrganizationRequest organizationRequest) {
         return organizationRepository.findById(id).map(organization -> {
-            organization.name = organizationRequest.name;
-            organization.phoneNumber = organizationRequest.phoneNumber;
-            organization.address = organizationRequest.address;
-            organization.parent = organizationRequest.parentId == null ? null
-                    : organizationRepository.getReferenceById(organizationRequest.parentId);
+            organization.setName(organizationRequest.name);
+            fillInfo(organizationRequest, organization);
 
             return ResponseEntity.ok(organizationRepository.save(organization));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    private void fillInfo(OrganizationRequest organizationRequest, Organization organization) {
+        organization.setDescription(organizationRequest.description);
+        organization.setPhoneNumber(organizationRequest.phoneNumber);
+        organization.setAddress(organizationRequest.address);
+    }
+
+    @GetMapping("{id}/member-state")
+    public List<Accountability> getMemberState(@PathVariable Long id) {
+        return accountabilityRepository.findByParentIdAndTypeIn(id, Accountability.MEMBER_ACCOUNTABILITIES);
     }
 
 }

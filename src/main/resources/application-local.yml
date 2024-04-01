@@ -10,18 +10,17 @@ spring:
       hibernate:
         show-sql: true
         format_sql: true
-# see https://stackoverflow.com/questions/31585698/spring-boot-jpa2-hibernate-enable-second-level-cache
+
+logging:
+  # use only if you need debug (1)
+  level:
+    org:
+      hibernate:
+        SQL: DEBUG
+# type.descriptor.sql.BasicBinder: TRACE # to show parameter (values) of sql queries
 
 # flyway:
 #   locations: classpath:/db/migration,classpath:/db/testdata
-
-# use only if you need debug (1)
-# logging:
-#   level:
-#     org:
-#       hibernate:
-#         SQL: DEBUG
-# type.descriptor.sql.BasicBinder: TRACE # to show parameter (values) of sql queries
 
 # monitoring, more on: https://docs.spring.io/spring-boot/docs/current/reference/html/appendix-application-properties.html#common-application-properties-actuator
 # management:

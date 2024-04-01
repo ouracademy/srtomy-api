@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +26,7 @@ import lombok.AllArgsConstructor;
 @Tag(name = "people")
 public class PersonController {
 
+    AccountabilityRepository accountabilityRepository;
     PersonRepository personRepository;
     OrganizationRepository organizationRepository;
 
@@ -45,26 +47,32 @@ public class PersonController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
-    public Long create(@RequestBody @Valid PersonRequest personRequest) {
-        var person = personRepository.save(toModel(personRequest, new Person()));
+    @Transactional
+    public Long create(@RequestBody @Valid CreatePersonRequest personRequest) {
+        var person = toModel(personRequest, new Person());
+        person = personRepository.save(person);
+
+        var organization = organizationRepository.getReferenceById(personRequest.organizationId);
+        accountabilityRepository.save(
+                new Accountability(person, organization, Accountability.Type.VISITOR));
         return person.getId();
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<Long> edit(@PathVariable Long id, @RequestBody @Valid PersonRequest personRequest) {
+    public ResponseEntity<Long> edit(@PathVariable Long id, @RequestBody @Valid UpdatePersonRequest personRequest) {
         return personRepository.findById(id).map(person -> {
             toModel(personRequest, person);
             return ResponseEntity.ok(personRepository.save(person).getId());
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    private Person toModel(PersonRequest personRequest, Person person) {
+    private Person toModel(UpdatePersonRequest personRequest, Person person) {
         person.firstName = personRequest.firstName;
         person.lastName = personRequest.lastName;
+        person.name = personRequest.firstName + " " + personRequest.lastName;
         person.phoneNumber = personRequest.phoneNumber;
         person.age = personRequest.age;
         person.birthdate = personRequest.birthdate;
-        person.organization = organizationRepository.getReferenceById(personRequest.organizationId);
         person.hasBeenBaptized = personRequest.hasBeenBaptized;
         return person;
     }

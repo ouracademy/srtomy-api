@@ -3,13 +3,14 @@ package org.ouracademy.srtomy.person;
 import java.time.LocalDate;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.PositiveOrZero;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
-public class PersonRequest {
+@Getter
+@Setter
+public class UpdatePersonRequest {
 
     @NotBlank
     String firstName;
@@ -25,7 +26,4 @@ public class PersonRequest {
     LocalDate birthdate;
 
     Boolean hasBeenBaptized;
-
-    @NotNull
-    Long organizationId;
 }

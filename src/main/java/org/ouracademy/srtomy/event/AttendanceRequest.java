@@ -10,4 +10,6 @@ import lombok.Data;
 public class AttendanceRequest {
     @NotNull
     List<Long> personIds = new ArrayList<>();
+    Integer numberOfVisitors;
+    String visitorsDescription;
 }
