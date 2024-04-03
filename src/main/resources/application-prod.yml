@@ -4,4 +4,4 @@ spring:
     url: ${sm://db-url}
     username: ${sm://db-user}
     password: ${sm://db-password}
-    hikari.maximumPoolSize: 1
+    hikari.maximumPoolSize: 2
