@@ -1,10 +1,12 @@
 package org.ouracademy.srtomy.organization;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.ouracademy.srtomy.organization.Organization.Type;
 import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
+import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class OrganizationController {
 
     OrganizationRepository organizationRepository;
     AccountabilityRepository accountabilityRepository;
+    PersonRepository personRepository;
 
     @GetMapping("{id}/childs")
     public List<Organization> findAll(@PathVariable Long id) {
@@ -58,8 +61,21 @@ public class OrganizationController {
 
     @PostMapping("/locations/childs")
     @ResponseStatus(code = HttpStatus.CREATED)
+    @Transactional
     public Organization createLocationChild(@RequestBody @Valid LocationChildRequest request) {
-        return createOrg(request, request.type);
+        Organization locationChild = createOrg(request, request.type);
+        var accountabilities = Stream.concat(
+                request.memberIds.stream()
+                        .map(id -> new Accountability(locationChild,
+                                personRepository.getReferenceById(id),
+                                Accountability.Type.IS_PART_OF)),
+                request.leaderIds.stream()
+                        .map(id -> new Accountability(locationChild,
+                                personRepository.getReferenceById(id),
+                                Accountability.Type.LEADER)))
+                .toList();
+        accountabilityRepository.saveAll(accountabilities);
+        return locationChild;
     }
 
     @Transactional

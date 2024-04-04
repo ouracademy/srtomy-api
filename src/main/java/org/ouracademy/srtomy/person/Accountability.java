@@ -26,8 +26,10 @@ public class Accountability extends DomainObject {
     public enum Type {
         // Person and Org (like location, group or ministry)
         VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER,
-        // Org and Org
-        IS_PART_OF
+        // Party and Org
+        IS_PART_OF,
+        // Person to group/ministry
+        LEADER
     }
 
     public static List<Type> MEMBER_ACCOUNTABILITIES = List.of(Type.VISITOR, Type.MEMBERSHIP_IN_PROGRESS, Type.MEMBER);
