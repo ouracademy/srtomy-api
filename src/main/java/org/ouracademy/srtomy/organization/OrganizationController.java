@@ -1,11 +1,14 @@
 package org.ouracademy.srtomy.organization;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.ouracademy.srtomy.organization.Organization.Type;
 import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
+import org.ouracademy.srtomy.person.Party;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,11 +37,11 @@ public class OrganizationController {
     PersonRepository personRepository;
 
     @GetMapping("{id}/childs")
-    public List<Organization> findAll(@PathVariable Long id) {
+    public List<Party> findAll(@PathVariable Long id) {
         // TODO: list organizations of a user
         // TODO: add authorization
         return accountabilityRepository.findByParentIdAndTypeIn(id, List.of(Accountability.Type.IS_PART_OF)).stream()
-                .map(x -> (Organization) x.getChild())
+                .map(x -> x.getChild())
                 .toList();
     }
 
@@ -59,6 +62,14 @@ public class OrganizationController {
         return createOrg(request, Type.LOCATION);
     }
 
+    @GetMapping("/locations/childs/${id}/members")
+    public Map<Accountability.Type, Party> getLocationChilds(@PathVariable Long id) {
+        return accountabilityRepository
+                .findByParentIdAndTypeIn(id, List.of(Accountability.Type.IS_PART_OF, Accountability.Type.LEADER))
+                .stream()
+                .collect(Collectors.toMap(x -> x.getType(), x -> x.getChild()));
+    }
+
     @PostMapping("/locations/childs")
     @ResponseStatus(code = HttpStatus.CREATED)
     @Transactional
@@ -66,12 +77,14 @@ public class OrganizationController {
         Organization locationChild = createOrg(request, request.type);
         var accountabilities = Stream.concat(
                 request.memberIds.stream()
-                        .map(id -> new Accountability(locationChild,
+                        .map(id -> new Accountability(
                                 personRepository.getReferenceById(id),
+                                locationChild,
                                 Accountability.Type.IS_PART_OF)),
                 request.leaderIds.stream()
-                        .map(id -> new Accountability(locationChild,
+                        .map(id -> new Accountability(
                                 personRepository.getReferenceById(id),
+                                locationChild,
                                 Accountability.Type.LEADER)))
                 .toList();
         accountabilityRepository.saveAll(accountabilities);
