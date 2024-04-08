@@ -2,7 +2,6 @@ package org.ouracademy.srtomy.organization;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.ouracademy.srtomy.organization.Organization.Type;
@@ -21,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import static java.util.stream.Collectors.*;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -63,11 +63,14 @@ public class OrganizationController {
     }
 
     @GetMapping("/locations/childs/{id}/members")
-    public Map<Accountability.Type, Party> getLocationChilds(@PathVariable Long id) {
+    public Map<Accountability.Type, List<Party>> getLocationChilds(@PathVariable Long id) {
         return accountabilityRepository
                 .findByParentIdAndTypeIn(id, List.of(Accountability.Type.IS_PART_OF, Accountability.Type.LEADER))
                 .stream()
-                .collect(Collectors.toMap(x -> x.getType(), x -> x.getChild()));
+                .collect(
+                        groupingBy(
+                                x -> x.getType(),
+                                mapping(x -> x.getChild(), toList())));
     }
 
     @PostMapping("/locations/childs")
