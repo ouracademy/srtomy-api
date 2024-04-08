@@ -62,7 +62,7 @@ public class OrganizationController {
         return createOrg(request, Type.LOCATION);
     }
 
-    @GetMapping("/locations/childs/${id}/members")
+    @GetMapping("/locations/childs/{id}/members")
     public Map<Accountability.Type, Party> getLocationChilds(@PathVariable Long id) {
         return accountabilityRepository
                 .findByParentIdAndTypeIn(id, List.of(Accountability.Type.IS_PART_OF, Accountability.Type.LEADER))
