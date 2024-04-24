@@ -18,7 +18,10 @@ values
     ('MEMBERSHIP_IN_PROGRESS', now(), now()),
     ('MEMBER', now(), now()),
     ('IS_PART_OF', now(), now()),
-    ('LEADER', now(), now());
+    ('LEADER', now(), now()),
+    ('PASTOR', now(), now()),
+    ('WORSHIP_LEADER', now(), now()),
+    ('USHER', now(), now());
 
 alter table
     accountability
