@@ -13,7 +13,7 @@ import lombok.Getter;
 @Entity
 @Getter
 @SQLDelete(sql = "UPDATE accountability_type SET deleted_time = now() WHERE id=?")
-@SQLRestriction("deleted_time is not null")
+@SQLRestriction("deleted_time is null")
 public class AccountabilityType extends DomainObject {
 
     String name;
