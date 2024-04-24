@@ -1,7 +1,5 @@
 package org.ouracademy.srtomy.person;
 
-import java.util.List;
-
 public class SystemAccountabilityTypes {
 
     // Person and Org (like location, group or ministry)
@@ -18,5 +16,5 @@ public class SystemAccountabilityTypes {
     public static final Long WORSHIP_LEADER = 7L;
     public static final Long USHER = 8L;
 
-    public static final List<Long> MEMBER_ACCOUNTABILITIES = List.of(VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER);
+    public static final Long[] MEMBER_ACCOUNTABILITIES = new Long[] { VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER };
 }

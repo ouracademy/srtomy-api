@@ -51,7 +51,8 @@ public class OrganizationController {
     public List<Party> findAll(@PathVariable Long id) {
         // TODO: list organizations of a user
         // TODO: add authorization
-        return accountabilityRepository.findByParentIdAndTypeIn(id, List.of(IS_PART_OF))
+
+        return accountabilityRepository.findByParentIdAndTypeIn(id, types(IS_PART_OF))
                 .stream()
                 .map(x -> x.getChild())
                 .toList();
@@ -96,7 +97,7 @@ public class OrganizationController {
     public Map<String, List<Party>> getLocationChilds(@PathVariable Long id) {
         return accountabilityRepository
                 .findByParentIdAndTypeIn(id,
-                        List.of(IS_PART_OF, LEADER))
+                        types(IS_PART_OF, LEADER))
                 .stream()
                 .collect(
                         groupingBy(
@@ -168,7 +169,11 @@ public class OrganizationController {
 
     @GetMapping("{id}/member-state")
     public List<Accountability> getMemberState(@PathVariable Long id) {
-        return accountabilityRepository.findByParentIdAndTypeIn(id, MEMBER_ACCOUNTABILITIES);
+        return accountabilityRepository.findByParentIdAndTypeIn(id, types(MEMBER_ACCOUNTABILITIES));
+    }
+
+    private List<AccountabilityType> types(Long... ids) {
+        return List.of(ids).stream().map(x -> accountabilityTypeRepository.getReferenceById(x)).toList();
     }
 
 }
