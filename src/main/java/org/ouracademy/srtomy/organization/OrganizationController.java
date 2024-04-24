@@ -15,6 +15,7 @@ import java.util.stream.Stream;
 import org.ouracademy.srtomy.organization.Organization.Type;
 import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
+import org.ouracademy.srtomy.person.AccountabilityType;
 import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.person.Party;
 import org.ouracademy.srtomy.person.PersonRepository;
@@ -87,8 +88,8 @@ public class OrganizationController {
     }
 
     @GetMapping("locations/{id}/roles")
-    public String getRolesOfLocation(@PathVariable Long id) {
-        return new String();
+    public List<AccountabilityType> getRolesOfLocation(@PathVariable Long id) {
+        return roleService.getRolesOfLocation(id);
     }
 
     @GetMapping("/locations/childs/{id}/members")

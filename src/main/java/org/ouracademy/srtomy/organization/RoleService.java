@@ -1,7 +1,9 @@
 package org.ouracademy.srtomy.organization;
 
+import java.util.List;
 import java.util.SortedSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.ouracademy.srtomy.person.AccountabilityType;
@@ -20,6 +22,7 @@ public class RoleService {
 
     AccountabilityTypeRepository accountabilityTypeRepository;
     AccountabilityRepository accountabilityRepository;
+    OrganizationRepository organizationRepository;
 
     @Transactional(propagation = Propagation.REQUIRED)
     public void sync(Organization location, SortedSet<String> roles) {
@@ -40,6 +43,13 @@ public class RoleService {
         var rolesToAdd = Sets.difference(roles, locationRoleNames);
         accountabilityTypeRepository
                 .saveAll(rolesToAdd.stream().map(roleName -> new AccountabilityType(roleName, location)).toList());
+    }
+
+    public List<AccountabilityType> getRolesOfLocation(Long id) {
+        var rolesOfLocation = accountabilityTypeRepository.findByParty(organizationRepository.getReferenceById(id));
+        var defaultRoles = accountabilityTypeRepository.findAllById(List.of());
+
+        return Stream.concat(rolesOfLocation.stream(), defaultRoles.stream()).toList();
     }
 
 }
