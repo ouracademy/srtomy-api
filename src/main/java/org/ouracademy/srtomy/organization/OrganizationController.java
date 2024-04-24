@@ -1,7 +1,12 @@
 package org.ouracademy.srtomy.organization;
 
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
+
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.ouracademy.srtomy.organization.Organization.Type;
@@ -20,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import static java.util.stream.Collectors.*;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -35,6 +39,7 @@ public class OrganizationController {
     OrganizationRepository organizationRepository;
     AccountabilityRepository accountabilityRepository;
     PersonRepository personRepository;
+    RoleService roleService;
 
     @GetMapping("{id}/childs")
     public List<Party> findAll(@PathVariable Long id) {
@@ -59,7 +64,23 @@ public class OrganizationController {
     @PostMapping("/locations")
     @ResponseStatus(code = HttpStatus.CREATED)
     public Organization createLocation(@RequestBody @Valid LocationRequest request) {
-        return createOrg(request, Type.LOCATION);
+        Organization location = createOrg(request, Type.LOCATION);
+        roleService.sync(location, request.roles);
+        return location;
+    }
+
+    @PutMapping("/locations/{id}")
+    public ResponseEntity<Organization> updateLocation(@PathVariable Long id,
+            @RequestBody @Valid LocationRequest request) {
+        return editOrgInfo(id, request).map(org -> {
+            roleService.sync(org, request.roles);
+            return ResponseEntity.ok(org);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("locations/{id}/roles")
+    public String getRolesOfLocation(@PathVariable Long id) {
+        return new String();
     }
 
     @GetMapping("/locations/childs/{id}/members")
@@ -113,12 +134,18 @@ public class OrganizationController {
     @PutMapping("{id}")
     public ResponseEntity<Organization> edit(@PathVariable Long id,
             @RequestBody @Valid OrganizationRequest organizationRequest) {
+        return editOrgInfo(id, organizationRequest)
+                .map(org -> ResponseEntity.ok(org))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    private Optional<Organization> editOrgInfo(Long id, OrganizationRequest organizationRequest) {
         return organizationRepository.findById(id).map(organization -> {
             organization.setName(organizationRequest.name);
             fillInfo(organizationRequest, organization);
 
-            return ResponseEntity.ok(organizationRepository.save(organization));
-        }).orElse(ResponseEntity.notFound().build());
+            return organizationRepository.save(organization);
+        });
     }
 
     private void fillInfo(OrganizationRequest organizationRequest, Organization organization) {

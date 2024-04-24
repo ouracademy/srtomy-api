@@ -12,7 +12,7 @@ import lombok.Setter;
 
 @Setter
 @Getter
-public class LocationChildRequest extends LocationRequest {
+public class LocationChildRequest extends OrganizationRequest {
 
     @NotNull
     Organization.Type type;
@@ -22,6 +22,17 @@ public class LocationChildRequest extends LocationRequest {
 
     @NotEmpty
     List<Long> memberIds = new ArrayList<>();
+
+    @NotNull
+    @Override
+    public Long getParentId() {
+        return super.getParentId();
+    }
+
+    @Override
+    public void setParentId(Long parentId) {
+        super.setParentId(parentId);
+    }
 
     @Schema(hidden = true)
     @AssertTrue
