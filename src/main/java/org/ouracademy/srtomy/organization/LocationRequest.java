@@ -1,7 +1,7 @@
 package org.ouracademy.srtomy.organization;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotNull;
 public class LocationRequest extends OrganizationRequest {
 
     @NotEmpty
-    List<String> roles = new ArrayList<>();
+    SortedSet<String> roles = new TreeSet<>();
 
     @NotNull
     @Override

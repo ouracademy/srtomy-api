@@ -15,6 +15,15 @@ public class AccountabilityType extends DomainObject {
     @ManyToOne
     Party party;
 
+    AccountabilityType() {
+        // jpa only
+    }
+
+    public AccountabilityType(String name, Party party) {
+        this.name = name;
+        this.party = party;
+    }
+
     boolean isPredefined() {
         return party == null;
     }
