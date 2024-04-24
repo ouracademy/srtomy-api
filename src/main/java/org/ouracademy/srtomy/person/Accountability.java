@@ -1,5 +1,9 @@
 package org.ouracademy.srtomy.person;
 
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.ouracademy.srtomy.domain.DomainObject;
 
 import jakarta.persistence.Entity;
@@ -8,6 +12,8 @@ import lombok.Getter;
 
 @Entity
 @Getter
+@SQLDelete(sql = "UPDATE accountability SET deleted_time = now() WHERE id=?")
+@SQLRestriction("deleted_time is not null")
 public class Accountability extends DomainObject {
 
     @ManyToOne(optional = false)
@@ -18,6 +24,8 @@ public class Accountability extends DomainObject {
 
     @ManyToOne(optional = false)
     AccountabilityType type;
+
+    LocalDateTime deletedTime;
 
     Accountability() {
         // jpa only
