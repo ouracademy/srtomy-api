@@ -7,6 +7,8 @@ import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.ouracademy.srtomy.person.AccountabilityType;
 import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.google.common.collect.Sets;
 
@@ -19,6 +21,7 @@ public class RoleService {
     AccountabilityTypeRepository accountabilityTypeRepository;
     AccountabilityRepository accountabilityRepository;
 
+    @Transactional(propagation = Propagation.REQUIRED)
     public void sync(Organization location, SortedSet<String> roles) {
         var locationRoles = accountabilityTypeRepository.findByParty(location);
         var locationRoleNames = locationRoles.stream().map(x -> x.getName()).collect(Collectors.toSet());
