@@ -1,5 +1,5 @@
 create table accountability_type (
-    id serial,
+    id serial PRIMARY KEY,
     name varchar(255) NOT NULL party_id bigint,
     create_date timestamp(6) without time zone,
     last_modified_date timestamp(6) without time zone,
