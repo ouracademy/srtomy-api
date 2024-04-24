@@ -1,6 +1,7 @@
 create table accountability_type (
     id serial PRIMARY KEY,
-    name varchar(255) NOT NULL party_id bigint,
+    name varchar(255) NOT NULL,
+    party_id bigint,
     create_date timestamp(6) without time zone,
     last_modified_date timestamp(6) without time zone,
     deleted_time timestamp(6) without time zone
@@ -22,6 +23,13 @@ values
     ('PASTOR', now(), now()),
     ('WORSHIP_LEADER', now(), now()),
     ('USHER', now(), now());
+
+-- giving some space if needed for new system accountability types
+SELECT
+    pg_catalog.setval(
+        pg_get_serial_sequence('accountability_type', 'id'),
+        100
+    );
 
 alter table
     accountability
@@ -52,4 +60,4 @@ alter table
 alter table
     accountability
 add
-    column deleted_time datetime;
+    column deleted_time timestamp(6) without time zone;
