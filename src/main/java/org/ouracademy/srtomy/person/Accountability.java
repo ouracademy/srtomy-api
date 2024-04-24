@@ -1,12 +1,8 @@
 package org.ouracademy.srtomy.person;
 
-import java.util.List;
-
 import org.ouracademy.srtomy.domain.DomainObject;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 
@@ -20,25 +16,14 @@ public class Accountability extends DomainObject {
     @ManyToOne(optional = false)
     Party parent;
 
-    @Enumerated(EnumType.STRING)
-    Type type;
-
-    public enum Type {
-        // Person and Org (like location, group or ministry)
-        VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER,
-        // Party and Org
-        IS_PART_OF,
-        // Person to group/ministry
-        LEADER
-    }
-
-    public static List<Type> MEMBER_ACCOUNTABILITIES = List.of(Type.VISITOR, Type.MEMBERSHIP_IN_PROGRESS, Type.MEMBER);
+    @ManyToOne(optional = false)
+    AccountabilityType type;
 
     Accountability() {
         // jpa only
     }
 
-    public Accountability(Party child, Party parent, Type type) {
+    public Accountability(Party child, Party parent, AccountabilityType type) {
         this.child = child;
         this.parent = parent;
         this.type = type;

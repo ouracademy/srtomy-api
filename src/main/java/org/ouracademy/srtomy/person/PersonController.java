@@ -27,6 +27,7 @@ import lombok.AllArgsConstructor;
 public class PersonController {
 
     AccountabilityRepository accountabilityRepository;
+    AccountabilityTypeRepository accountabilityTypeRepository;
     PersonRepository personRepository;
     OrganizationRepository organizationRepository;
 
@@ -53,8 +54,8 @@ public class PersonController {
         person = personRepository.save(person);
 
         var organization = organizationRepository.getReferenceById(personRequest.organizationId);
-        accountabilityRepository.save(
-                new Accountability(person, organization, Accountability.Type.VISITOR));
+        var type = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
+        accountabilityRepository.save(new Accountability(person, organization, type));
         return person.getId();
     }
 

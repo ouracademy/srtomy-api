@@ -3,6 +3,9 @@ package org.ouracademy.srtomy.organization;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
+import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.IS_PART_OF;
+import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.LEADER;
+import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.MEMBER_ACCOUNTABILITIES;
 
 import java.util.List;
 import java.util.Map;
@@ -12,6 +15,7 @@ import java.util.stream.Stream;
 import org.ouracademy.srtomy.organization.Organization.Type;
 import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
+import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.person.Party;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.http.HttpStatus;
@@ -40,12 +44,14 @@ public class OrganizationController {
     AccountabilityRepository accountabilityRepository;
     PersonRepository personRepository;
     RoleService roleService;
+    AccountabilityTypeRepository accountabilityTypeRepository;
 
     @GetMapping("{id}/childs")
     public List<Party> findAll(@PathVariable Long id) {
         // TODO: list organizations of a user
         // TODO: add authorization
-        return accountabilityRepository.findByParentIdAndTypeIn(id, List.of(Accountability.Type.IS_PART_OF)).stream()
+        return accountabilityRepository.findByParentIdAndTypeIn(id, List.of(IS_PART_OF))
+                .stream()
                 .map(x -> x.getChild())
                 .toList();
     }
@@ -84,13 +90,14 @@ public class OrganizationController {
     }
 
     @GetMapping("/locations/childs/{id}/members")
-    public Map<Accountability.Type, List<Party>> getLocationChilds(@PathVariable Long id) {
+    public Map<String, List<Party>> getLocationChilds(@PathVariable Long id) {
         return accountabilityRepository
-                .findByParentIdAndTypeIn(id, List.of(Accountability.Type.IS_PART_OF, Accountability.Type.LEADER))
+                .findByParentIdAndTypeIn(id,
+                        List.of(IS_PART_OF, LEADER))
                 .stream()
                 .collect(
                         groupingBy(
-                                x -> x.getType(),
+                                x -> x.getType().getName(),
                                 mapping(x -> x.getChild(), toList())));
     }
 
@@ -104,12 +111,12 @@ public class OrganizationController {
                         .map(id -> new Accountability(
                                 personRepository.getReferenceById(id),
                                 locationChild,
-                                Accountability.Type.IS_PART_OF)),
+                                accountabilityTypeRepository.getReferenceById(IS_PART_OF))),
                 request.leaderIds.stream()
                         .map(id -> new Accountability(
                                 personRepository.getReferenceById(id),
                                 locationChild,
-                                Accountability.Type.LEADER)))
+                                accountabilityTypeRepository.getReferenceById(LEADER))))
                 .toList();
         accountabilityRepository.saveAll(accountabilities);
         return locationChild;
@@ -124,8 +131,10 @@ public class OrganizationController {
 
         if (organizationRequest.parentId != null) {
             var parent = organizationRepository.getReferenceById(organizationRequest.parentId);
-            accountabilityRepository.save(
-                    new Accountability(organization, parent, Accountability.Type.IS_PART_OF));
+            var accountabilityType = accountabilityTypeRepository
+                    .getReferenceById(IS_PART_OF);
+
+            accountabilityRepository.save(new Accountability(organization, parent, accountabilityType));
         }
 
         return organization;
@@ -156,7 +165,7 @@ public class OrganizationController {
 
     @GetMapping("{id}/member-state")
     public List<Accountability> getMemberState(@PathVariable Long id) {
-        return accountabilityRepository.findByParentIdAndTypeIn(id, Accountability.MEMBER_ACCOUNTABILITIES);
+        return accountabilityRepository.findByParentIdAndTypeIn(id, MEMBER_ACCOUNTABILITIES);
     }
 
 }
