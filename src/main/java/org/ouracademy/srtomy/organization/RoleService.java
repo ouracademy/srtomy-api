@@ -19,6 +19,8 @@ import com.google.common.collect.Sets;
 
 import lombok.AllArgsConstructor;
 
+import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.*;
+
 @Service
 @AllArgsConstructor
 public class RoleService {
@@ -70,7 +72,7 @@ public class RoleService {
 
     public List<AccountabilityType> getRolesOfLocation(Long id) {
         var rolesOfLocation = accountabilityTypeRepository.findByParty(organizationRepository.getReferenceById(id));
-        var defaultRoles = accountabilityTypeRepository.findAllById(List.of());
+        var defaultRoles = accountabilityTypeRepository.findAllById(List.of(PASTOR, WORSHIP_LEADER, USHER));
 
         return Stream.concat(rolesOfLocation.stream(), defaultRoles.stream()).toList();
     }
