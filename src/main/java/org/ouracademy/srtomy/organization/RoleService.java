@@ -1,13 +1,16 @@
 package org.ouracademy.srtomy.organization;
 
 import java.util.List;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.ouracademy.srtomy.person.AccountabilityType;
 import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
+import org.ouracademy.srtomy.person.Person;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,26 @@ public class RoleService {
     AccountabilityTypeRepository accountabilityTypeRepository;
     AccountabilityRepository accountabilityRepository;
     OrganizationRepository organizationRepository;
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    public void sync(Person person, Long locationId, Set<Long> newAccountabilityTypeIds) {
+        var accountabilities = accountabilityRepository.findByParentIdAndChildId(person.getId(), locationId);
+        var oldAccountabilityTypeIds = accountabilities.stream().map(x -> x.getType().getId())
+                .collect(Collectors.toSet());
+
+        // location.roles.name not in roles => delete those not in // A - B
+        var rolesToDelete = Sets.difference(oldAccountabilityTypeIds, newAccountabilityTypeIds);
+        accountabilityRepository.deleteAll(accountabilities.stream()
+                .filter(x -> rolesToDelete.contains(x.getType().getId()))
+                .toList());
+
+        // new roles not in location.roles => add // B - A
+        var rolesToAdd = Sets.difference(newAccountabilityTypeIds, oldAccountabilityTypeIds);
+        var location = organizationRepository.getReferenceById(locationId);
+        accountabilityRepository
+                .saveAll(rolesToAdd.stream().map(typeId -> new Accountability(person, location,
+                        accountabilityTypeRepository.getReferenceById(typeId))).toList());
+    }
 
     @Transactional(propagation = Propagation.REQUIRED)
     public void sync(Organization location, SortedSet<String> roles) {

@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.person;
 
 import org.ouracademy.srtomy.organization.OrganizationRepository;
+import org.ouracademy.srtomy.organization.RoleService;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,7 @@ public class PersonController {
     AccountabilityTypeRepository accountabilityTypeRepository;
     PersonRepository personRepository;
     OrganizationRepository organizationRepository;
+    RoleService roleService;
 
     @GetMapping
     public Page<Person> findAll(String searchText, @ParameterObject Pageable pageable) {
@@ -54,15 +56,19 @@ public class PersonController {
         person = personRepository.save(person);
 
         var organization = organizationRepository.getReferenceById(personRequest.organizationId);
-        var type = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
-        accountabilityRepository.save(new Accountability(person, organization, type));
+        var visitorRole = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
+        accountabilityRepository.save(new Accountability(person, organization, visitorRole));
+
+        roleService.sync(person, personRequest.organizationId, personRequest.roles);
         return person.getId();
     }
 
     @PutMapping("{id}")
+    @Transactional
     public ResponseEntity<Long> edit(@PathVariable Long id, @RequestBody @Valid UpdatePersonRequest personRequest) {
         return personRepository.findById(id).map(person -> {
             toModel(personRequest, person);
+            roleService.sync(person, personRequest.organizationId, personRequest.roles);
             return ResponseEntity.ok(personRepository.save(person).getId());
         }).orElse(ResponseEntity.notFound().build());
     }

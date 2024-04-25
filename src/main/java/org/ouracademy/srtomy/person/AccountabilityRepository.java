@@ -9,4 +9,6 @@ public interface AccountabilityRepository extends JpaRepository<Accountability, 
     List<Accountability> findByParentIdAndTypeIn(Long id, List<AccountabilityType> types);
 
     void deleteAllByType(AccountabilityType roleToDelete);
+
+    List<Accountability> findByParentIdAndChildId(Long parentId, Long childId);
 }
