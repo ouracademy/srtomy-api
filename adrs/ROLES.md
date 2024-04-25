@@ -1,3 +1,5 @@
+## Roles Architect Design Record (ADR)
+
 1. roles predefinidos + roles
 2. persona + roles
 
