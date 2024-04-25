@@ -32,7 +32,7 @@ public class AccountabilityType extends DomainObject {
         this.party = party;
     }
 
-    boolean isPredefined() {
+    public boolean isPredefined() {
         return party == null;
     }
 }
