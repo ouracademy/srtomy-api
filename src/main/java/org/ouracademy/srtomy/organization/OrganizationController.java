@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 @RestController
 @RequestMapping("organizations")
@@ -89,8 +90,16 @@ public class OrganizationController {
     }
 
     @GetMapping("locations/{id}/roles")
-    public List<AccountabilityType> getRolesOfLocation(@PathVariable Long id) {
-        return roleService.getRolesOfLocation(id);
+    public List<AccountabilityTypeDto> getRolesOfLocation(@PathVariable Long id) {
+        return roleService.getRolesOfLocation(id)
+                .map(x -> new AccountabilityTypeDto(x.getName(), x.isPredefined())).toList();
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class AccountabilityTypeDto {
+        String name;
+        Boolean isPredefined;
     }
 
     @GetMapping("/locations/childs/{id}/members")

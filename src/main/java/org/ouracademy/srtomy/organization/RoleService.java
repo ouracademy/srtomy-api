@@ -70,11 +70,11 @@ public class RoleService {
                 .saveAll(rolesToAdd.stream().map(roleName -> new AccountabilityType(roleName, location)).toList());
     }
 
-    public List<AccountabilityType> getRolesOfLocation(Long id) {
+    public Stream<AccountabilityType> getRolesOfLocation(Long id) {
         var rolesOfLocation = accountabilityTypeRepository.findByParty(organizationRepository.getReferenceById(id));
         var defaultRoles = accountabilityTypeRepository.findAllById(List.of(PASTOR, WORSHIP_LEADER, USHER));
 
-        return Stream.concat(rolesOfLocation.stream(), defaultRoles.stream()).toList();
+        return Stream.concat(rolesOfLocation.stream(), defaultRoles.stream());
     }
 
 }
