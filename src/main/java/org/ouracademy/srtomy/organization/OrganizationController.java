@@ -72,7 +72,7 @@ public class OrganizationController {
     @PostMapping("/locations")
     @ResponseStatus(code = HttpStatus.CREATED)
     @Transactional
-    public Organization createLocation(@RequestBody @Valid LocationRequest request) {
+    public Organization createLocation(@RequestBody @Valid CreateLocationRequest request) {
         Organization location = createOrg(request, Type.LOCATION);
         roleService.sync(location, request.roles);
         return location;
@@ -81,7 +81,7 @@ public class OrganizationController {
     @PutMapping("/locations/{id}")
     @Transactional
     public ResponseEntity<Organization> updateLocation(@PathVariable Long id,
-            @RequestBody @Valid LocationRequest request) {
+            @RequestBody @Valid UpdateLocationRequest request) {
         return editOrgInfo(id, request).map(org -> {
             roleService.sync(org, request.roles);
             return ResponseEntity.ok(org);
