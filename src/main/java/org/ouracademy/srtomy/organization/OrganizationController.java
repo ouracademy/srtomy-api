@@ -89,6 +89,13 @@ public class OrganizationController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("locations/predefined-roles")
+    public List<AccountabilityTypeDto> getPredefinedRoles() {
+        return roleService.getPredefinedRoles()
+                .stream()
+                .map(x -> new AccountabilityTypeDto(x.getName(), x.isPredefined())).toList();
+    }
+
     @GetMapping("locations/{id}/roles")
     public List<AccountabilityTypeDto> getRolesOfLocation(@PathVariable Long id) {
         return roleService.getRolesOfLocation(id)

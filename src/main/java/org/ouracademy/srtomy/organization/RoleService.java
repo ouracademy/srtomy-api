@@ -72,9 +72,13 @@ public class RoleService {
 
     public Stream<AccountabilityType> getRolesOfLocation(Long id) {
         var rolesOfLocation = accountabilityTypeRepository.findByParty(organizationRepository.getReferenceById(id));
-        var defaultRoles = accountabilityTypeRepository.findAllById(List.of(PASTOR, WORSHIP_LEADER, USHER));
+        var defaultRoles = getPredefinedRoles();
 
         return Stream.concat(rolesOfLocation.stream(), defaultRoles.stream());
+    }
+
+    public List<AccountabilityType> getPredefinedRoles() {
+        return accountabilityTypeRepository.findAllById(List.of(PASTOR, WORSHIP_LEADER, USHER));
     }
 
 }
