@@ -31,7 +31,7 @@ public class RoleService {
 
     @Transactional(propagation = Propagation.REQUIRED)
     public void sync(Person person, Long locationId, Set<Long> newAccountabilityTypeIds) {
-        var accountabilities = accountabilityRepository.findByParentIdAndChildId(person.getId(), locationId);
+        var accountabilities = accountabilityRepository.findByParentIdAndChildId(locationId, person.getId());
         var oldAccountabilityTypeIds = accountabilities.stream().map(x -> x.getType().getId())
                 .collect(Collectors.toSet());
 
@@ -79,6 +79,10 @@ public class RoleService {
 
     public List<AccountabilityType> getPredefinedRoles() {
         return accountabilityTypeRepository.findAllById(List.of(PASTOR, WORSHIP_LEADER, USHER));
+    }
+
+    public Stream<AccountabilityType> getRolesOfPerson(Long locationId, Long personId) {
+        return accountabilityRepository.findByParentIdAndChildId(locationId, personId).stream().map(x -> x.getType());
     }
 
 }

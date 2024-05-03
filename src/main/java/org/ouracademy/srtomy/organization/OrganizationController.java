@@ -102,6 +102,12 @@ public class OrganizationController {
                 .map(x -> new AccountabilityTypeDto(x.getId(), x.getName(), x.isPredefined())).toList();
     }
 
+    @GetMapping("locations/{id}/person/{personId}/roles")
+    public List<AccountabilityTypeDto> getRolesOfPerson(@PathVariable Long id, @PathVariable Long personId) {
+        return roleService.getRolesOfPerson(id, personId)
+                .map(x -> new AccountabilityTypeDto(x.getId(), x.getName(), x.isPredefined())).toList();
+    }
+
     @Getter
     @AllArgsConstructor
     public static class AccountabilityTypeDto {
