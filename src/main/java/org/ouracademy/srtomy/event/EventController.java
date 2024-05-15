@@ -39,10 +39,7 @@ public class EventController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
         // TODO: list events of an org
-        // return eventRepository.searchEvents(start, end);
-        System.out.println(start);
-        System.out.println(end);
-
+        // return eventRepository.searchEventsBetween(start, end);
         return new ArrayList<>();
     }
 

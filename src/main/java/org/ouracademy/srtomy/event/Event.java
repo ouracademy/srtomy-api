@@ -16,17 +16,20 @@ import lombok.Getter;
 
 @Entity
 @Getter
-public class Event extends DomainObject implements EventSimpleItem {
+public class Event extends DomainObject {
 
-    String name;
+    @Column(name = "name")
+    String title;
 
     @OneToMany // opcional (ver 1 y 2)
     List<Person> speakers = new ArrayList<>();
 
     // opcional en caso que solo quiera registrar asistencia (ver 5)
-    ZonedDateTime startTime;
+    @Column(name = "start_time")
+    ZonedDateTime start;
     // opcional? (ver 1, 2 y 3)
-    ZonedDateTime endTime;
+    @Column(name = "end_time")
+    ZonedDateTime end;
 
     String address;
 
@@ -60,10 +63,10 @@ public class Event extends DomainObject implements EventSimpleItem {
         // jpa only
     }
 
-    public Event(String name, ZonedDateTime startTime, ZonedDateTime endTime) {
-        this.name = name;
-        this.startTime = startTime;
-        this.endTime = endTime;
+    public Event(String title, ZonedDateTime start, ZonedDateTime end) {
+        this.title = title;
+        this.start = start;
+        this.end = end;
     }
 
 }
