@@ -5,9 +5,9 @@ import java.time.ZonedDateTime;
 public interface EventSimpleItem {
     Long getId();
 
-    String getName();
+    String getTitle();
 
-    ZonedDateTime getStartTime();
+    ZonedDateTime getStart();
 
-    ZonedDateTime getEndTime();
+    ZonedDateTime getEnd();
 }

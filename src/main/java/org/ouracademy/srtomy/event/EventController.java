@@ -1,10 +1,12 @@
 package org.ouracademy.srtomy.event;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.person.PersonRepository;
-import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +16,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,11 +35,15 @@ public class EventController {
     EventAttendanceRepository eventAttendanceRepository;
 
     @GetMapping
-    public Page<EventSimpleItem> findAll(
-            @ParameterObject Pageable pageable,
-            @RequestParam(defaultValue = "false") Boolean isACourse) {
+    public List<Event> findAll(
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
         // TODO: list events of an org
-        return eventRepository.findSimpleByIsACourse(pageable, isACourse);
+        // return eventRepository.searchEvents(start, end);
+        System.out.println(start);
+        System.out.println(end);
+
+        return new ArrayList<>();
     }
 
     @GetMapping("{id}")
