@@ -1,7 +1,7 @@
 package org.ouracademy.srtomy.event;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.ouracademy.srtomy.organization.OrganizationRepository;
@@ -39,8 +39,8 @@ public class EventController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
         // TODO: list events of an org
-        // return eventRepository.searchEventsBetween(start, end);
-        return new ArrayList<>();
+
+        return eventRepository.searchEventsBetween(start.atZone(ZoneId.of("UTC")), end.atZone(ZoneId.of("UTC")));
     }
 
     @GetMapping("{id}")
@@ -51,7 +51,8 @@ public class EventController {
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
     public Long create(@RequestBody @Valid EventRequest eventRequest) {
-        var event = new Event(eventRequest.name, eventRequest.startTime, eventRequest.endTime);
+        var event = new Event(eventRequest.name, eventRequest.startTime.atZone(ZoneId.of("UTC")),
+                eventRequest.endTime.atZone(ZoneId.of("UTC")));
         event.organization = organizationRepository.getReferenceById(eventRequest.organizationId);
         event.address = eventRequest.address;
         event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
