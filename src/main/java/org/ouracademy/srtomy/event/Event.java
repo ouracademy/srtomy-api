@@ -9,50 +9,61 @@ import org.ouracademy.srtomy.organization.Organization;
 import org.ouracademy.srtomy.person.Person;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.DiscriminatorType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import lombok.Getter;
 
 @Entity
-@Getter
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(discriminatorType = DiscriminatorType.INTEGER, name = "event_type_id")
 public class Event extends DomainObject {
 
     @Column(name = "name")
+
+    @Getter
     String title;
 
+    @Getter
     @OneToMany // opcional (ver 1 y 2)
     List<Person> speakers = new ArrayList<>();
 
-    // opcional en caso que solo quiera registrar asistencia (ver 5)
     @Column(name = "start_time")
     ZonedDateTime start;
-    // opcional? (ver 1, 2 y 3)
+
     @Column(name = "end_time")
     ZonedDateTime end;
 
+    @Getter
     String address;
 
     @ManyToOne(optional = false)
+
+    @Getter
     Organization organization;
 
+    @Getter
     String description;
 
     @Column(name = "is_a_course")
+
+    @Getter
     Boolean isACourse = false;
 
     // 1 { name: "Viernes con Jesús" }, 24 de noviembre, 7:30pm, jose mena
     // 2 { name: "Reunión de hombres" }, 28 de octubre, 7:30pm
     // 3 { name: "Celebremos juntos el dia del niño" }, domingo 20 agosto 10am
     // 4 { name: "Matrimonios Jovenes" }, // 11 de diciembre, no hora?
-
     // 5 { name: "Graduación grupo de mujeres" },
 
-    // TODO: lalalala
+    // TODO: ver RecurrentEvents
     // 6 { name: "Servicio Dominical" }, // domingos, 10:00 am
     // 7 { name: "Mujeres virtuosas" }, // miercoles a las 9:30am
     // 8 { name: "Servicio Dominical" }, // domingos, 10:00 am y 8pm
-
     // 9 { name: "Servicios" }, // domingos, 10:00 am y 8pm. miercoles a las 7pm
 
     // TODO: para casos complejos?
@@ -62,11 +73,4 @@ public class Event extends DomainObject {
     public Event() {
         // jpa only
     }
-
-    public Event(String title, ZonedDateTime start, ZonedDateTime end) {
-        this.title = title;
-        this.start = start;
-        this.end = end;
-    }
-
 }
