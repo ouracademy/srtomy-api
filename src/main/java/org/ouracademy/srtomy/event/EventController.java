@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,11 +37,13 @@ public class EventController {
 
     @GetMapping
     public List<Event> findAll(
+            @RequestParam(required = true) Long organizationId,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
-        // TODO: list events of an org
-
-        return eventRepository.searchEventsBetween(start.atZone(ZoneId.of("UTC")), end.atZone(ZoneId.of("UTC")));
+        return eventRepository.searchEventsOfOrgIdAndBetweenDates(
+                organizationId,
+                start.atZone(ZoneId.of("UTC")),
+                end.atZone(ZoneId.of("UTC")));
     }
 
     @GetMapping("{id}")
