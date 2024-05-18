@@ -37,6 +37,10 @@ public class EventRequest {
 
     @AssertTrue
     public boolean isValidDaysOfWeek() {
-        return isRecurrent && !daysOfWeek.isEmpty();
+        if (isRecurrent) {
+            return !daysOfWeek.isEmpty();
+        } else {
+            return true;
+        }
     }
 }
