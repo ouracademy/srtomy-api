@@ -1,6 +1,5 @@
 package org.ouracademy.srtomy.event;
 
-import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -26,14 +25,6 @@ public class RecurrentEvent extends Event {
         this.start = start;
         this.end = end;
         this.daysOfWeek = daysOfWeek;
-    }
-
-    public LocalTime getStartTime() {
-        return start.toLocalTime();
-    }
-
-    public LocalTime getEndTime() {
-        return end.toLocalTime();
     }
 
 }
