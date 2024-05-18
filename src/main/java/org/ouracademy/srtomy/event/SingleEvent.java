@@ -18,12 +18,4 @@ public class SingleEvent extends Event {
         this.start = start;
         this.end = end;
     }
-
-    public ZonedDateTime getStart() {
-        return start;
-    }
-
-    public ZonedDateTime getEnd() {
-        return end;
-    }
 }

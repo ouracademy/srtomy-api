@@ -1,10 +1,10 @@
 package org.ouracademy.srtomy.event;
 
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -29,4 +29,14 @@ public class EventRequest {
     String description;
 
     Boolean isACourse = false;
+
+    List<Integer> daysOfWeek = new ArrayList<>();
+
+    @NotNull
+    Boolean isRecurrent;
+
+    @AssertTrue
+    public boolean isValidDaysOfWeek() {
+        return isRecurrent && !daysOfWeek.isEmpty();
+    }
 }

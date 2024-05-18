@@ -19,16 +19,15 @@ import jakarta.persistence.OneToMany;
 import lombok.Getter;
 
 @Entity
+@Getter
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(discriminatorType = DiscriminatorType.INTEGER, name = "event_type_id")
 public class Event extends DomainObject {
 
     @Column(name = "name")
 
-    @Getter
     String title;
 
-    @Getter
     @OneToMany // opcional (ver 1 y 2)
     List<Person> speakers = new ArrayList<>();
 
@@ -38,20 +37,16 @@ public class Event extends DomainObject {
     @Column(name = "end_time")
     ZonedDateTime end;
 
-    @Getter
     String address;
 
     @ManyToOne(optional = false)
 
-    @Getter
     Organization organization;
 
-    @Getter
     String description;
 
     @Column(name = "is_a_course")
 
-    @Getter
     Boolean isACourse = false;
 
     // 1 { name: "Viernes con Jesús" }, 24 de noviembre, 7:30pm, jose mena

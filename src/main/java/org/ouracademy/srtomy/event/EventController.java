@@ -54,8 +54,11 @@ public class EventController {
         @PostMapping
         @ResponseStatus(code = HttpStatus.CREATED)
         public Long create(@RequestBody @Valid EventRequest eventRequest) {
-                var event = new SingleEvent(eventRequest.name, eventRequest.startTime.atZone(ZoneId.of("UTC")),
-                                eventRequest.endTime.atZone(ZoneId.of("UTC")));
+                var start = eventRequest.startTime.atZone(ZoneId.of("UTC"));
+                var end = eventRequest.endTime.atZone(ZoneId.of("UTC"));
+                var event = eventRequest.isRecurrent
+                                ? new RecurrentEvent(eventRequest.name, start, end, eventRequest.daysOfWeek)
+                                : new SingleEvent(eventRequest.name, start, end);
                 event.organization = organizationRepository.getReferenceById(eventRequest.organizationId);
                 event.address = eventRequest.address;
                 event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
