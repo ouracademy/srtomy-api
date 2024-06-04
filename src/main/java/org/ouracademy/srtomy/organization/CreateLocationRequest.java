@@ -1,8 +1,17 @@
 package org.ouracademy.srtomy.organization;
 
-import jakarta.validation.constraints.NotNull;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
-public class CreateLocationRequest extends UpdateLocationRequest {
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.Setter;
+
+public class CreateLocationRequest extends OrganizationRequest {
+
+    @Getter
+    @Setter
+    SortedSet<String> roles = new TreeSet<>();
 
     @NotNull
     @Override
