@@ -73,7 +73,7 @@ public class PersonController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    private Person toModel(UpdatePersonRequest personRequest, Person person) {
+    private Person toModel(CreatePersonRequest personRequest, Person person) {
         person.firstName = personRequest.firstName;
         person.lastName = personRequest.lastName;
         person.name = personRequest.firstName + " " + personRequest.lastName;
