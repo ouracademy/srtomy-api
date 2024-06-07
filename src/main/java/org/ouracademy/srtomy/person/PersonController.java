@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,13 +35,18 @@ public class PersonController {
     RoleService roleService;
 
     @GetMapping
-    public Page<Person> findAll(String searchText, @ParameterObject Pageable pageable) {
-        // TODO: list person of organization
+    public Page<Person> findAll(
+            @RequestParam(required = true) Long organizationId,
+            String searchText,
+            @ParameterObject Pageable pageable) {
+
+        var visitorRole = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
+
         if (searchText != null) {
-            return personRepository.findByName(searchText, pageable);
+            return personRepository.findByNameAndOrgId(searchText, organizationId, visitorRole, pageable);
         }
 
-        return personRepository.findAll(pageable);
+        return personRepository.findByOrgId(organizationId, visitorRole, pageable);
     }
 
     @GetMapping("{id}")
@@ -56,10 +62,12 @@ public class PersonController {
         person = personRepository.save(person);
 
         var organization = organizationRepository.getReferenceById(personRequest.organizationId);
+
+        roleService.sync(person, personRequest.organizationId, personRequest.roles);
+
         var visitorRole = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
         accountabilityRepository.save(new Accountability(person, organization, visitorRole));
 
-        roleService.sync(person, personRequest.organizationId, personRequest.roles);
         return person.getId();
     }
 

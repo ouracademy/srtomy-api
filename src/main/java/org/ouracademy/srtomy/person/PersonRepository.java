@@ -8,10 +8,24 @@ import org.springframework.data.jpa.repository.Query;
 public interface PersonRepository extends JpaRepository<Person, Long> {
 
     @Query("""
-            select p from Person p
-            where
-            lower(p.firstName) like lower(CONCAT('%', :searchText, '%'))
-            or lower(p.lastName) like lower(CONCAT('%', :searchText, '%'))
+            select p
+            from Accountability a join TREAT(a.child as Person) p
+            where a.type = :accountabilityType
+            and a.parent.id = :organizationId
+            and (
+                lower(p.firstName) like lower(CONCAT('%', :searchText, '%'))
+                or lower(p.lastName) like lower(CONCAT('%', :searchText, '%'))
+            )
             """)
-    Page<Person> findByName(String searchText, Pageable pageable);
+    Page<Person> findByNameAndOrgId(
+            String searchText,
+            Long organizationId, AccountabilityType accountabilityType, Pageable pageable);
+
+    @Query("""
+            select p
+            from Accountability a join TREAT(a.child as Person) p
+            where a.type = :accountabilityType
+            and a.parent.id = :organizationId
+            """)
+    Page<Person> findByOrgId(Long organizationId, AccountabilityType accountabilityType, Pageable pageable);
 }
