@@ -56,6 +56,7 @@ public class OrganizationController {
         return accountabilityRepository.findByParentIdAndTypeIn(id, types(IS_PART_OF))
                 .stream()
                 .map(x -> x.getChild())
+                .filter(x -> x instanceof Organization)
                 .toList();
     }
 
