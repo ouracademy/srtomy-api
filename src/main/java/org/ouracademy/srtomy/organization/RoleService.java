@@ -32,18 +32,21 @@ public class RoleService {
 
     @Transactional(propagation = Propagation.REQUIRED)
     public void sync(Person person, Long locationId, Set<Long> newAccountabilityTypeIds) {
-        var accountabilities = accountabilityRepository.findByParentIdAndChildId(locationId, person.getId());
-        var oldAccountabilityTypeIds = accountabilities.stream().map(x -> x.getType().getId())
+        var roles = accountabilityRepository.findByParentIdAndChildId(locationId, person.getId())
+                .stream()
+                .filter(x -> x.getType().getCategory() != null && Category.ROLE.equals(x.getType().getCategory()))
+                .toList();
+        var oldRoleTypeIds = roles.stream().map(x -> x.getType().getId())
                 .collect(Collectors.toSet());
 
         // location.roles.name not in roles => delete those not in // A - B
-        var rolesToDelete = Sets.difference(oldAccountabilityTypeIds, newAccountabilityTypeIds);
-        accountabilityRepository.deleteAll(accountabilities.stream()
+        var rolesToDelete = Sets.difference(oldRoleTypeIds, newAccountabilityTypeIds);
+        accountabilityRepository.deleteAll(roles.stream()
                 .filter(x -> rolesToDelete.contains(x.getType().getId()))
                 .toList());
 
         // new roles not in location.roles => add // B - A
-        var rolesToAdd = Sets.difference(newAccountabilityTypeIds, oldAccountabilityTypeIds);
+        var rolesToAdd = Sets.difference(newAccountabilityTypeIds, oldRoleTypeIds);
         var location = organizationRepository.getReferenceById(locationId);
         accountabilityRepository
                 .saveAll(rolesToAdd.stream().map(typeId -> new Accountability(person, location,
