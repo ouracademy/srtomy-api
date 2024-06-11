@@ -11,6 +11,7 @@ import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.ouracademy.srtomy.person.AccountabilityType;
 import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.person.Person;
+import org.ouracademy.srtomy.person.AccountabilityType.Category;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,7 +68,9 @@ public class RoleService {
         // new roles not in location.roles => add // B - A
         var rolesToAdd = Sets.difference(roles, locationRoleNames);
         accountabilityTypeRepository
-                .saveAll(rolesToAdd.stream().map(roleName -> new AccountabilityType(roleName, location)).toList());
+                .saveAll(rolesToAdd.stream()
+                        .map(roleName -> new AccountabilityType(roleName, location, Category.ROLE))
+                        .toList());
     }
 
     public Stream<AccountabilityType> getRolesOfLocation(Long id) {
@@ -82,7 +85,9 @@ public class RoleService {
     }
 
     public Stream<AccountabilityType> getRolesOfPerson(Long locationId, Long personId) {
-        return accountabilityRepository.findByParentIdAndChildId(locationId, personId).stream().map(x -> x.getType());
+        return accountabilityRepository.findByParentIdAndChildId(locationId, personId).stream()
+                .map(x -> x.getType())
+                .filter(x -> x.getCategory() != null && Category.ROLE.equals(x.getCategory()));
     }
 
 }

@@ -5,7 +5,7 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.IS_PART_OF;
 import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.LEADER;
-import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.MEMBER_ACCOUNTABILITIES;
+import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.MEMBER_PROGRESS_STATES;
 
 import java.util.List;
 import java.util.Map;
@@ -192,7 +192,7 @@ public class OrganizationController {
 
     @GetMapping("{id}/member-state")
     public List<Accountability> getMemberState(@PathVariable Long id) {
-        return accountabilityRepository.findByParentIdAndTypeIn(id, types(MEMBER_ACCOUNTABILITIES));
+        return accountabilityRepository.findByParentIdAndTypeIn(id, types(MEMBER_PROGRESS_STATES));
     }
 
     private List<AccountabilityType> types(Long... ids) {

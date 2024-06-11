@@ -40,13 +40,13 @@ public class PersonController {
             String searchText,
             @ParameterObject Pageable pageable) {
 
-        var visitorRole = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
+        var isPartOf = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF);
 
         if (searchText != null) {
-            return personRepository.findByNameAndOrgId(searchText, organizationId, visitorRole, pageable);
+            return personRepository.findByNameAndOrgId(searchText, organizationId, isPartOf, pageable);
         }
 
-        return personRepository.findByOrgId(organizationId, visitorRole, pageable);
+        return personRepository.findByOrgId(organizationId, isPartOf, pageable);
     }
 
     @GetMapping("{id}")
@@ -65,8 +65,11 @@ public class PersonController {
 
         roleService.sync(person, personRequest.organizationId, personRequest.roles);
 
-        var visitorRole = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
-        accountabilityRepository.save(new Accountability(person, organization, visitorRole));
+        var visitorState = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
+        accountabilityRepository.save(new Accountability(person, organization, visitorState));
+
+        var isPartOf = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF);
+        accountabilityRepository.save(new Accountability(person, organization, isPartOf));
 
         return person.getId();
     }

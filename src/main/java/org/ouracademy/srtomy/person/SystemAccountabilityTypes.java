@@ -7,6 +7,8 @@ public class SystemAccountabilityTypes {
     public static final Long MEMBERSHIP_IN_PROGRESS = 2L;
     public static final Long MEMBER = 3L;
 
+    public static final Long[] MEMBER_PROGRESS_STATES = new Long[] { VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER };
+
     // Party and Org
     public static final Long IS_PART_OF = 4L;
     // Person to group/ministry
@@ -15,6 +17,4 @@ public class SystemAccountabilityTypes {
     public static final Long PASTOR = 6L;
     public static final Long WORSHIP_LEADER = 7L;
     public static final Long USHER = 8L;
-
-    public static final Long[] MEMBER_ACCOUNTABILITIES = new Long[] { VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER };
 }
