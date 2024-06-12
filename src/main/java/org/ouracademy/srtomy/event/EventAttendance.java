@@ -16,7 +16,6 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import lombok.Getter;
-import lombok.Setter;
 
 @Entity
 @Getter
@@ -29,13 +28,6 @@ public class EventAttendance {
     @OneToOne(optional = false)
     @JoinColumn(name = "id")
     Event event;
-
-    @Setter
-    Integer numberOfVisitors;
-
-    @Setter
-    @Column(columnDefinition = "text")
-    String visitorsDescription;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "eventAttendance")
     List<PersonEventAttendance> personEventAttendances = new ArrayList<>();

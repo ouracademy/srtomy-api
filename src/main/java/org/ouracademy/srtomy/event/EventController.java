@@ -75,8 +75,6 @@ public class EventController {
 		return eventAttendanceRepository
 				.findByEventId(id)
 				.map(x -> EventAttendanceResponse.builder()
-						.numberOfVisitors(x.getNumberOfVisitors())
-						.visitorsDescription(x.getVisitorsDescription())
 						.personIds(x.getPersonIds())
 						.build())
 				.map(ResponseEntity::ok)
@@ -90,8 +88,6 @@ public class EventController {
 		var eventAttendance = eventAttendanceRepository.findByEventId(id).orElse(
 				new EventAttendance(eventRepository.getReferenceById(id)));
 
-		eventAttendance.setNumberOfVisitors(attendanceRequest.getNumberOfVisitors());
-		eventAttendance.setVisitorsDescription(attendanceRequest.getVisitorsDescription());
 		eventAttendance = eventAttendanceRepository.save(eventAttendance);
 		eventAttendance.setPeople(
 				attendanceRequest.personIds.stream()

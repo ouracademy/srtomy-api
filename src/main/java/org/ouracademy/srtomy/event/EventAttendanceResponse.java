@@ -8,7 +8,5 @@ import lombok.Getter;
 @Builder
 @Getter
 public class EventAttendanceResponse {
-    final Integer numberOfVisitors;
-    final String visitorsDescription;
     final List<Long> personIds;
 }
