@@ -36,7 +36,7 @@ public class RecurrentEvent extends Event {
 
     public List<SingleEvent> expand() {
         var daysOfWeek = javaDayOfWeeks();
-        return dateTimesBetween()
+        return dateTimesBetween(start, end)
                 .filter(x -> daysOfWeek.contains(x.getDayOfWeek()))
                 .map(date -> toSingleEvent(date, date.with(this.end.toLocalTime())))
                 .toList();
@@ -55,10 +55,10 @@ public class RecurrentEvent extends Event {
 
     public List<DayOfWeek> javaDayOfWeeks() {
         // from Sun(0), Mon(1)-Sat(6) to Sun(7), Mon(1)-Sat(6)
-        return this.daysOfWeek.stream().map(x -> DayOfWeek.of(x == 0 ? 1 : x)).toList();
+        return this.daysOfWeek.stream().map(x -> DayOfWeek.of(x == 0 ? 7 : x)).toList();
     }
 
-    Stream<ZonedDateTime> dateTimesBetween() {
+    public static Stream<ZonedDateTime> dateTimesBetween(ZonedDateTime start, ZonedDateTime end) {
         List<ZonedDateTime> totalDates = new ArrayList<>();
         while (!start.isAfter(end)) {
             totalDates.add(start);
