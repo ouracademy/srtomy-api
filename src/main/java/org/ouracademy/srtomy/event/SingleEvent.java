@@ -5,9 +5,11 @@ import java.time.ZonedDateTime;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
+import lombok.Getter;
 
 @Entity
 @DiscriminatorValue("1")
+@Getter
 public class SingleEvent extends Event {
     @ManyToOne
     RecurrentEvent recurrentEvent;

@@ -50,12 +50,13 @@ public class EventController {
 	}
 
 	@GetMapping("{id}")
-	public ResponseEntity<Event> findById(@PathVariable Long id) {
-		return ResponseEntity.of(eventRepository.findById(id));
+	public ResponseEntity<SingleEvent> findById(@PathVariable Long id) {
+		return ResponseEntity.of(singleEventRepository.findById(id));
 	}
 
 	@PostMapping
 	@ResponseStatus(code = HttpStatus.CREATED)
+	@Transactional
 	public Long create(@RequestBody @Valid EventRequest eventRequest) {
 		var start = eventRequest.startTime.atZone(ZoneId.of("UTC"));
 		var end = eventRequest.endTime.atZone(ZoneId.of("UTC"));

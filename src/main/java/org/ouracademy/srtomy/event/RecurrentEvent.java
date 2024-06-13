@@ -46,7 +46,7 @@ public class RecurrentEvent extends Event {
         var event = new SingleEvent(title, start, end);
         event.organization = this.organization;
         event.address = this.address;
-        event.speakers = this.speakers;
+        event.speakers = new ArrayList<>(this.speakers);
         event.description = this.description;
         event.isACourse = this.isACourse;
         event.recurrentEvent = this;
@@ -55,7 +55,7 @@ public class RecurrentEvent extends Event {
 
     public List<DayOfWeek> javaDayOfWeeks() {
         // from Sun(0), Mon(1)-Sat(6) to Sun(7), Mon(1)-Sat(6)
-        return this.daysOfWeek.stream().map(x -> DayOfWeek.of(x == 7 ? 0 : x)).toList();
+        return this.daysOfWeek.stream().map(x -> DayOfWeek.of(x == 0 ? 1 : x)).toList();
     }
 
     Stream<ZonedDateTime> dateTimesBetween() {
