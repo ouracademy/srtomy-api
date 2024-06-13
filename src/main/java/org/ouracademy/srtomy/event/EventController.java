@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -34,6 +33,7 @@ import lombok.Data;
 public class EventController {
 
 	EventRepository eventRepository;
+	SingleEventRepository singleEventRepository;
 	PersonRepository personRepository;
 	OrganizationRepository organizationRepository;
 	EventAttendanceRepository eventAttendanceRepository;
@@ -105,11 +105,7 @@ public class EventController {
 
 	@Data
 	public static class EventDeleteRequest {
-		@NotNull
-		LocalDateTime startTime;
-		@NotNull
-		LocalDateTime endTime;
-		Option option;
+		Option option = Option.THIS_EVENT;
 
 		enum Option {
 			THIS_EVENT,
@@ -120,23 +116,22 @@ public class EventController {
 
 	@DeleteMapping("{id}")
 	public void delete(@PathVariable Long id, @RequestBody @Valid EventDeleteRequest request) {
-		var event = eventRepository
-				.findById(id)
-				.orElseThrow();
-		if (event instanceof RecurrentEvent) {
-			switch (request.option) {
-				case THIS_EVENT:
-
-					break;
-				case THIS_AND_THE_FOLLOWING_EVENTS:
-
-					break;
-				case ALL_EVENTS:
-
-					break;
-			}
-		} else {
-			eventRepository.delete(event);
+		var event = singleEventRepository.findById(id).orElseThrow();
+		switch (request.option) {
+			case THIS_EVENT:
+				eventRepository.delete(event);
+				break;
+			case THIS_AND_THE_FOLLOWING_EVENTS:
+				var followingEvents = singleEventRepository.findByRecurrentEventAndStartAfter(
+						event.recurrentEvent,
+						event.start);
+				eventRepository.deleteAll(followingEvents);
+				eventRepository.delete(event);
+				break;
+			case ALL_EVENTS:
+				eventRepository.deleteAll(singleEventRepository.findByRecurrentEvent(event.recurrentEvent));
+				eventRepository.delete(event.recurrentEvent);
+				break;
 		}
 	}
 
