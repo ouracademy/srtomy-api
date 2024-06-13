@@ -39,7 +39,7 @@ public class EventController {
 	EventAttendanceRepository eventAttendanceRepository;
 
 	@GetMapping
-	public List<Event> findAll(
+	public List<SingleEvent> findAll(
 			@RequestParam(required = true) Long organizationId,
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
@@ -67,7 +67,14 @@ public class EventController {
 		event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
 		event.description = eventRequest.description;
 		event.isACourse = eventRequest.isACourse;
-		return eventRepository.save(event).getId();
+		var id = eventRepository.save(event).getId();
+
+		if (event instanceof RecurrentEvent recurrentEvent) {
+			var events = recurrentEvent.expand();
+			eventRepository.saveAll(events);
+		}
+
+		return id;
 	}
 
 	@GetMapping("{id}/attendance")

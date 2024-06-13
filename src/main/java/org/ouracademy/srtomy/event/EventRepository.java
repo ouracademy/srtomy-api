@@ -23,9 +23,9 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     // t: -----|----|---- X
     // e: -----------|-|-
     @Query("""
-            select e from Event e
+            select e from SingleEvent e
             where e.start <= :end and e.end>=:start
             and e.organization.id=:organizationId""")
-    List<Event> searchEventsOfOrgIdAndBetweenDates(Long organizationId, ZonedDateTime start, ZonedDateTime end);
+    List<SingleEvent> searchEventsOfOrgIdAndBetweenDates(Long organizationId, ZonedDateTime start, ZonedDateTime end);
 
 }
