@@ -63,11 +63,7 @@ public class EventController {
 		var event = eventRequest.isRecurrent
 				? new RecurrentEvent(eventRequest.name, start, end, eventRequest.daysOfWeek)
 				: new SingleEvent(eventRequest.name, start, end);
-		event.organization = organizationRepository.getReferenceById(eventRequest.organizationId);
-		event.address = eventRequest.address;
-		event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
-		event.description = eventRequest.description;
-		event.isACourse = eventRequest.isACourse;
+		mapToModel(eventRequest, event);
 		var id = eventRepository.save(event).getId();
 
 		if (event instanceof RecurrentEvent recurrentEvent) {
@@ -76,6 +72,14 @@ public class EventController {
 		}
 
 		return id;
+	}
+
+	private void mapToModel(EventRequest eventRequest, Event event) {
+		event.organization = organizationRepository.getReferenceById(eventRequest.organizationId);
+		event.address = eventRequest.address;
+		event.speakers = eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
+		event.description = eventRequest.description;
+		event.isACourse = eventRequest.isACourse;
 	}
 
 	@GetMapping("{id}/attendance")
@@ -106,13 +110,7 @@ public class EventController {
 
 	@Data
 	public static class EventDeleteRequest {
-		Option option = Option.THIS_EVENT;
-
-		enum Option {
-			THIS_EVENT,
-			THIS_AND_THE_FOLLOWING_EVENTS,
-			ALL_EVENTS
-		}
+		EventChangeOption option = EventChangeOption.THIS_EVENT;
 	}
 
 	@DeleteMapping("{id}")
@@ -136,20 +134,50 @@ public class EventController {
 		}
 	}
 
-	// @PutMapping("{id}")
-	// public ResponseEntity<Event> edit(
-	// @PathVariable Long id,
-	// @RequestBody @Valid EventRequest eventRequest) {
+	@PutMapping("{id}")
+	public ResponseEntity<Event> edit(
+			@PathVariable Long id,
+			@RequestBody @Valid EditEventRequest request) {
 
-	// // return eventRepository.findById(id).map(organization -> {
-	// // organization.name = eventRequest.name;
-	// // organization.phoneNumber = eventRequest.phoneNumber;
-	// // organization.address = eventRequest.address;
-	// // organization.parent = eventRequest.parentId == null ? null
-	// // : eventRepository.getReferenceById(eventRequest.parentId);
+		if (request.isRecurrent) {
+			// THIS_AND_THE_FOLLOWING_EVENTS
+			// ALL_EVENTS
+		} else {
+			var event = singleEventRepository.findById(id).orElseThrow();
+			var start = request.startTime.atZone(ZoneId.of("UTC"));
+			var end = request.endTime.atZone(ZoneId.of("UTC"));
 
-	// // return ResponseEntity.ok(eventRepository.save(organization));
-	// // }).orElse(ResponseEntity.notFound().build());
-	// }
+			switch (request.option) {
+				case THIS_EVENT:
+					event.start = start;
+					event.end = end;
+					mapToModel(request, event);
+					eventRepository.save(event);
+					break;
+				case THIS_AND_THE_FOLLOWING_EVENTS:
+					var followingEvents = singleEventRepository.findByRecurrentEventAndStartAfter(
+							event.recurrentEvent,
+							event.start);
+					
+					eventRepository.deleteAll(followingEvents);
+					break;
+				case ALL_EVENTS:
+					
+					eventRepository.deleteAll(singleEventRepository.findByRecurrentEvent(event.recurrentEvent));
+					break;
+			}
+		}
+
+		return null;
+		// return eventRepository.findById(id).map(organization -> {
+		// organization.name = eventRequest.name;
+		// organization.phoneNumber = eventRequest.phoneNumber;
+		// organization.address = eventRequest.address;
+		// organization.parent = eventRequest.parentId == null ? null
+		// : eventRepository.getReferenceById(eventRequest.parentId);
+
+		// return ResponseEntity.ok(eventRepository.save(organization));
+		// }).orElse(ResponseEntity.notFound().build());
+	}
 
 }
