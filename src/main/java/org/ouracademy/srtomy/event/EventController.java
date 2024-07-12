@@ -1,9 +1,11 @@
 package org.ouracademy.srtomy.event;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -58,16 +60,24 @@ public class EventController {
 	@ResponseStatus(code = HttpStatus.CREATED)
 	@Transactional
 	public Long create(@RequestBody @Valid EventRequest eventRequest) {
-		var start = eventRequest.startTime.atZone(ZoneId.of("UTC"));
-		var end = eventRequest.endTime.atZone(ZoneId.of("UTC"));
-		var event = eventRequest.isRecurrent
-				? new RecurrentEvent(eventRequest.name, start, end, eventRequest.daysOfWeek)
+		var startTime = OffsetDateTime.parse(eventRequest.startTime);
+		var endTime = OffsetDateTime.parse(eventRequest.endTime);
+		
+
+		var start = startTime.atZoneSameInstant(ZoneId.of("UTC"));
+		var end = endTime.atZoneSameInstant(ZoneId.of("UTC"));
+
+		// eventRequest.startTime.
+		var event = eventRequest.isRecurrent()
+				? new RecurrentEvent(eventRequest.name, start, end,
+						eventRequest.daysOfWeek,
+						eventRequest.endRecur)
 				: new SingleEvent(eventRequest.name, start, end);
 		mapToModel(eventRequest, event);
 		var id = eventRepository.save(event).getId();
 
 		if (event instanceof RecurrentEvent recurrentEvent) {
-			var events = recurrentEvent.expand();
+			var events = recurrentEvent.expand(startTime, endTime);
 			eventRepository.saveAll(events);
 		}
 
@@ -139,36 +149,41 @@ public class EventController {
 			@PathVariable Long id,
 			@RequestBody @Valid EditEventRequest request) {
 
-		if (request.isRecurrent) {
-			// THIS_AND_THE_FOLLOWING_EVENTS
-			// ALL_EVENTS
-		} else {
-			var event = singleEventRepository.findById(id).orElseThrow();
-			var start = request.startTime.atZone(ZoneId.of("UTC"));
-			var end = request.endTime.atZone(ZoneId.of("UTC"));
+		// TODO:
 
-			switch (request.option) {
-				case THIS_EVENT:
-					event.start = start;
-					event.end = end;
-					mapToModel(request, event);
-					eventRepository.save(event);
-					break;
-				case THIS_AND_THE_FOLLOWING_EVENTS:
-					var followingEvents = singleEventRepository.findByRecurrentEventAndStartAfter(
-							event.recurrentEvent,
-							event.start);
-					
-					eventRepository.deleteAll(followingEvents);
-					break;
-				case ALL_EVENTS:
-					
-					eventRepository.deleteAll(singleEventRepository.findByRecurrentEvent(event.recurrentEvent));
-					break;
-			}
-		}
+		throw new NotImplementedException("TODO:");
 
-		return null;
+		// if (request.isRecurrent()) {
+		// // THIS_AND_THE_FOLLOWING_EVENTS
+		// // ALL_EVENTS
+		// } else {
+		// var event = singleEventRepository.findById(id).orElseThrow();
+		// var start = request.startTime.atZone(ZoneId.of("UTC"));
+		// var end = request.endTime.atZone(ZoneId.of("UTC"));
+
+		// switch (request.option) {
+		// case THIS_EVENT:
+		// event.start = start;
+		// event.end = end;
+		// mapToModel(request, event);
+		// eventRepository.save(event);
+		// break;
+		// case THIS_AND_THE_FOLLOWING_EVENTS:
+		// var followingEvents =
+		// singleEventRepository.findByRecurrentEventAndStartAfter(
+		// event.recurrentEvent,
+		// event.start);
+
+		// eventRepository.deleteAll(followingEvents);
+		// break;
+		// case ALL_EVENTS:
+
+		// eventRepository.deleteAll(singleEventRepository.findByRecurrentEvent(event.recurrentEvent));
+		// break;
+		// }
+		// }
+
+		// return null;
 		// return eventRepository.findById(id).map(organization -> {
 		// organization.name = eventRequest.name;
 		// organization.phoneNumber = eventRequest.phoneNumber;

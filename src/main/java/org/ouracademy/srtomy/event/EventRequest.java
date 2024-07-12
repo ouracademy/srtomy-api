@@ -1,8 +1,11 @@
 package org.ouracademy.srtomy.event;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -15,9 +18,10 @@ public class EventRequest {
     String name;
 
     @NotNull
-    LocalDateTime startTime;
+    String startTime;
+
     @NotNull
-    LocalDateTime endTime;
+    String endTime;
 
     List<Long> speakerIds = new ArrayList<>();
 
@@ -32,15 +36,18 @@ public class EventRequest {
 
     List<Integer> daysOfWeek = new ArrayList<>();
 
-    @NotNull
-    Boolean isRecurrent;
+    LocalDate endRecur;
 
     @AssertTrue
     public boolean isValidDaysOfWeek() {
-        if (isRecurrent) {
+        if (isRecurrent()) {
             return !daysOfWeek.isEmpty();
         } else {
             return true;
         }
+    }
+
+    Boolean isRecurrent() {
+        return endRecur != null;
     }
 }
