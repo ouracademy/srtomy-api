@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.ouracademy.srtomy.auth0.Auth0Gateway;
 import org.ouracademy.srtomy.organization.Organization.Type;
 import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
@@ -47,6 +48,7 @@ public class OrganizationController {
     PersonRepository personRepository;
     RoleService roleService;
     AccountabilityTypeRepository accountabilityTypeRepository;
+    Auth0Gateway auth0Gateway;
 
     @GetMapping("{id}/childs")
     public List<Party> findAll(@PathVariable Long id) {
@@ -67,8 +69,17 @@ public class OrganizationController {
 
     @PostMapping
     @ResponseStatus(code = HttpStatus.CREATED)
+    @Transactional
+    // TODO: use saga to update user metadata (to make the db transaction more short)
     public Organization create(@RequestBody @Valid OrganizationRequest request) {
-        return createOrg(request, Type.CHURCH);
+        var org = createOrg(request, Type.CHURCH);
+        var accessToken = auth0Gateway.getAccessToken();
+        var userMetadata = Map.of("orgId", org.getId());
+        var responseUser = auth0Gateway.updateUserMetadata(accessToken, userMetadata);
+        if(!responseUser.getStatusCode().is2xxSuccessful()) {
+            throw new IllegalStateException("Couldn't update user metadata:" + request.getUserId() + "," + userMetadata);
+        }
+        return org;        
     }
 
     @PostMapping("/locations")

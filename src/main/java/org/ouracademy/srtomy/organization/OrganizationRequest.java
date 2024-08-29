@@ -15,4 +15,7 @@ public class OrganizationRequest {
     String phoneNumber;
 
     Long parentId;
+
+    // TODO: remove this and use current user (principal)
+    Long userId;
 }
