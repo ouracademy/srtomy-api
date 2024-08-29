@@ -17,5 +17,5 @@ public class OrganizationRequest {
     Long parentId;
 
     // TODO: remove this and use current user (principal)
-    Long userId;
+    String userId;
 }

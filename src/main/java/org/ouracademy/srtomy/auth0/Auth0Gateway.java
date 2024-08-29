@@ -28,16 +28,17 @@ public class Auth0Gateway {
                 .body(AccessToken.class);
     }
 
-    public ResponseEntity<String> updateUserMetadata(AccessToken accessToken, Map<String, Long> userMetadata) {
+    public ResponseEntity<String> updateAppMetadata(AccessToken accessToken, String userId,
+            Map<String, Long> userMetadata) {
         return restClient.patch()
-                .uri("/api/v2/users/user_id")
+                .uri("/api/v2/users/" + userId)
                 .headers(headers -> {
                     headers.setBearerAuth(accessToken.getAccessToken());
                 })
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("user_metadata", userMetadata))
+                .body(Map.of("app_metadata", userMetadata))
                 .retrieve()
-                .toEntity(String.class);                
+                .toEntity(String.class);
     }
 
 }

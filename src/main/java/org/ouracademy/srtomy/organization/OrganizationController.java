@@ -75,7 +75,7 @@ public class OrganizationController {
         var org = createOrg(request, Type.CHURCH);
         var accessToken = auth0Gateway.getAccessToken();
         var userMetadata = Map.of("orgId", org.getId());
-        var responseUser = auth0Gateway.updateUserMetadata(accessToken, userMetadata);
+        var responseUser = auth0Gateway.updateAppMetadata(accessToken, request.userId, userMetadata);
         if(!responseUser.getStatusCode().is2xxSuccessful()) {
             throw new IllegalStateException("Couldn't update user metadata:" + request.getUserId() + "," + userMetadata);
         }
