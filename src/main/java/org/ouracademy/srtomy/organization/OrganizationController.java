@@ -23,6 +23,7 @@ import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -211,4 +212,20 @@ public class OrganizationController {
         return List.of(ids).stream().map(x -> accountabilityTypeRepository.getReferenceById(x)).toList();
     }
 
+    @DeleteMapping("{id}")
+    @Transactional
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        return organizationRepository.findById(id).map(organization -> {
+
+            if (organization.getType() != Type.GROUP && organization.getType() != Type.MINISTRY) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            accountabilityRepository.deleteAllByParentId(id);
+            accountabilityRepository.deleteAllByChildId(id);
+            organizationRepository.deleteById(id);
+            
+            return ResponseEntity.noContent().build();
+        }).orElse(ResponseEntity.notFound().build());
+    }
 }
