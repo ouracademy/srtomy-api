@@ -30,7 +30,7 @@ public class Auth0Gateway {
       AccessToken accessToken, String userId, Map<String, Long> userMetadata) {
     return restClient
         .patch()
-        .uri("/api/v2/users/" + userId)
+        .uri(uriBuilder -> uriBuilder.path("/api/v2/users/{userId}").build(userId))
         .headers(
             headers -> {
               headers.setBearerAuth(accessToken.getAccessToken());

@@ -87,7 +87,10 @@ jobs:
     name: sonarcloud
     runs-on: ubuntu-latest
     needs: build-test
-    if: ${{ secrets.SONAR_TOKEN != '' }}
+    # Job-level `if:` can't reference the `secrets` context directly (only
+    # github/inputs/needs/vars are allowed there), so the gate lives on the
+    # one step that needs the token instead; the job itself always starts
+    # (checkout+setup-java), it just no-ops without SONAR_TOKEN.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -98,6 +101,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
       - name: static analysis
+        if: ${{ env.SONAR_TOKEN != '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./mvnw -B -ntp verify sonar:sonar

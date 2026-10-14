@@ -39,7 +39,7 @@ public class EventRequest {
     }
   }
 
-  Boolean isRecurrent() {
+  boolean isRecurrent() {
     return endRecur != null;
   }
 }
