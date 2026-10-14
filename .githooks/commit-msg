@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Real git hook (commit-msg). Not under .git/hooks because that directory
+# isn't tracked by git; activate it once per clone with:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/validate-message.sh
+source "$script_dir/lib/validate-message.sh"
+
+commit_msg_file="$1"
+subject="$(head -n 1 "$commit_msg_file")"
+
+validate_commit_subject "$subject"

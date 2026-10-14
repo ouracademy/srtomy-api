@@ -1,53 +1,45 @@
 package org.ouracademy.srtomy.event;
 
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonFormat;
-
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 
 @Data
 public class EventRequest {
-    @NotBlank
-    String name;
+  @NotBlank String name;
 
-    @NotNull
-    String startTime;
+  @NotNull String startTime;
 
-    @NotNull
-    String endTime;
+  @NotNull String endTime;
 
-    List<Long> speakerIds = new ArrayList<>();
+  List<Long> speakerIds = new ArrayList<>();
 
-    String address;
+  String address;
 
-    @NotNull
-    Long organizationId;
+  @NotNull Long organizationId;
 
-    String description;
+  String description;
 
-    Boolean isACourse = false;
+  Boolean isACourse = false;
 
-    List<Integer> daysOfWeek = new ArrayList<>();
+  List<Integer> daysOfWeek = new ArrayList<>();
 
-    LocalDate endRecur;
+  LocalDate endRecur;
 
-    @AssertTrue
-    public boolean isValidDaysOfWeek() {
-        if (isRecurrent()) {
-            return !daysOfWeek.isEmpty();
-        } else {
-            return true;
-        }
+  @AssertTrue
+  public boolean isValidDaysOfWeek() {
+    if (isRecurrent()) {
+      return !daysOfWeek.isEmpty();
+    } else {
+      return true;
     }
+  }
 
-    Boolean isRecurrent() {
-        return endRecur != null;
-    }
+  Boolean isRecurrent() {
+    return endRecur != null;
+  }
 }

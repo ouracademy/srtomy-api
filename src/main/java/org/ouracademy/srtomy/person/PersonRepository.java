@@ -7,7 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface PersonRepository extends JpaRepository<Person, Long> {
 
-    @Query("""
+  @Query(
+      """
             select p
             from Accountability a join TREAT(a.child as Person) p
             where a.type = :accountabilityType
@@ -17,15 +18,19 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
                 or lower(p.lastName) like lower(CONCAT('%', :searchText, '%'))
             )
             """)
-    Page<Person> findByNameAndOrgId(
-            String searchText,
-            Long organizationId, AccountabilityType accountabilityType, Pageable pageable);
+  Page<Person> findByNameAndOrgId(
+      String searchText,
+      Long organizationId,
+      AccountabilityType accountabilityType,
+      Pageable pageable);
 
-    @Query("""
+  @Query(
+      """
             select p
             from Accountability a join TREAT(a.child as Person) p
             where a.type = :accountabilityType
             and a.parent.id = :organizationId
             """)
-    Page<Person> findByOrgId(Long organizationId, AccountabilityType accountabilityType, Pageable pageable);
+  Page<Person> findByOrgId(
+      Long organizationId, AccountabilityType accountabilityType, Pageable pageable);
 }

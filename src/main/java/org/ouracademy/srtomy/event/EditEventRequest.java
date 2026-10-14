@@ -6,5 +6,5 @@ import lombok.Setter;
 @Getter
 @Setter
 public class EditEventRequest extends EventRequest {
-    EventChangeOption option;
+  EventChangeOption option;
 }
