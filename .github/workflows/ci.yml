@@ -18,6 +18,23 @@ jobs:
   build-test:
     name: build, tests, format check
     runs-on: ubuntu-latest
+    services:
+      # Matches docker-compose.yml, so tests use the exact same credentials
+      # as `docker-compose up -d` locally. Tests never touch GCP (see
+      # src/test/resources/application.yml).
+      postgres:
+        image: postgres:13-alpine
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: somesecretpassword
+          POSTGRES_DB: srtommy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
