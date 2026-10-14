@@ -134,4 +134,11 @@ jobs:
             "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64"
           chmod +x /usr/local/bin/osv-scanner
       - name: dependency vulnerabilities
-        run: osv-scanner scan source -r .
+        # --no-resolve: the project pins spring-boot-starter-parent to a
+        # SNAPSHOT version (hosted on repo.spring.io, not Maven Central),
+        # which osv-scanner's transitive-dependency resolver can't look up
+        # (it queries deps.dev, which doesn't know Spring's snapshot repo
+        # either) and fails the whole scan on. This trades full transitive
+        # coverage for actually running; it still checks every dependency
+        # declared with an explicit version in pom.xml.
+        run: osv-scanner scan source -r --no-resolve .
