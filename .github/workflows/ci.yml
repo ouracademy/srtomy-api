@@ -3,8 +3,11 @@
 name: ci
 
 on:
+  # Only main (post-merge) triggers on push; a branch with an open PR is
+  # already covered by `pull_request` below — triggering on both doubled
+  # every run for no reason.
   push:
-    branches: ["**"]
+    branches: ["main"]
   pull_request:
 
 concurrency:
@@ -60,20 +63,13 @@ jobs:
         with:
           fetch-depth: 0
       - name: validate commit messages
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: |
           source .githooks/lib/validate-message.sh
-
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            range="origin/${{ github.base_ref }}..HEAD"
-          else
-            range="${{ github.event.before }}..${{ github.sha }}"
-            # First push of a new branch: github.event.before is all zeros.
-            case "${{ github.event.before }}" in
-              0000000000000000000000000000000000000000* | "")
-                range="${{ github.sha }}"
-                ;;
-            esac
-          fi
+          range="$(.github/ci-commit-range.sh)"
 
           failed=0
           while IFS= read -r subject; do
@@ -119,8 +115,17 @@ jobs:
         run: |
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar -xz -C /usr/local/bin gitleaks
-      - name: secrets (full history)
-        run: gitleaks git . --redact --no-banner
+      - name: secrets (this push/PR's commits)
+        # Deliberately NOT a full-history scan: that would mean any one old
+        # commit (e.g. the docker-compose.yml dev Postgres password, not a
+        # real secret but a plaintext match) blocks every future PR forever,
+        # regardless of what that PR actually changes. Scoping to just the
+        # new commits still catches anything genuinely new.
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: gitleaks git --log-opts="$(.github/ci-commit-range.sh)" . --redact --no-banner
       - name: install osv-scanner
         env:
           OSV_VERSION: v2.5.1

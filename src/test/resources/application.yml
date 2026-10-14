@@ -14,6 +14,18 @@ spring:
     url: jdbc:postgresql://127.0.0.1:5432/srtommy
     username: root
     password: somesecretpassword
+  cloud:
+    gcp:
+      # spring-cloud-gcp-starter eagerly creates a GoogleCredentials bean on
+      # startup regardless of whether anything actually uses GCP, which
+      # fails with "Your default credentials were not found" in any
+      # environment without GCP credentials (e.g. CI). Tests don't talk to
+      # GCP at all, so disable both autoconfigurations outright instead of
+      # relying on credentials being present.
+      core:
+        enabled: false
+      secretmanager:
+        enabled: false
 
 cors_origin: "*"
 
