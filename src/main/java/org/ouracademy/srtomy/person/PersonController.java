@@ -1,5 +1,8 @@
 package org.ouracademy.srtomy.person;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.organization.RoleService;
 import org.springdoc.core.annotations.ParameterObject;
@@ -18,81 +21,84 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.AllArgsConstructor;
-
 @RestController
 @RequestMapping("people")
 @AllArgsConstructor
 @Tag(name = "people")
 public class PersonController {
 
-    AccountabilityRepository accountabilityRepository;
-    AccountabilityTypeRepository accountabilityTypeRepository;
-    PersonRepository personRepository;
-    OrganizationRepository organizationRepository;
-    RoleService roleService;
+  AccountabilityRepository accountabilityRepository;
+  AccountabilityTypeRepository accountabilityTypeRepository;
+  PersonRepository personRepository;
+  OrganizationRepository organizationRepository;
+  RoleService roleService;
 
-    @GetMapping
-    public Page<Person> findAll(
-            @RequestParam(required = true) Long organizationId,
-            String searchText,
-            @ParameterObject Pageable pageable) {
+  @GetMapping
+  public Page<Person> findAll(
+      @RequestParam(required = true) Long organizationId,
+      String searchText,
+      @ParameterObject Pageable pageable) {
 
-        var isPartOf = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF);
+    var isPartOf =
+        accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF);
 
-        if (searchText != null) {
-            return personRepository.findByNameAndOrgId(searchText, organizationId, isPartOf, pageable);
-        }
-
-        return personRepository.findByOrgId(organizationId, isPartOf, pageable);
+    if (searchText != null) {
+      return personRepository.findByNameAndOrgId(searchText, organizationId, isPartOf, pageable);
     }
 
-    @GetMapping("{id}")
-    public ResponseEntity<Person> findById(@PathVariable Long id) {
-        return ResponseEntity.of(personRepository.findById(id));
-    }
+    return personRepository.findByOrgId(organizationId, isPartOf, pageable);
+  }
 
-    @PostMapping
-    @ResponseStatus(code = HttpStatus.CREATED)
-    @Transactional
-    public Long create(@RequestBody @Valid CreatePersonRequest personRequest) {
-        var person = toModel(personRequest, new Person());
-        person = personRepository.save(person);
+  @GetMapping("{id}")
+  public ResponseEntity<Person> findById(@PathVariable Long id) {
+    return ResponseEntity.of(personRepository.findById(id));
+  }
 
-        var organization = organizationRepository.getReferenceById(personRequest.organizationId);
+  @PostMapping
+  @ResponseStatus(code = HttpStatus.CREATED)
+  @Transactional
+  public Long create(@RequestBody @Valid CreatePersonRequest personRequest) {
+    var person = toModel(personRequest, new Person());
+    person = personRepository.save(person);
 
-        roleService.sync(person, personRequest.organizationId, personRequest.roles);
+    var organization = organizationRepository.getReferenceById(personRequest.organizationId);
 
-        var visitorState = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
-        accountabilityRepository.save(new Accountability(person, organization, visitorState));
+    roleService.sync(person, personRequest.organizationId, personRequest.roles);
 
-        var isPartOf = accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF);
-        accountabilityRepository.save(new Accountability(person, organization, isPartOf));
+    var visitorState =
+        accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
+    accountabilityRepository.save(new Accountability(person, organization, visitorState));
 
-        return person.getId();
-    }
+    var isPartOf =
+        accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF);
+    accountabilityRepository.save(new Accountability(person, organization, isPartOf));
 
-    @PutMapping("{id}")
-    @Transactional
-    public ResponseEntity<Long> edit(@PathVariable Long id, @RequestBody @Valid UpdatePersonRequest personRequest) {
-        return personRepository.findById(id).map(person -> {
-            toModel(personRequest, person);
-            roleService.sync(person, personRequest.organizationId, personRequest.roles);
-            return ResponseEntity.ok(personRepository.save(person).getId());
-        }).orElse(ResponseEntity.notFound().build());
-    }
+    return person.getId();
+  }
 
-    private Person toModel(CreatePersonRequest personRequest, Person person) {
-        person.firstName = personRequest.firstName;
-        person.lastName = personRequest.lastName;
-        person.name = personRequest.firstName + " " + personRequest.lastName;
-        person.phoneNumber = personRequest.phoneNumber;
-        person.age = personRequest.age;
-        person.birthdate = personRequest.birthdate;
-        person.hasBeenBaptized = personRequest.hasBeenBaptized;
-        return person;
-    }
+  @PutMapping("{id}")
+  @Transactional
+  public ResponseEntity<Long> edit(
+      @PathVariable Long id, @RequestBody @Valid UpdatePersonRequest personRequest) {
+    return personRepository
+        .findById(id)
+        .map(
+            person -> {
+              toModel(personRequest, person);
+              roleService.sync(person, personRequest.organizationId, personRequest.roles);
+              return ResponseEntity.ok(personRepository.save(person).getId());
+            })
+        .orElse(ResponseEntity.notFound().build());
+  }
 
+  private Person toModel(CreatePersonRequest personRequest, Person person) {
+    person.firstName = personRequest.firstName;
+    person.lastName = personRequest.lastName;
+    person.name = personRequest.firstName + " " + personRequest.lastName;
+    person.phoneNumber = personRequest.phoneNumber;
+    person.age = personRequest.age;
+    person.birthdate = personRequest.birthdate;
+    person.hasBeenBaptized = personRequest.hasBeenBaptized;
+    return person;
+  }
 }

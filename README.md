@@ -10,6 +10,9 @@ Un sistema para iglesias
 - Create BD: `docker-compose up -d`
 - Check Authenticate and then run: `export GOOGLE_APPLICATION_CREDENTIALS="path-to/application_default_credentials.json`
 - Run the app: `./mvnw spring-boot:run -Dspring-boot.run.profiles=local`
+- Enable the repo's git hooks (Conventional Commits check, one-time per clone): `git config core.hooksPath .githooks`
+
+See [AGENTS.md](./AGENTS.md) for commit message, code style and language conventions.
 
 ## Google Cloud Platform
 

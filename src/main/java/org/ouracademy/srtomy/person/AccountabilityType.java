@@ -1,16 +1,14 @@
 package org.ouracademy.srtomy.person;
 
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
-import org.ouracademy.srtomy.domain.DomainObject;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.ManyToOne;
+import java.time.LocalDateTime;
 import lombok.Getter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+import org.ouracademy.srtomy.domain.DomainObject;
 
 @Entity
 @Getter
@@ -18,31 +16,31 @@ import lombok.Getter;
 @SQLRestriction("deleted_time is null")
 public class AccountabilityType extends DomainObject {
 
-    String name;
+  String name;
 
-    @ManyToOne
-    Party party;
+  @ManyToOne Party party;
 
-    LocalDateTime deletedTime;
+  LocalDateTime deletedTime;
 
-    @Enumerated(EnumType.STRING)
-    Category category;
+  @Enumerated(EnumType.STRING)
+  Category category;
 
-    public enum Category {
-        ROLE, MEMBER_PROGRESS_STATE
-    }
+  public enum Category {
+    ROLE,
+    MEMBER_PROGRESS_STATE
+  }
 
-    AccountabilityType() {
-        // jpa only
-    }
+  AccountabilityType() {
+    // jpa only
+  }
 
-    public AccountabilityType(String name, Party party, Category category) {
-        this.name = name;
-        this.party = party;
-        this.category = category;
-    }
+  public AccountabilityType(String name, Party party, Category category) {
+    this.name = name;
+    this.party = party;
+    this.category = category;
+  }
 
-    public boolean isPredefined() {
-        return party == null;
-    }
+  public boolean isPredefined() {
+    return party == null;
+  }
 }

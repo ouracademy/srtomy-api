@@ -1,0 +1,144 @@
+# See AGENTS.md for the conventions this workflow enforces (commits, code
+# style, language policy).
+name: ci
+
+on:
+  # Only main (post-merge) triggers on push; a branch with an open PR is
+  # already covered by `pull_request` below — triggering on both doubled
+  # every run for no reason.
+  push:
+    branches: ["main"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "17"
+
+jobs:
+  build-test:
+    name: build, tests, format check
+    runs-on: ubuntu-latest
+    services:
+      # Matches docker-compose.yml, so tests use the exact same credentials
+      # as `docker-compose up -d` locally. Tests never touch GCP (see
+      # src/test/resources/application.yml).
+      postgres:
+        image: postgres:13-alpine
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: somesecretpassword
+          POSTGRES_DB: srtommy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: build, unit tests, spotless:check
+        run: ./mvnw -B -ntp verify
+
+  language-check:
+    name: language policy (code must be in English)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check-language.py
+
+  commit-lint:
+    name: conventional commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: validate commit messages
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: |
+          source .githooks/lib/validate-message.sh
+          range="$(.github/ci-commit-range.sh)"
+
+          failed=0
+          while IFS= read -r subject; do
+            [ -z "$subject" ] && continue
+            validate_commit_subject "$subject" || failed=1
+          done < <(git log --format='%s' "$range")
+
+          exit $failed
+
+  sonar:
+    name: sonarcloud
+    runs-on: ubuntu-latest
+    needs: build-test
+    # Job-level `if:` can't reference the `secrets` context directly (only
+    # github/inputs/needs/vars are allowed there), so the gate lives on the
+    # one step that needs the token instead; the job itself always starts
+    # (checkout+setup-java), it just no-ops without SONAR_TOKEN.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: static analysis
+        if: ${{ env.SONAR_TOKEN != '' }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./mvnw -B -ntp verify sonar:sonar
+
+  security:
+    name: secrets and dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+      - name: secrets (this push/PR's commits)
+        # Deliberately NOT a full-history scan: that would mean any one old
+        # commit (e.g. the docker-compose.yml dev Postgres password, not a
+        # real secret but a plaintext match) blocks every future PR forever,
+        # regardless of what that PR actually changes. Scoping to just the
+        # new commits still catches anything genuinely new.
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: gitleaks git --log-opts="$(.github/ci-commit-range.sh)" . --redact --no-banner
+      - name: install osv-scanner
+        env:
+          OSV_VERSION: v2.5.1
+        run: |
+          curl -sSfL -o /usr/local/bin/osv-scanner \
+            "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64"
+          chmod +x /usr/local/bin/osv-scanner
+      - name: dependency vulnerabilities
+        # --no-resolve: the project pins spring-boot-starter-parent to a
+        # SNAPSHOT version (hosted on repo.spring.io, not Maven Central),
+        # which osv-scanner's transitive-dependency resolver can't look up
+        # (it queries deps.dev, which doesn't know Spring's snapshot repo
+        # either) and fails the whole scan on. This trades full transitive
+        # coverage for actually running; it still checks every dependency
+        # declared with an explicit version in pom.xml.
+        run: osv-scanner scan source -r --no-resolve .

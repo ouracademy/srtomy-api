@@ -5,17 +5,16 @@ import lombok.Data;
 
 @Data
 public class OrganizationRequest {
-    @NotBlank
-    String name;
+  @NotBlank String name;
 
-    String description;
+  String description;
 
-    String address;
+  String address;
 
-    String phoneNumber;
+  String phoneNumber;
 
-    Long parentId;
+  Long parentId;
 
-    // TODO: remove this and use current user (principal)
-    String userId;
+  // TODO: remove this and use current user (principal)
+  String userId;
 }

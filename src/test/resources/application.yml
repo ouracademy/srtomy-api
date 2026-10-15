@@ -1,0 +1,34 @@
+# Test-only config. Same classpath location as src/main/resources/application.yml,
+# and target/test-classes comes before target/classes on the test classpath,
+# so this file entirely REPLACES (not merges with) the main one for
+# `mvn test`/`verify` — none of its `spring.config.import: sm://` GCP Secret
+# Manager wiring applies here. Tests never touch any real GCP environment
+# (dev or prod); they only need a disposable Postgres (Flyway runs the real
+# migrations from src/main/resources/db/migration on startup) and dummy
+# Auth0 credentials. Local test runs reuse the same docker-compose Postgres
+# used for `spring-boot:run -Dspring-boot.run.profiles=local` (see
+# README.md); CI spins up an equivalent Postgres service container (see
+# .github/workflows/ci.yml).
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/srtommy
+    username: root
+    password: somesecretpassword
+  cloud:
+    gcp:
+      # spring-cloud-gcp-starter eagerly creates a GoogleCredentials bean on
+      # startup regardless of whether anything actually uses GCP, which
+      # fails with "Your default credentials were not found" in any
+      # environment without GCP credentials (e.g. CI). Tests don't talk to
+      # GCP at all, so disable both autoconfigurations outright instead of
+      # relying on credentials being present.
+      core:
+        enabled: false
+      secretmanager:
+        enabled: false
+
+cors_origin: "*"
+
+auth0:
+  clientId: test-client-id
+  clientSecret: test-client-secret
