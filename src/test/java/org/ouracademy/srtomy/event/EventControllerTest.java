@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
@@ -30,5 +32,22 @@ class EventControllerTest {
         .isOk()
         .expectBody(String.class)
         .value(body -> assertThat(body).isEqualTo("[]"));
+  }
+
+  @Test
+  void deletingAMissingEventReturnsA404Problem() {
+    // Exercises GlobalExceptionHandler end-to-end: singleEventRepository.findById(id)
+    // .orElseThrow() in EventController.delete throws NoSuchElementException for an id
+    // that doesn't exist.
+    restTestClient
+        .method(HttpMethod.DELETE)
+        .uri("/events/999999")
+        .contentType(MediaType.APPLICATION_JSON)
+        .body("{}")
+        .exchange()
+        .expectStatus()
+        .isNotFound()
+        .expectHeader()
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON);
   }
 }
