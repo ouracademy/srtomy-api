@@ -185,6 +185,31 @@
 							<goal>report</goal>
 						</goals>
 					</execution>
+					<execution>
+						<!-- Floor, not a target: measured instruction coverage after adding
+						the first real tests was ~23.7%; set a bit below that (not an
+						invented "good" number) so it can't silently regress, without
+						being so tight that an unrelated line change breaks the build. -->
+						<id>jacoco-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>INSTRUCTION</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.20</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 			<plugin>
