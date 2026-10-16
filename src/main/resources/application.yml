@@ -5,6 +5,14 @@ spring:
       - "prod"
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  mvc:
+    # Belt-and-suspenders alongside GlobalExceptionHandler: this makes
+    # Spring's *default* exception handling (for anything that doesn't go
+    # through our @RestControllerAdvice, e.g. errors raised outside normal
+    # dispatch) also render as application/problem+json instead of the
+    # plain Whitelabel/BasicErrorController body.
+    problemdetails:
+      enabled: true
 server:
   shutdown: graceful
 management:
