@@ -1,21 +1,35 @@
 package org.ouracademy.srtomy.auth0;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 @Service
 public class Auth0Gateway {
+
+  private static final String RESILIENCE_INSTANCE = "auth0";
+
   Auth0Config auth0Config;
   RestClient restClient;
 
   public Auth0Gateway(Auth0Config auth0Config) {
     this.auth0Config = auth0Config;
-    restClient = RestClient.builder().baseUrl(auth0Config.url).build();
+    var httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+    var requestFactory = new JdkClientHttpRequestFactory(httpClient);
+    requestFactory.setReadTimeout(Duration.ofSeconds(5));
+    restClient =
+        RestClient.builder().baseUrl(auth0Config.url).requestFactory(requestFactory).build();
   }
 
+  @Retry(name = RESILIENCE_INSTANCE)
+  @CircuitBreaker(name = RESILIENCE_INSTANCE)
   public AccessToken getAccessToken() {
     return restClient
         .post()
@@ -26,6 +40,8 @@ public class Auth0Gateway {
         .body(AccessToken.class);
   }
 
+  @Retry(name = RESILIENCE_INSTANCE)
+  @CircuitBreaker(name = RESILIENCE_INSTANCE)
   public ResponseEntity<String> updateAppMetadata(
       AccessToken accessToken, String userId, Map<String, Long> userMetadata) {
     return restClient
