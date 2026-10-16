@@ -48,3 +48,20 @@ cors_origin: "*"
 auth0:
   clientId: ${sm://auth0-client-id}
   clientSecret: ${sm://auth0-client-secret}
+
+resilience4j:
+  retry:
+    instances:
+      auth0:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+  circuitbreaker:
+    instances:
+      auth0:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3

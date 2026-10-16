@@ -35,3 +35,25 @@ cors_origin: "*"
 auth0:
   clientId: test-client-id
   clientSecret: test-client-secret
+
+# Mirrors the "auth0" instance config in src/main/resources/application.yml
+# (not inherited — this file replaces it entirely for tests), so
+# Auth0GatewayResilienceTest's retry-count assertion is testing this
+# project's actual config, not resilience4j's coincidentally-matching
+# library defaults.
+resilience4j:
+  retry:
+    instances:
+      auth0:
+        max-attempts: 3
+        wait-duration: 10ms
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+  circuitbreaker:
+    instances:
+      auth0:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
