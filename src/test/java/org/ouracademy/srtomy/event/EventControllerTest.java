@@ -1,0 +1,34 @@
+package org.ouracademy.srtomy.event;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+class EventControllerTest {
+
+  @LocalServerPort int port;
+  RestTestClient restTestClient;
+
+  @BeforeEach
+  void setUp() {
+    restTestClient = RestTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
+  }
+
+  @Test
+  void findAllForAnUnknownOrganizationAndDateRangeReturnsAnEmptyList() {
+    restTestClient
+        .get()
+        .uri("/events?organizationId=999999&start=2026-01-01T00:00:00Z&end=2026-12-31T00:00:00Z")
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectBody(String.class)
+        .value(body -> assertThat(body).isEqualTo("[]"));
+  }
+}
