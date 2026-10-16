@@ -55,8 +55,7 @@ class EventRequestTest {
     Set<ConstraintViolation<EventRequest>> violations = validator.validate(request);
 
     assertThat(violations).hasSize(1);
-    assertThat(violations.iterator().next().getPropertyPath().toString())
-        .isEqualTo("validDaysOfWeek");
+    assertThat(violations.iterator().next().getPropertyPath()).hasToString("validDaysOfWeek");
   }
 
   @Test

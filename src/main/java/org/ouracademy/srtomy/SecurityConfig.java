@@ -28,7 +28,7 @@ public class SecurityConfig {
   static final String AUDIENCE = "https://api.srtommy.com";
 
   @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+  public SecurityFilterChain filterChain(HttpSecurity http) {
     http.authorizeHttpRequests(
             authorize ->
                 authorize
@@ -38,6 +38,14 @@ public class SecurityConfig {
                     .authenticated())
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        // Safe here: this is a stateless JWT resource server (no cookies, no
+        // session, SessionCreationPolicy.STATELESS above). CSRF protection
+        // exists to stop a browser from automatically attaching a victim's
+        // *ambient* credentials (session cookies) to a forged cross-site
+        // request; a Bearer token in an Authorization header is never
+        // attached by the browser automatically, so there's no ambient
+        // credential for a forged request to ride on. This is Spring
+        // Security's own documented guidance for stateless token-based APIs.
         .csrf(csrf -> csrf.disable())
         .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
     return http.build();
