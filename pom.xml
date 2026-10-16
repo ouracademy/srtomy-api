@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.2.4-SNAPSHOT</version>
+		<version>4.1.1</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>org.ouracademy</groupId>
@@ -15,9 +15,9 @@
 	<name>srtomy</name>
 	<description>Demo project for Spring Boot</description>
 	<properties>
-		<java.version>17</java.version>
-		<spring-cloud-gcp.version>5.1.0</spring-cloud-gcp.version>
-		<spring-cloud.version>2023.0.0</spring-cloud.version>
+		<java.version>21</java.version>
+		<spring-cloud-gcp.version>8.2.4</spring-cloud-gcp.version>
+		<spring-cloud.version>2025.1.3</spring-cloud.version>
 		<!-- SonarCloud; adjust org/projectKey if they differ in your SonarCloud
 		account -->
 		<sonar.organization>ouracademy</sonar.organization>
@@ -40,6 +40,14 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.google.cloud</groupId>
@@ -71,6 +79,11 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springdoc</groupId>
@@ -85,14 +98,38 @@
 		</dependency>
 
 		<dependency>
+			<!-- Spring Boot 4 split FlywayAutoConfiguration out of the monolithic
+			spring-boot-autoconfigure into its own module; plain flyway-core on
+			the classpath is no longer enough to get Flyway to auto-run on
+			startup (a latent bug since the Boot 4 upgrade — went unnoticed
+			because the dev Postgres volume already had the schema from
+			before). -->
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<!-- Flyway 10+ split per-database support out of flyway-core into
+			separate plugin jars; without this, Flyway throws "Unsupported
+			Database: PostgreSQL ..." even though flyway-core itself is
+			present. Version left unmanaged (not covered by the Boot BOM) —
+			keep it aligned with whatever flyway-core version
+			spring-boot-starter-flyway resolves to. -->
 			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<dependency>
+			<!-- Version managed by the spring-cloud-dependencies BOM (see
+			spring-cloud.version), matching the rest of the spring-cloud-* usage
+			in this project. -->
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
 		</dependency>
 
 		<dependency>
 			<groupId>io.hypersistence</groupId>
-			<artifactId>hypersistence-utils-hibernate-62</artifactId>
-			<version>3.7.5</version>
+			<artifactId>hypersistence-utils-hibernate-73</artifactId>
+			<version>3.16.0</version>
 		</dependency>
 	</dependencies>
 	<dependencyManagement>
@@ -169,6 +206,50 @@
 				</executions>
 			</plugin>
 			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.15</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-report</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<!-- Floor, not a target: measured instruction coverage after adding
+						the first real tests was ~23.7%; set a bit below that (not an
+						invented "good" number) so it can't silently regress, without
+						being so tight that an unrelated line change breaks the build. -->
+						<id>jacoco-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>INSTRUCTION</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.20</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
 				<!-- static analysis; only invoked explicitly in CI (job `sonar`),
 				never bound to a lifecycle phase, so it never runs on a plain
 				`mvn verify`/`install` -->
@@ -178,41 +259,5 @@
 			</plugin>
 		</plugins>
 	</build>
-	<repositories>
-		<repository>
-			<id>spring-milestones</id>
-			<name>Spring Milestones</name>
-			<url>https://repo.spring.io/milestone</url>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
-		<repository>
-			<id>spring-snapshots</id>
-			<name>Spring Snapshots</name>
-			<url>https://repo.spring.io/snapshot</url>
-			<releases>
-				<enabled>false</enabled>
-			</releases>
-		</repository>
-	</repositories>
-	<pluginRepositories>
-		<pluginRepository>
-			<id>spring-milestones</id>
-			<name>Spring Milestones</name>
-			<url>https://repo.spring.io/milestone</url>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</pluginRepository>
-		<pluginRepository>
-			<id>spring-snapshots</id>
-			<name>Spring Snapshots</name>
-			<url>https://repo.spring.io/snapshot</url>
-			<releases>
-				<enabled>false</enabled>
-			</releases>
-		</pluginRepository>
-	</pluginRepositories>
 
 </project>

@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  JAVA_VERSION: "17"
+  JAVA_VERSION: "21"
 
 jobs:
   build-test:
@@ -26,7 +26,10 @@ jobs:
       # as `docker-compose up -d` locally. Tests never touch GCP (see
       # src/test/resources/application.yml).
       postgres:
-        image: postgres:13-alpine
+        # Matches docker-compose.yml: 13 is no longer supported by
+        # Hibernate's PostgreSQLDialect or by Flyway on Spring Boot 4
+        # (both require >= 14).
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: root
           POSTGRES_PASSWORD: somesecretpassword
@@ -39,27 +42,33 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
-      - name: build, unit tests, spotless:check
+      - name: build, unit tests, spotless:check, jacoco:check
         run: ./mvnw -B -ntp verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+          retention-days: 7
 
   language-check:
     name: language policy (code must be in English)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: python3 scripts/check-language.py
 
   commit-lint:
     name: conventional commits
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: validate commit messages
@@ -88,7 +97,7 @@ jobs:
     # one step that needs the token instead; the job itself always starts
     # (checkout+setup-java), it just no-ops without SONAR_TOKEN.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-java@v5
@@ -106,7 +115,7 @@ jobs:
     name: secrets and dependencies
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: install gitleaks

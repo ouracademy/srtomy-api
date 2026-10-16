@@ -5,6 +5,14 @@ spring:
       - "prod"
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  mvc:
+    # Belt-and-suspenders alongside GlobalExceptionHandler: this makes
+    # Spring's *default* exception handling (for anything that doesn't go
+    # through our @RestControllerAdvice, e.g. errors raised outside normal
+    # dispatch) also render as application/problem+json instead of the
+    # plain Whitelabel/BasicErrorController body.
+    problemdetails:
+      enabled: true
 server:
   shutdown: graceful
 management:
@@ -22,12 +30,9 @@ management:
           include: livenessState
         readiness:
           include: readinessState,db
-# security:
-#   oauth2:
-#     resourceserver:
-#       jwt:
-#         audiences: https://farmacia-unmsm.org
-#         issuer-uri: https://dev-jeb53xnc.us.auth0.com/
+# Spring Security's JWT resource server config lives in SecurityConfig.java
+# instead of here, reusing auth0.url (below) as the issuer rather than
+# duplicating the Auth0 domain in a second property.
 # web:
 #   resources:
 #     add-mappings: false # disables static resources
@@ -40,3 +45,20 @@ cors_origin: "*"
 auth0:
   clientId: ${sm://auth0-client-id}
   clientSecret: ${sm://auth0-client-secret}
+
+resilience4j:
+  retry:
+    instances:
+      auth0:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+  circuitbreaker:
+    instances:
+      auth0:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
