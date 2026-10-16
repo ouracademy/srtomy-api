@@ -3,4 +3,10 @@ spring:
     url: ${sm://db-url}
     username: ${sm://db-user}
     password: ${sm://db-password}
+    # Kept small on purpose: this dates back to when the prod DB was hosted
+    # on ElephantSQL's free tier (very low connection limit, no longer
+    # used today). Don't raise this without first checking the connection
+    # limit of whatever Postgres instance is actually backing `db-url` now
+    # — a pool bigger than the DB's own limit can starve other clients or
+    # fail to connect under load.
     hikari.maximumPoolSize: 2
