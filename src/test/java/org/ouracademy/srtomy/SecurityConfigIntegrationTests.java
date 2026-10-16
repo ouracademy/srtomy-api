@@ -12,7 +12,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import(TestSecurityConfig.class)
-class SecurityConfigTest {
+class SecurityConfigIntegrationTests {
 
   @LocalServerPort int port;
   @Autowired JwtEncoder jwtEncoder;

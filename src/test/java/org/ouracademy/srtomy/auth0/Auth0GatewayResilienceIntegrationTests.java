@@ -29,7 +29,7 @@ import org.springframework.web.client.HttpServerErrorException;
  */
 @SpringBootTest
 @Import(TestSecurityConfig.class)
-class Auth0GatewayResilienceTest {
+class Auth0GatewayResilienceIntegrationTests {
 
   private static final AtomicInteger requestCount = new AtomicInteger();
   private static HttpServer server;

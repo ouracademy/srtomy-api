@@ -15,7 +15,7 @@ import org.springframework.web.context.request.WebRequest;
  * dispatch, not when calling the method directly — that part is covered end-to-end by
  * EventControllerTest#deletingAMissingEventReturnsA404Problem.
  */
-class GlobalExceptionHandlerTest {
+class GlobalExceptionHandlerTests {
 
   private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
   private final WebRequest request = mock(WebRequest.class);

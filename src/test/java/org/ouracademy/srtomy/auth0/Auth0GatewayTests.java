@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
  * request path actually sent over the wire — the thing that matters for the path-traversal fix in
  * updateAppMetadata (building the URI with a template variable instead of string concatenation).
  */
-class Auth0GatewayTest {
+class Auth0GatewayTests {
 
   private HttpServer server;
   private final BlockingQueue<String> receivedPaths = new ArrayBlockingQueue<>(1);

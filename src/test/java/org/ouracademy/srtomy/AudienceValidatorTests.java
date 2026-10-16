@@ -8,7 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-class AudienceValidatorTest {
+class AudienceValidatorTests {
 
   private final AudienceValidator validator = new AudienceValidator("https://api.srtommy.com");
 

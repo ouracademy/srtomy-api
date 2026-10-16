@@ -13,7 +13,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-class EventRequestTest {
+class EventRequestTests {
 
   private static ValidatorFactory validatorFactory;
   private static Validator validator;

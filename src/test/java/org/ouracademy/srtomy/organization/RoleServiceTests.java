@@ -22,7 +22,7 @@ import org.ouracademy.srtomy.person.Person;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
-class RoleServiceTest {
+class RoleServiceTests {
 
   @Mock AccountabilityTypeRepository accountabilityTypeRepository;
   @Mock AccountabilityRepository accountabilityRepository;
