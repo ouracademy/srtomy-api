@@ -1,6 +1,8 @@
 services:
   dbpostgresql:
-    image: postgres:13-alpine
+    # 13 is no longer supported by Hibernate's PostgreSQLDialect or by
+    # the Flyway version Spring Boot 4 pulls in (both require >= 14).
+    image: postgres:16-alpine
     ports:
       - "5432:5432" # pc_port:container_port
     environment:
