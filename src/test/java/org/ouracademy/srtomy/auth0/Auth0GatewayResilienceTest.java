@@ -9,8 +9,10 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.srtomy.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.HttpServerErrorException;
@@ -19,8 +21,14 @@ import org.springframework.web.client.HttpServerErrorException;
  * Unlike Auth0GatewayTest (which builds a plain `new Auth0Gateway(...)`, bypassing Spring AOP),
  * this autowires the real Spring-managed bean so the @Retry/@CircuitBreaker annotations — which
  * only take effect through the proxy Spring creates — actually apply.
+ *
+ * <p>Imports TestSecurityConfig so SecurityConfig's real JwtDecoder bean (which would otherwise
+ * call out to {@code auth0.url}'s OIDC discovery endpoint on startup) never runs — doubly important
+ * here since auth0.url is pointed at the always-500 test server below, which would make that call
+ * fail outright.
  */
 @SpringBootTest
+@Import(TestSecurityConfig.class)
 class Auth0GatewayResilienceTest {
 
   private static final AtomicInteger requestCount = new AtomicInteger();

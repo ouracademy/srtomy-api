@@ -71,7 +71,8 @@ class Auth0GatewayTest {
     gateway.updateAppMetadata(accessToken, "../other-endpoint", Map.of("role", 1L));
 
     String path = receivedPaths.poll(5, java.util.concurrent.TimeUnit.SECONDS);
-    assertThat(path).isEqualTo("/api/v2/users/..%2Fother-endpoint");
-    assertThat(path).doesNotContain("/api/v2/other-endpoint");
+    assertThat(path)
+        .isEqualTo("/api/v2/users/..%2Fother-endpoint")
+        .doesNotContain("/api/v2/other-endpoint");
   }
 }
