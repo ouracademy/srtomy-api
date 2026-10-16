@@ -85,8 +85,24 @@
 		</dependency>
 
 		<dependency>
+			<!-- Spring Boot 4 split FlywayAutoConfiguration out of the monolithic
+			spring-boot-autoconfigure into its own module; plain flyway-core on
+			the classpath is no longer enough to get Flyway to auto-run on
+			startup (a latent bug since the Boot 4 upgrade — went unnoticed
+			because the dev Postgres volume already had the schema from
+			before). -->
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<!-- Flyway 10+ split per-database support out of flyway-core into
+			separate plugin jars; without this, Flyway throws "Unsupported
+			Database: PostgreSQL ..." even though flyway-core itself is
+			present. Version left unmanaged (not covered by the Boot BOM) —
+			keep it aligned with whatever flyway-core version
+			spring-boot-starter-flyway resolves to. -->
 			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
+			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 
 		<dependency>
