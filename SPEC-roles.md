@@ -1,3 +1,7 @@
+> Migrated from `adrs/ROLES.md`. Informal design notes, not a completed spec — run this
+> through the `spec-driven-development` skill's Specify phase if this module (roles /
+> accountabilities) gets touched again.
+
 ## Roles Architect Design Record (ADR)
 
 1. roles predefinidos + roles
