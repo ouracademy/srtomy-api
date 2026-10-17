@@ -74,12 +74,44 @@ class ComplaintControllerTests {
   }
 
   @Test
-  void createWithoutDniIsABadRequest() {
+  void createWithoutDniReturns201() {
+    // dni is optional: not every complaint comes with an identity document
+    // (e.g. anonymous complaints).
+    given(complaintRepository.save(any(Complaint.class)))
+        .willAnswer(
+            invocation -> {
+              Complaint complaint = invocation.getArgument(0);
+              ReflectionTestUtils.setField(complaint, "id", 2L);
+              return complaint;
+            });
+
     var requestBody =
         """
         {
           "firstName": "Juan",
           "lastName": "Perez",
+          "email": "juan@example.com",
+          "comment": "Everything was great"
+        }
+        """;
+
+    assertThat(
+            mvc.post()
+                .uri("/complaints")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+        .hasStatus(201);
+  }
+
+  @Test
+  void createWithAnInvalidDniIsABadRequest() {
+    var requestBody =
+        """
+        {
+          "firstName": "Juan",
+          "lastName": "Perez",
+          "dni": "not-a-dni",
           "email": "juan@example.com",
           "comment": "Everything was great"
         }

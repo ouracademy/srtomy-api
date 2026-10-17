@@ -16,7 +16,8 @@ public class Complaint extends DomainObject {
   @NotBlank String firstName;
   @NotBlank String lastName;
 
-  @NotBlank
+  // Optional: not every complaint comes with an identity document (e.g. anonymous
+  // complaints). When present, it must still look like a real DNI.
   @Pattern(regexp = "^\\d{8}$")
   String dni;
 
