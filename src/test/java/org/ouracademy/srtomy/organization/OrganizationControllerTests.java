@@ -45,7 +45,7 @@ class OrganizationControllerTests {
 
     assertThat(
             mvc.get()
-                .uri("/organizations/locations/predefined-roles")
+                .uri("/v1/organizations/locations/predefined-roles")
                 .header("Authorization", "Bearer " + TestSecurityConfig.validToken(jwtEncoder)))
         .hasStatusOk()
         .bodyText()

@@ -43,7 +43,9 @@ class PersonControllerTests {
     given(personRepository.findByOrgId(eq(999999L), any(), any())).willReturn(Page.empty());
 
     assertThat(
-            mvc.get().uri("/people?organizationId=999999").header("Authorization", bearerHeader()))
+            mvc.get()
+                .uri("/v1/people?organizationId=999999")
+                .header("Authorization", bearerHeader()))
         .hasStatusOk()
         .bodyText()
         .contains("\"totalElements\":0");
@@ -51,7 +53,7 @@ class PersonControllerTests {
 
   @Test
   void findAllWithoutOrganizationIdIsABadRequest() {
-    assertThat(mvc.get().uri("/people").header("Authorization", bearerHeader()))
+    assertThat(mvc.get().uri("/v1/people").header("Authorization", bearerHeader()))
         .hasStatus(HttpStatus.BAD_REQUEST);
   }
 }

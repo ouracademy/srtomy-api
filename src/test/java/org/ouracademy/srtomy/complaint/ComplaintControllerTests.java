@@ -52,7 +52,7 @@ class ComplaintControllerTests {
 
     assertThat(
             mvc.post()
-                .uri("/complaints")
+                .uri("/v1/complaints")
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
@@ -66,7 +66,7 @@ class ComplaintControllerTests {
   void createWithoutRequiredFieldsIsABadRequest() {
     assertThat(
             mvc.post()
-                .uri("/complaints")
+                .uri("/v1/complaints")
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
@@ -97,7 +97,7 @@ class ComplaintControllerTests {
 
     assertThat(
             mvc.post()
-                .uri("/complaints")
+                .uri("/v1/complaints")
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
@@ -119,7 +119,7 @@ class ComplaintControllerTests {
 
     assertThat(
             mvc.post()
-                .uri("/complaints")
+                .uri("/v1/complaints")
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))

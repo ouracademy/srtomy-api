@@ -45,7 +45,7 @@ class EventControllerTests {
     assertThat(
             mvc.get()
                 .uri(
-                    "/events?organizationId=999999&start=2026-01-01T00:00:00Z&end=2026-12-31T00:00:00Z")
+                    "/v1/events?organizationId=999999&start=2026-01-01T00:00:00Z&end=2026-12-31T00:00:00Z")
                 .header("Authorization", bearerHeader()))
         .hasStatusOk()
         .bodyText()
@@ -61,7 +61,7 @@ class EventControllerTests {
 
     assertThat(
             mvc.method(org.springframework.http.HttpMethod.DELETE)
-                .uri("/events/999999")
+                .uri("/v1/events/999999")
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
