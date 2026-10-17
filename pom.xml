@@ -176,11 +176,15 @@
 				<version>3.10.4</version>
 				<configuration>
 					<java>
-						<!-- 1.28.0 is the newest release compatible with JVM 17
-						(newer google-java-format requires JVM 21); pinned
-						explicitly instead of relying on Spotless' default. -->
+						<!-- Pinned explicitly instead of relying on Spotless' default,
+						for predictable formatting across machines/CI. 1.37.0 fails
+						with an InvocationTargetException under the current
+						spotless-maven-plugin (3.10.4, itself already the latest
+						release) — 1.36.0 is the newest version confirmed compatible;
+						bump both together next time Spotless releases a newer
+						version. -->
 						<googleJavaFormat>
-							<version>1.28.0</version>
+							<version>1.36.0</version>
 						</googleJavaFormat>
 						<removeUnusedImports />
 					</java>
