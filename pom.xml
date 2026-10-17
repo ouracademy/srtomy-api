@@ -167,17 +167,6 @@
 				</configuration>
 			</plugin>
 			<plugin>
-				<!-- see:
-				https://codelabs.developers.google.com/codelabs/cloud-app-engine-springboot#3 -->
-				<groupId>com.google.cloud.tools</groupId>
-				<artifactId>appengine-maven-plugin</artifactId>
-				<version>2.4.4</version>
-				<configuration>
-					<version>1</version>
-					<projectId>GCLOUD_CONFIG</projectId>
-				</configuration>
-			</plugin>
-			<plugin>
 				<!-- code formatting; `apply` goal is used by the Claude Code
 				PostToolUse hook (.claude/hooks/format-on-edit.sh) on individual
 				files, `check` runs on every `verify` (so CI fails on unformatted

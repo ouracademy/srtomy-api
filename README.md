@@ -26,10 +26,6 @@ See [AGENTS.md](./AGENTS.md) for commit message, code style and language convent
 
 `gcloud auth application-default login --impersonate-service-account sr-tommy-dev-api@sr-tommy-dev.iam.gserviceaccount.com`
 
-### Deploy to appengine
-
-`./mvnw -DskipTests package appengine:deploy`
-
 ### Deploy to cloudrun
 
 ```sh
