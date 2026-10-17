@@ -16,6 +16,7 @@ public class Complaint extends DomainObject {
   @NotBlank String firstName;
   @NotBlank String lastName;
 
+  @NotBlank
   @Pattern(regexp = "^\\d{8}$")
   String dni;
 

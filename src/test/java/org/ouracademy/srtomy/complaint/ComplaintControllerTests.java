@@ -72,4 +72,25 @@ class ComplaintControllerTests {
                 .content("{}"))
         .hasStatus(400);
   }
+
+  @Test
+  void createWithoutDniIsABadRequest() {
+    var requestBody =
+        """
+        {
+          "firstName": "Juan",
+          "lastName": "Perez",
+          "email": "juan@example.com",
+          "comment": "Everything was great"
+        }
+        """;
+
+    assertThat(
+            mvc.post()
+                .uri("/complaints")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+        .hasStatus(400);
+  }
 }
