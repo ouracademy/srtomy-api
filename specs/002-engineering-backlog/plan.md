@@ -32,68 +32,70 @@ requested directly (drop `recurring`, drop App Engine, keep dependencies current
 
 ## Work items, in order
 
-### 1. Remove `net.logicsquad:recurring` (small, no risk)
+### 1. ✅ DONE — Remove `net.logicsquad:recurring`
 
-Delete the `<dependency>` block from `pom.xml` (currently lines ~81–85). No source changes
-needed — confirmed unused above. Verify with `./mvnw -q compile` and a repo-wide grep for
-`logicsquad` coming back empty.
+[#19](https://github.com/ouracademy/srtomy-api/pull/19), merged. Confirmed unused, deleted
+with no source changes.
 
-### 2. Remove App Engine, standardize on Cloud Run (small, no risk — never deployed there)
+### 2. ✅ DONE — Remove App Engine, standardize on Cloud Run
 
-- Remove the `appengine-maven-plugin` block from `pom.xml`'s `<build><plugins>`.
-- Remove the "### Deploy to appengine" section from `README.md`, keep "### Deploy to
-  cloudrun" as the only deploy path documented.
-- Close Dependabot PR #13 (appengine bump) as no longer applicable.
+[#19](https://github.com/ouracademy/srtomy-api/pull/19), merged — same PR as item 1.
+Removed `appengine-maven-plugin`, `src/main/appengine/app.yaml`, and the README section.
+Dependabot PR #13 closed as no longer applicable.
 
-### 3. Upgrade springdoc-openapi 2.4.0 → 3.1.1
+### 3. ✅ DONE — Upgrade springdoc-openapi 2.4.0 → 3.1.1
 
-Real upgrade, not just a version bump — springdoc 3.x targets OpenAPI 3.1 and
-Spring Boot 4/Framework 7 more directly. Bump the version in `pom.xml`, then verify:
-- `./mvnw -q -B verify` green.
-- `/v3/api-docs` and `/swagger-ui/index.html` still render locally
-  (`spring-boot:run -Dspring-boot.run.profiles=local`).
-- Check springdoc's own migration notes for breaking annotation changes if `verify` fails
-  (last time we touched this area, nothing in this codebase used deprecated springdoc
-  annotations, so this is expected to be low-risk).
+[#20](https://github.com/ouracademy/srtomy-api/pull/20), merged. No source changes needed.
+Dependabot PR #15 (already-satisfied parent bump) closed as superseded.
 
-Once merged, close Dependabot PR #15 (already-satisfied parent bump) as superseded.
+**Follow-up dependency audit** also found `google-java-format` still pinned at `1.28.0`
+for a JVM 17 constraint that stopped applying once this project moved to Java 21 — bumped
+to `1.36.0` in [#22](https://github.com/ouracademy/srtomy-api/pull/22), merged (`1.37.0`,
+the actual latest, fails under the current spotless-maven-plugin — see that PR). Everything
+else in `pom.xml` (Spring Boot, spring-cloud, spring-cloud-gcp, hypersistence-utils,
+jacoco-maven-plugin, sonar-maven-plugin, spotless-maven-plugin) was already at its latest
+stable release as of this audit.
 
-### 4. SonarCloud CSRF Security Hotspot (manual, not code)
+### 4. ⏳ Manual — SonarCloud CSRF Security Hotspot
 
 `SecurityConfig.filterChain()`'s `csrf.disable()` is flagged as a Security Hotspot on PR
 #16's SonarCloud Automatic Analysis. This is **correctly** disabled (the API is a fully
 stateless Bearer-token resource server — see the justification comment already in
 `SecurityConfig.java`), and route-scoping it (`ignoringRequestMatchers`) would not fix
-anything: that's literally the rule's own "Noncompliant" example, not its fix. The actual
-action needed: a human with SonarCloud access reviews the hotspot at
-Issues → Security Hotspots → that line → **Review → Safe**, citing the existing code
-comment. No further code change here.
+anything: that's literally the rule's own "Noncompliant" example, not its fix. **Done by
+the user** via Issues → Security Hotspots → that line → Review → Safe.
 
-### 5. API versioning — `/v1` (Stage G, coordinated with srtomy-ui)
+### 5. 🔲 Draft, pending coordinated merge — API versioning `/v1` (Stage G)
 
-- `server.servlet.context-path: /v1` in `application.yml`.
-- Keep `/actuator/**` off `/v1` (separate management port or
-  `management.endpoints.web.base-path`) so k8s/Cloud Run health probes don't need to
-  change.
-- `srtomy-ui`: update `NEXT_PUBLIC_API_URL` to include `/v1`.
-- Merge both PRs together — this is a breaking path change, there's no good way to stage
-  it independently without a window of 404s.
+[#23](https://github.com/ouracademy/srtomy-api/pull/23) (draft) +
+[srtomy-ui#43](https://github.com/ouracademy/srtomy-ui/pull/43) (draft).
 
-### 6. Cloud Run deploy pipeline (Stage H)
+Implemented via `WebMvcConfigurer.configurePathMatch` prefixing only `@RestController`
+classes with `/v1` — not `server.servlet.context-path` and not a separate management port,
+so `/actuator/**` stays unversioned (it isn't `@RestController`-registered) and the app
+still runs on the single port Cloud Run exposes. `srtomy-ui`'s `NEXT_PUBLIC_API_URL` stays
+origin-only; `/v1` is appended once in `app/(api)/api.tsx` instead of in every
+environment's env var.
+
+**Mark both PRs ready and merge together** — neither side works alone (breaking path
+change, would 404 everything).
+
+### 6. 🔲 Not started — Cloud Run deploy pipeline (Stage H)
 
 A `deploy` job in CI, triggered on merge to `main` with green checks, running the
 `spring-boot:build-image` + `docker push` + Cloud Run deploy flow already documented in
 `README.md`, authenticated via GCP Workload Identity Federation
-(`google-github-actions/auth`) — no long-lived JSON key. **Needs the user to create the
-WIF pool/provider/service account in GCP first**; give exact `gcloud` commands when this
-item is picked up, same pattern as `SONAR_TOKEN`.
+(`google-github-actions/auth`) — no long-lived JSON key. **Needs GCP setup from the user
+first** (WIF pool/provider, service account, Artifact Registry repo) — exact steps (or a
+Terraform module, still being decided) to follow once that's scoped.
 
-### 7. Observability — structured logging (Stage I)
+### 7. ✅ DONE — Observability: structured logging (Stage I)
 
-Add `spring-cloud-gcp-starter-logging` for JSON-structured logs that Cloud
-Logging/Error Reporting parse automatically on Cloud Run, no extra agent. Minimal logback
-config for the expected format. Low effort, do after the deploy pipeline exists (no point
-shipping structured logs nowhere).
+[#24](https://github.com/ouracademy/srtomy-api/pull/24). Added
+`spring-cloud-gcp-starter-logging` + a `logback-spring.xml` using its bundled
+`logback-json-appender.xml` (Stackdriver JSON layout) for every profile except `local`,
+which keeps Boot's normal human-readable console output. Done ahead of the deploy
+pipeline (item 6) rather than after, since there was no reason to wait.
 
 ## Also worth doing (not yet staged as its own PR — flagging so it doesn't get lost)
 
@@ -104,16 +106,16 @@ shipping structured logs nowhere).
 - **`hikari.maximumPoolSize: 2`** in `application-prod.yml` — inherited from an old
   ElephantSQL free-tier limit, already flagged with a comment, never revisited against
   whatever Postgres is actually in front of Cloud Run. Worth confirming real limits before
-  Stage 6 (Cloud Run deploy) goes live — a pool too large for the DB tier will just produce
+  item 6 (Cloud Run deploy) goes live — a pool too large for the DB tier will just produce
   connection errors under load.
 - **`osv-scanner --no-resolve`** in CI was a workaround for scanning a SNAPSHOT parent.
   The parent has been GA (`4.1.1`) since PR #3 — worth trying the flag's removal now to get
   full dependency resolution in the scan instead of the degraded mode.
-- **`Complaint.dni`** has no `@NotBlank`/`@NotNull` (only `@Pattern`, which a `null` value
-  satisfies) but the DB column is `NOT NULL` — a real request omitting it 500s instead of
-  400ing. Documented in `ComplaintControllerTests` as a known gap; fix is a one-line
-  `@NotBlank` addition plus a test, small enough to bundle into item 1 or 2's PR if
-  convenient, otherwise its own tiny PR.
+- ~~**`Complaint.dni`** has no `@NotBlank`/`@NotNull`...~~ ✅ DONE —
+  [#21](https://github.com/ouracademy/srtomy-api/pull/21), merged. Resolved the other
+  direction from what was originally proposed here: rather than requiring `dni`, migrated
+  the DB (`V1.0.9__make_complaint_dni_optional.sql`) to make it genuinely optional, since
+  not every complaint has an identity document.
 - **Per-role authorization**: still flat "authenticated = full access" (confirmed
   acceptable for now in the original auth design). The data model (`AccountabilityType`,
   roles sync) already supports real roles — this is a deliberate scope cut, not an
@@ -122,6 +124,4 @@ shipping structured logs nowhere).
 ## Verification
 
 Each item: `./mvnw -q -B verify` green, `python3 scripts/check-language.py` clean, small
-commit, own PR — same convention as the rest of this repo (see `AGENTS.md`). Items 1–4 are
-independent and can happen in any order; item 5 (`/v1`) should land before items 6–7 since
-it changes the base URL everything else builds against.
+commit, own PR — same convention as the rest of this repo (see `AGENTS.md`).
