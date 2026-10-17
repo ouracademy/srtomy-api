@@ -57,6 +57,13 @@
 			<groupId>com.google.cloud</groupId>
 			<artifactId>spring-cloud-gcp-starter-secretmanager</artifactId>
 		</dependency>
+		<dependency>
+			<!-- Provides the Logback layout logback-spring.xml uses for
+			structured JSON logs that Cloud Logging/Error Reporting parse
+			automatically on Cloud Run, with no separate agent or vendor. -->
+			<groupId>com.google.cloud</groupId>
+			<artifactId>spring-cloud-gcp-starter-logging</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
