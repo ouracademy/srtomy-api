@@ -99,12 +99,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>net.logicsquad</groupId>
-			<artifactId>recurring</artifactId>
-			<version>0.3</version>
-		</dependency>
-
-		<dependency>
 			<!-- Spring Boot 4 split FlywayAutoConfiguration out of the monolithic
 			spring-boot-autoconfigure into its own module; plain flyway-core on
 			the classpath is no longer enough to get Flyway to auto-run on
@@ -170,17 +164,6 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
-				</configuration>
-			</plugin>
-			<plugin>
-				<!-- see:
-				https://codelabs.developers.google.com/codelabs/cloud-app-engine-springboot#3 -->
-				<groupId>com.google.cloud.tools</groupId>
-				<artifactId>appengine-maven-plugin</artifactId>
-				<version>2.4.4</version>
-				<configuration>
-					<version>1</version>
-					<projectId>GCLOUD_CONFIG</projectId>
 				</configuration>
 			</plugin>
 			<plugin>
