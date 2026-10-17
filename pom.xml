@@ -99,12 +99,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>net.logicsquad</groupId>
-			<artifactId>recurring</artifactId>
-			<version>0.3</version>
-		</dependency>
-
-		<dependency>
 			<!-- Spring Boot 4 split FlywayAutoConfiguration out of the monolithic
 			spring-boot-autoconfigure into its own module; plain flyway-core on
 			the classpath is no longer enough to get Flyway to auto-run on
