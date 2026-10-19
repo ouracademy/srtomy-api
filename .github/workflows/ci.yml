@@ -26,9 +26,6 @@ jobs:
       # as `docker-compose up -d` locally. Tests never touch GCP (see
       # src/test/resources/application.yml).
       postgres:
-        # Matches docker-compose.yml: 13 is no longer supported by
-        # Hibernate's PostgreSQLDialect or by Flyway on Spring Boot 4
-        # (both require >= 14).
         image: postgres:16-alpine
         env:
           POSTGRES_USER: root
