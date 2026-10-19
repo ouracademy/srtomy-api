@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!-- From spring-cloud-gcp-starter-logging: defines a CONSOLE_JSON appender using
+  StackdriverJsonLayout, which Cloud Logging/Error Reporting parse as structured
+  logs automatically on Cloud Run — no separate agent or vendor needed. -->
+  <include resource="com/google/cloud/spring/logging/logback-json-appender.xml" />
+
+  <!-- Plain, human-readable console output for local dev and tests — nobody
+  wants to read JSON lines while developing. Everywhere else (the "prod"
+  profile, which is also what Cloud Run runs) gets structured JSON. -->
+  <springProfile name="local">
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml" />
+    <root level="INFO">
+      <appender-ref ref="CONSOLE" />
+    </root>
+  </springProfile>
+
+  <springProfile name="!local">
+    <root level="INFO">
+      <appender-ref ref="CONSOLE_JSON" />
+    </root>
+  </springProfile>
+</configuration>
