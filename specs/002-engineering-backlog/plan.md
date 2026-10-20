@@ -80,14 +80,21 @@ environment's env var.
 **Mark both PRs ready and merge together** — neither side works alone (breaking path
 change, would 404 everything).
 
-### 6. 🔲 Not started — Cloud Run deploy pipeline (Stage H)
+### 6. 🔲 Dev done, prod pending — Cloud Run deploy pipeline (Stage H)
 
-A `deploy` job in CI, triggered on merge to `main` with green checks, running the
-`spring-boot:build-image` + `docker push` + Cloud Run deploy flow already documented in
-`README.md`, authenticated via GCP Workload Identity Federation
-(`google-github-actions/auth`) — no long-lived JSON key. **Needs GCP setup from the user
-first** (WIF pool/provider, service account, Artifact Registry repo) — exact steps (or a
-Terraform module, still being decided) to follow once that's scoped.
+[#26](https://github.com/ouracademy/srtomy-api/pull/26) (open). Built with Terraform
+(`infra/terraform/`) instead of one-off `gcloud` commands, since this needs to be
+reproducible across two environments (`sr-tommy-dev`, `sr-tommy-prod`). Covers: WIF
+(scoped to `ouracademy/srtomy-api`, branch `main` only), a dedicated deploy service
+account, Artifact Registry repo, a Neon Postgres project per environment (replacing the
+long-gone ElephantSQL setup), and Secret Manager secrets wired straight from Neon's
+generated credentials. `deploy-dev.yml` (auto on `main`) and `deploy-prod.yml` (manual,
+gated by a `production` GitHub Environment) build via Cloud Native Buildpacks and deploy
+to Cloud Run.
+
+Applied and confirmed live for `sr-tommy-dev`. `sr-tommy-prod`'s Terraform is written but
+**not yet applied** — see `infra/terraform/README.md` for the exact steps once that's
+ready to go.
 
 ### 7. ✅ DONE — Observability: structured logging (Stage I)
 
