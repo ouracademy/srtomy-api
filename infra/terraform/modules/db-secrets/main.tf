@@ -51,3 +51,23 @@ resource "google_secret_manager_secret_iam_member" "runtime_access" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_project.this.number}-compute@developer.gserviceaccount.com"
 }
+
+# application.yml also resolves auth0.clientId/clientSecret via sm:// — these
+# secrets predate this module (created manually before the deploy pipeline
+# existed) so we only grant access to them here, we don't manage their
+# content with Terraform.
+data "google_secret_manager_secret" "existing" {
+  for_each = toset(var.existing_secret_ids)
+
+  project   = var.project_id
+  secret_id = each.value
+}
+
+resource "google_secret_manager_secret_iam_member" "existing_runtime_access" {
+  for_each = toset(var.existing_secret_ids)
+
+  project   = var.project_id
+  secret_id = data.google_secret_manager_secret.existing[each.value].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.this.number}-compute@developer.gserviceaccount.com"
+}

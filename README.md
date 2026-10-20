@@ -26,17 +26,24 @@ See [AGENTS.md](./AGENTS.md) for commit message, code style and language convent
 
 `gcloud auth application-default login --impersonate-service-account sr-tommy-dev-api@sr-tommy-dev.iam.gserviceaccount.com`
 
-### Deploy to cloudrun
+### Deploy to Cloud Run
+
+Deploys are automated via GitHub Actions — see `.github/workflows/deploy-dev.yml`
+(auto, on every push to `main` once `ci` passes) and `.github/workflows/deploy-prod.yml`
+(manual, `workflow_dispatch`, gated by the `production` GitHub Environment). The GCP
+infrastructure these workflows use (Workload Identity Federation, Artifact Registry,
+the deploy service account, Secret Manager) is provisioned by Terraform — see
+`infra/terraform/README.md` for setup and troubleshooting.
+
+There should be no need to deploy by hand, but if you ever do (e.g. to debug the image
+build locally), it matches what the workflow runs:
 
 ```sh
-export PROJECT_ID=$(gcloud config get-value project)
-gcloud auth configure-docker
+export IMAGE="southamerica-west1-docker.pkg.dev/sr-tommy-dev/sr-tommy-api/sr-tommy-api:local"
 gcloud auth configure-docker southamerica-west1-docker.pkg.dev
-docker push gcr.io/${PROJECT_ID}/sr-tommy-api
-```
-
-```sh
 ./mvnw spring-boot:build-image \
-  -Dspring-boot.build-image.imageName=gcr.io/${PROJECT_ID}/sr-tommy-api \
+  -Dspring-boot.build-image.imageName=${IMAGE} \
   -Dspring-boot.build-image.builder=gcr.io/buildpacks/builder
+docker push ${IMAGE}
+gcloud run deploy sr-tommy-api --image ${IMAGE} --region southamerica-west1 --project sr-tommy-dev
 ```

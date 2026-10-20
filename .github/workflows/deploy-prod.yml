@@ -60,4 +60,6 @@ jobs:
           region: southamerica-west1
           project_id: sr-tommy-prod
           image: ${{ vars.PROD_ARTIFACT_REGISTRY_URL }}:${{ github.sha }}
-          flags: --allow-unauthenticated
+          # --memory/--cpu-boost: see deploy-dev.yml — the 512Mi default was
+          # too tight for this app's startup and tripped the startup probe.
+          flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost

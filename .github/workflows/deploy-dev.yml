@@ -64,4 +64,9 @@ jobs:
           # GCP-authenticated caller. The app's own JWT check
           # (SecurityConfig) is a separate, additional layer on top; this
           # flag does not weaken it.
-          flags: --allow-unauthenticated
+          #
+          # --memory/--cpu-boost: Cloud Run's 512Mi default isn't enough for
+          # this Spring Boot app's startup (JVM + Hibernate + GCP client
+          # libs) — it was hitting the memory ceiling mid-startup, slowing
+          # it down just enough to miss the startup probe's timeout.
+          flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost
