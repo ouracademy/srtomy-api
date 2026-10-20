@@ -1,0 +1,17 @@
+# Provider plugin cache/binaries and per-checkout module cache — large,
+# machine-specific, and `terraform init` regenerates them from
+# .terraform.lock.hcl (which IS committed, for reproducible provider
+# versions).
+**/.terraform/
+
+# Local state should never exist once a GCS backend is configured, but guard
+# against it anyway — state can contain secrets (e.g. Neon database_password).
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Terraform variable files commonly used for machine-local overrides/secrets.
+*.tfvars
+*.tfvars.json
+!example.tfvars

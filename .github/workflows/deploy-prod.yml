@@ -1,0 +1,63 @@
+# Deploys to Cloud Run (sr-tommy-prod). Manual only (workflow_dispatch) — run
+# it from the Actions tab once a commit on main has been verified in dev.
+#
+# The `environment: production` below is meant to be gated by a required
+# reviewers rule, configured once in GitHub: Settings > Environments >
+# production > Required reviewers. Without that rule configured, this job
+# runs immediately when triggered, with no extra approval step.
+name: deploy (prod)
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: "Commit SHA on main to deploy (defaults to the latest)"
+        required: false
+
+permissions:
+  id-token: write # required to mint a Workload Identity Federation token
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.git_sha || 'main' }}
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.PROD_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.PROD_DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker southamerica-west1-docker.pkg.dev --quiet
+
+      - name: Build image with Cloud Native Buildpacks
+        run: |
+          ./mvnw -q -B -DskipTests spring-boot:build-image \
+            -Dspring-boot.build-image.imageName=${{ vars.PROD_ARTIFACT_REGISTRY_URL }}:${{ github.sha }} \
+            -Dspring-boot.build-image.builder=gcr.io/buildpacks/builder
+
+      - name: Push image
+        run: docker push ${{ vars.PROD_ARTIFACT_REGISTRY_URL }}:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: sr-tommy-api
+          region: southamerica-west1
+          project_id: sr-tommy-prod
+          image: ${{ vars.PROD_ARTIFACT_REGISTRY_URL }}:${{ github.sha }}
+          flags: --allow-unauthenticated
