@@ -42,10 +42,11 @@ module "neon" {
 module "db_secrets" {
   source = "../../modules/db-secrets"
 
-  project_id        = "sr-tommy-prod"
-  jdbc_url          = module.neon.jdbc_url
-  database_user     = module.neon.database_user
-  database_password = module.neon.database_password
+  project_id          = "sr-tommy-prod"
+  jdbc_url            = module.neon.jdbc_url
+  database_user       = module.neon.database_user
+  database_password   = module.neon.database_password
+  existing_secret_ids = ["auth0-client-id", "auth0-client-secret"]
 }
 
 output "workload_identity_provider" {
