@@ -56,7 +56,7 @@ else in `pom.xml` (Spring Boot, spring-cloud, spring-cloud-gcp, hypersistence-ut
 jacoco-maven-plugin, sonar-maven-plugin, spotless-maven-plugin) was already at its latest
 stable release as of this audit.
 
-### 4. ⏳ Manual — SonarCloud CSRF Security Hotspot
+### 4. ✅ DONE — SonarCloud CSRF Security Hotspot
 
 `SecurityConfig.filterChain()`'s `csrf.disable()` is flagged as a Security Hotspot on PR
 #16's SonarCloud Automatic Analysis. This is **correctly** disabled (the API is a fully
@@ -65,10 +65,10 @@ stateless Bearer-token resource server — see the justification comment already
 anything: that's literally the rule's own "Noncompliant" example, not its fix. **Done by
 the user** via Issues → Security Hotspots → that line → Review → Safe.
 
-### 5. 🔲 Draft, pending coordinated merge — API versioning `/v1` (Stage G)
+### 5. ✅ DONE — API versioning `/v1` (Stage G)
 
-[#23](https://github.com/ouracademy/srtomy-api/pull/23) (draft) +
-[srtomy-ui#43](https://github.com/ouracademy/srtomy-ui/pull/43) (draft).
+[#23](https://github.com/ouracademy/srtomy-api/pull/23) +
+[srtomy-ui#43](https://github.com/ouracademy/srtomy-ui/pull/43). Both merged.
 
 Implemented via `WebMvcConfigurer.configurePathMatch` prefixing only `@RestController`
 classes with `/v1` — not `server.servlet.context-path` and not a separate management port,
@@ -76,9 +76,6 @@ so `/actuator/**` stays unversioned (it isn't `@RestController`-registered) and 
 still runs on the single port Cloud Run exposes. `srtomy-ui`'s `NEXT_PUBLIC_API_URL` stays
 origin-only; `/v1` is appended once in `app/(api)/api.tsx` instead of in every
 environment's env var.
-
-**Mark both PRs ready and merge together** — neither side works alone (breaking path
-change, would 404 everything).
 
 ### 6. 🔲 Dev done, prod pending — Cloud Run deploy pipeline (Stage H)
 
