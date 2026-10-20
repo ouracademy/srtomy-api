@@ -56,7 +56,7 @@ else in `pom.xml` (Spring Boot, spring-cloud, spring-cloud-gcp, hypersistence-ut
 jacoco-maven-plugin, sonar-maven-plugin, spotless-maven-plugin) was already at its latest
 stable release as of this audit.
 
-### 4. ⏳ Manual — SonarCloud CSRF Security Hotspot
+### 4. ✅ DONE — SonarCloud CSRF Security Hotspot
 
 `SecurityConfig.filterChain()`'s `csrf.disable()` is flagged as a Security Hotspot on PR
 #16's SonarCloud Automatic Analysis. This is **correctly** disabled (the API is a fully
@@ -65,10 +65,10 @@ stateless Bearer-token resource server — see the justification comment already
 anything: that's literally the rule's own "Noncompliant" example, not its fix. **Done by
 the user** via Issues → Security Hotspots → that line → Review → Safe.
 
-### 5. 🔲 Draft, pending coordinated merge — API versioning `/v1` (Stage G)
+### 5. ✅ DONE — API versioning `/v1` (Stage G)
 
-[#23](https://github.com/ouracademy/srtomy-api/pull/23) (draft) +
-[srtomy-ui#43](https://github.com/ouracademy/srtomy-ui/pull/43) (draft).
+[#23](https://github.com/ouracademy/srtomy-api/pull/23) +
+[srtomy-ui#43](https://github.com/ouracademy/srtomy-ui/pull/43). Both merged.
 
 Implemented via `WebMvcConfigurer.configurePathMatch` prefixing only `@RestController`
 classes with `/v1` — not `server.servlet.context-path` and not a separate management port,
@@ -77,17 +77,21 @@ still runs on the single port Cloud Run exposes. `srtomy-ui`'s `NEXT_PUBLIC_API_
 origin-only; `/v1` is appended once in `app/(api)/api.tsx` instead of in every
 environment's env var.
 
-**Mark both PRs ready and merge together** — neither side works alone (breaking path
-change, would 404 everything).
+### 6. 🔲 Dev done, prod pending — Cloud Run deploy pipeline (Stage H)
 
-### 6. 🔲 Not started — Cloud Run deploy pipeline (Stage H)
+[#26](https://github.com/ouracademy/srtomy-api/pull/26) (open). Built with Terraform
+(`infra/terraform/`) instead of one-off `gcloud` commands, since this needs to be
+reproducible across two environments (`sr-tommy-dev`, `sr-tommy-prod`). Covers: WIF
+(scoped to `ouracademy/srtomy-api`, branch `main` only), a dedicated deploy service
+account, Artifact Registry repo, a Neon Postgres project per environment (replacing the
+long-gone ElephantSQL setup), and Secret Manager secrets wired straight from Neon's
+generated credentials. `deploy-dev.yml` (auto on `main`) and `deploy-prod.yml` (manual,
+gated by a `production` GitHub Environment) build via Cloud Native Buildpacks and deploy
+to Cloud Run.
 
-A `deploy` job in CI, triggered on merge to `main` with green checks, running the
-`spring-boot:build-image` + `docker push` + Cloud Run deploy flow already documented in
-`README.md`, authenticated via GCP Workload Identity Federation
-(`google-github-actions/auth`) — no long-lived JSON key. **Needs GCP setup from the user
-first** (WIF pool/provider, service account, Artifact Registry repo) — exact steps (or a
-Terraform module, still being decided) to follow once that's scoped.
+Applied and confirmed live for `sr-tommy-dev`. `sr-tommy-prod`'s Terraform is written but
+**not yet applied** — see `infra/terraform/README.md` for the exact steps once that's
+ready to go.
 
 ### 7. ✅ DONE — Observability: structured logging (Stage I)
 
