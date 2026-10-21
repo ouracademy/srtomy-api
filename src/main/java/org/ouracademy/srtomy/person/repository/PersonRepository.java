@@ -1,7 +1,8 @@
-package org.ouracademy.srtomy.person;
+package org.ouracademy.srtomy.person.repository;
 
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
 import org.ouracademy.srtomy.party.domain.PartyId;
+import org.ouracademy.srtomy.person.domain.Person;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

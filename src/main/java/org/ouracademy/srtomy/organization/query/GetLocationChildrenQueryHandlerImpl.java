@@ -21,7 +21,10 @@ import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Types each child by checking it against this module's own organizations. */
+/**
+ * Types each child by checking it against this module's own organizations; the rest are people,
+ * whose details are fetched in one call through the person module's query handler.
+ */
 @Service
 @RequiredArgsConstructor
 class GetLocationChildrenQueryHandlerImpl implements GetLocationChildrenQueryHandler {
@@ -29,6 +32,7 @@ class GetLocationChildrenQueryHandlerImpl implements GetLocationChildrenQueryHan
   private final GetAccountabilitiesByParentAndTypesQueryHandler
       getAccountabilitiesByParentAndTypesQueryHandler;
   private final OrganizationRepository organizationRepository;
+  private final PersonDetailsResolver personDetailsResolver;
 
   @Override
   @Transactional(readOnly = true)
@@ -44,6 +48,9 @@ class GetLocationChildrenQueryHandlerImpl implements GetLocationChildrenQueryHan
             : organizationRepository.findAllById(childIds).stream()
                 .map(Organization::getId)
                 .collect(toSet());
+    var people =
+        personDetailsResolver.resolve(
+            childIds.stream().filter(id -> !organizationIds.contains(id)).toList());
     return new GetLocationChildrenResult(
         accountabilities.stream()
             .collect(
@@ -51,12 +58,13 @@ class GetLocationChildrenQueryHandlerImpl implements GetLocationChildrenQueryHan
                     AccountabilityResult::typeName,
                     mapping(
                         a ->
-                            new Child(
-                                a.childId(),
-                                a.childName(),
-                                organizationIds.contains(a.childId())
-                                    ? Kind.ORGANIZATION
-                                    : Kind.PERSON),
+                            organizationIds.contains(a.childId())
+                                ? new Child(a.childId(), a.childName(), Kind.ORGANIZATION, null)
+                                : new Child(
+                                    a.childId(),
+                                    a.childName(),
+                                    Kind.PERSON,
+                                    people.get(a.childId())),
                         toList()))));
   }
 }

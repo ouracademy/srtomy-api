@@ -58,23 +58,18 @@ class ArchitectureTests {
    */
   private static final Map<String, List<String>> PENDING_MIGRATION_EXCEPTIONS =
       Map.of(
-          "accountability",
-          List.of(
-              // Remove in the person module step: PersonController must go through the
-              // accountability command/query handlers instead of AccountabilityRepository /
-              // AccountabilityTypeRepository.
-              BASE_PACKAGE + ".person.PersonController",
-              BASE_PACKAGE + ".person.PersonControllerTests"),
           "organization",
           List.of(
-              // Remove in the person module step: PersonController must validate the
-              // organization via organization.query.FindOrganizationByIdQueryHandler instead of
-              // OrganizationRepository.
-              BASE_PACKAGE + ".person.PersonController",
-              BASE_PACKAGE + ".person.PersonControllerTests",
               // Remove in the event module step: EventController must validate the organization
               // via organization.query.FindOrganizationByIdQueryHandler and build the reference
               // with EntityManager.getReference instead of OrganizationRepository.
+              BASE_PACKAGE + ".event.EventController",
+              BASE_PACKAGE + ".event.EventControllerTests"),
+          "person",
+          List.of(
+              // Remove in the event module step: EventController must validate speakers and
+              // attendees via person.query.FindPeopleByIdsQueryHandler and build the references
+              // with EntityManager.getReference instead of PersonRepository.
               BASE_PACKAGE + ".event.EventController",
               BASE_PACKAGE + ".event.EventControllerTests"));
 

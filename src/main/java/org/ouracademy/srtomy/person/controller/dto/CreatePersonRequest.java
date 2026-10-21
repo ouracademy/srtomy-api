@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.person;
+package org.ouracademy.srtomy.person.controller.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

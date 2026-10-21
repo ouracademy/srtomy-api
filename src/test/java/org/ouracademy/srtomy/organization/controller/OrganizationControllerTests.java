@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +38,7 @@ import org.ouracademy.srtomy.organization.query.GetLocationChildrenResult;
 import org.ouracademy.srtomy.organization.query.GetMemberStateQuery;
 import org.ouracademy.srtomy.organization.query.GetMemberStateQueryHandler;
 import org.ouracademy.srtomy.organization.query.MemberStateResult;
+import org.ouracademy.srtomy.organization.query.PersonDetails;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
@@ -71,6 +73,9 @@ class OrganizationControllerTests {
   @MockitoBean GetPredefinedRolesQueryHandler getPredefinedRolesQueryHandler;
   @MockitoBean GetRolesOfLocationQueryHandler getRolesOfLocationQueryHandler;
   @MockitoBean GetRolesOfPersonQueryHandler getRolesOfPersonQueryHandler;
+
+  static final PersonDetails ANA_DETAILS =
+      new PersonDetails("Ana", "Diaz", "999", 30, LocalDate.of(1995, 5, 17), true);
 
   String bearer() {
     return "Bearer " + TestSecurityConfig.validToken(jwtEncoder);
@@ -179,16 +184,31 @@ class OrganizationControllerTests {
                     "IS_PART_OF",
                     List.of(
                         new GetLocationChildrenResult.Child(
-                            memberId, "Ana", GetLocationChildrenResult.Kind.PERSON)))));
+                            memberId,
+                            "Ana Diaz",
+                            GetLocationChildrenResult.Kind.PERSON,
+                            ANA_DETAILS),
+                        new GetLocationChildrenResult.Child(
+                            PartyId.generate(),
+                            "Kids",
+                            GetLocationChildrenResult.Kind.ORGANIZATION,
+                            null)))));
 
-    assertThat(
-            mvc.get()
-                .uri("/v1/organizations/locations/childs/" + groupId.value() + "/members")
-                .header("Authorization", bearer()))
-        .hasStatusOk()
-        .bodyJson()
-        .extractingPath("$.IS_PART_OF[0].name")
-        .isEqualTo("Ana");
+    var response =
+        assertThat(
+                mvc.get()
+                    .uri("/v1/organizations/locations/childs/" + groupId.value() + "/members")
+                    .header("Authorization", bearer()))
+            .hasStatusOk()
+            .bodyJson();
+    response.extractingPath("$.IS_PART_OF[0].name").isEqualTo("Ana Diaz");
+    response.extractingPath("$.IS_PART_OF[0].kind").isEqualTo("PERSON");
+    response.extractingPath("$.IS_PART_OF[0].firstName").isEqualTo("Ana");
+    response.extractingPath("$.IS_PART_OF[0].lastName").isEqualTo("Diaz");
+    response.extractingPath("$.IS_PART_OF[0].age").isEqualTo(30);
+    response.extractingPath("$.IS_PART_OF[0].birthdate").isEqualTo("1995-05-17");
+    response.extractingPath("$.IS_PART_OF[1].kind").isEqualTo("ORGANIZATION");
+    response.extractingPath("$.IS_PART_OF[1].firstName").isNull();
   }
 
   @Test
@@ -203,7 +223,8 @@ class OrganizationControllerTests {
                     "Ana",
                     orgId,
                     AccountabilityTypeId.generate(),
-                    "VISITOR")));
+                    "VISITOR",
+                    ANA_DETAILS)));
 
     var response =
         assertThat(
@@ -214,5 +235,9 @@ class OrganizationControllerTests {
             .bodyJson();
     response.extractingPath("$[0].child.name").isEqualTo("Ana");
     response.extractingPath("$[0].type.name").isEqualTo("VISITOR");
+    response.extractingPath("$[0].child.firstName").isEqualTo("Ana");
+    response.extractingPath("$[0].child.lastName").isEqualTo("Diaz");
+    response.extractingPath("$[0].child.age").isEqualTo(30);
+    response.extractingPath("$[0].child.birthdate").isEqualTo("1995-05-17");
   }
 }

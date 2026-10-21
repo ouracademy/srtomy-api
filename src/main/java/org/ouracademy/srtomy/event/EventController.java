@@ -12,7 +12,7 @@ import lombok.Data;
 import org.apache.commons.lang3.NotImplementedException;
 import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.PersonRepository;
+import org.ouracademy.srtomy.person.repository.PersonRepository;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

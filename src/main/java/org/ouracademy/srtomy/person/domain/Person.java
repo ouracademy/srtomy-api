@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.person;
+package org.ouracademy.srtomy.person.domain;
 
 import jakarta.persistence.Entity;
 import java.time.LocalDate;

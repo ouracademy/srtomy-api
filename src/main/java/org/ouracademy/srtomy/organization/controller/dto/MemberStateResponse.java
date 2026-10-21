@@ -1,23 +1,52 @@
 package org.ouracademy.srtomy.organization.controller.dto;
 
+import java.time.LocalDate;
 import java.util.UUID;
 import org.ouracademy.srtomy.organization.query.MemberStateResult;
+import org.ouracademy.srtomy.organization.query.PersonDetails;
 
 /**
  * Keeps the nesting of the Accountability JSON this endpoint used to return ({@code child.name},
- * {@code type.name}, ...), restricted to the fields the organization module can expose.
+ * {@code child.firstName}, {@code type.name}, ...). The person fields of {@code child} are null
+ * when the child is an organization; {@code parent} only carries its id.
  */
 public record MemberStateResponse(UUID id, PartyRef child, PartyRef parent, TypeRef type) {
 
-  public record PartyRef(UUID id, String name) {}
+  public record PartyRef(
+      UUID id,
+      String name,
+      String fullName,
+      String firstName,
+      String lastName,
+      String phoneNumber,
+      Integer age,
+      LocalDate birthdate,
+      Boolean hasBeenBaptized) {
+
+    static PartyRef of(UUID id, String name, PersonDetails person) {
+      if (person == null) {
+        return new PartyRef(id, name, null, null, null, null, null, null, null);
+      }
+      return new PartyRef(
+          id,
+          name,
+          name,
+          person.firstName(),
+          person.lastName(),
+          person.phoneNumber(),
+          person.age(),
+          person.birthdate(),
+          person.hasBeenBaptized());
+    }
+  }
 
   public record TypeRef(UUID id, String name) {}
 
   public static MemberStateResponse from(MemberStateResult result) {
     return new MemberStateResponse(
         result.id().value(),
-        new PartyRef(result.childId().value(), result.childName()),
-        new PartyRef(result.parentId().value(), null),
+        PartyRef.of(result.childId().value(), result.childName(), result.childPerson()),
+        PartyRef.of(result.parentId().value(), null, null),
         new TypeRef(result.stateId().value(), result.stateName()));
   }
 }
