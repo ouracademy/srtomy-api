@@ -18,6 +18,7 @@ import com.tngtech.archunit.lang.CompositeArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Executable source of truth for the package-by-module structure: module isolation and the
@@ -50,6 +51,22 @@ class ArchitectureTests {
   /** Packages of a module that no other module may depend on. */
   private static final List<String> RESTRICTED_SUB_PACKAGES =
       List.of("repository", "gateway", "controller");
+
+  /**
+   * Known, temporary violations of module isolation, per module, by fully qualified class name.
+   * Each entry must be removed by the migration step named next to it; do not add new ones.
+   */
+  private static final Map<String, List<String>> PENDING_MIGRATION_EXCEPTIONS =
+      Map.of(
+          "auth",
+          List.of(
+              // Remove in the organization module step: create() must call
+              // auth.command.UpdateUserAppMetadataCommandHandler instead of Auth0Gateway.
+              BASE_PACKAGE + ".organization.OrganizationController",
+              BASE_PACKAGE + ".organization.OrganizationControllerTests",
+              // Reuses Auth0Config.url as the JWT issuer. Remove once the issuer URL is exposed
+              // outside auth.gateway (e.g. a shared property) instead of through Auth0Config.
+              BASE_PACKAGE + ".shared.SecurityConfig"));
 
   private static final DescribedPredicate<JavaClass> HANDLER_INTERFACE =
       JavaClass.Predicates.simpleNameEndingWith("CommandHandler")
@@ -106,9 +123,15 @@ class ArchitectureTests {
         RESTRICTED_SUB_PACKAGES.stream()
             .map(sub -> modulePackage + "." + sub + "..")
             .toArray(String[]::new);
+    List<String> exceptions = PENDING_MIGRATION_EXCEPTIONS.getOrDefault(module, List.of());
+    DescribedPredicate<JavaClass> pendingMigration =
+        DescribedPredicate.describe(
+            "pending migration " + exceptions,
+            javaClass -> exceptions.contains(javaClass.getName()));
     return noClasses()
         .that()
         .resideOutsideOfPackage(modulePackage + "..")
+        .and(DescribedPredicate.not(pendingMigration))
         .should()
         .dependOnClassesThat()
         .resideInAnyPackage(restrictedPackages)

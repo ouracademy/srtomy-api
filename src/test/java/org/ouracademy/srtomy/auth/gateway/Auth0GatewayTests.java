@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.auth0;
+package org.ouracademy.srtomy.auth.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

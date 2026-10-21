@@ -16,7 +16,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.ouracademy.srtomy.auth0.Auth0Gateway;
+import org.ouracademy.srtomy.auth.gateway.Auth0Gateway;
 import org.ouracademy.srtomy.organization.Organization.Type;
 import org.ouracademy.srtomy.party.domain.Party;
 import org.ouracademy.srtomy.party.domain.PartyId;

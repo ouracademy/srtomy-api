@@ -1,6 +1,6 @@
 package org.ouracademy.srtomy.shared;
 
-import org.ouracademy.srtomy.auth0.Auth0Config;
+import org.ouracademy.srtomy.auth.gateway.Auth0Config;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

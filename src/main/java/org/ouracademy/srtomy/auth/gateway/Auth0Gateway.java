@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.auth0;
+package org.ouracademy.srtomy.auth.gateway;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;

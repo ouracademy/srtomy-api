@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.auth0;
+package org.ouracademy.srtomy.auth.gateway;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;

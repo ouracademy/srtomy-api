@@ -5,7 +5,7 @@ import static org.mockito.BDDMockito.given;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.srtomy.auth0.Auth0Gateway;
+import org.ouracademy.srtomy.auth.gateway.Auth0Gateway;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.ouracademy.srtomy.person.AccountabilityType;
 import org.ouracademy.srtomy.person.AccountabilityType.Category;
