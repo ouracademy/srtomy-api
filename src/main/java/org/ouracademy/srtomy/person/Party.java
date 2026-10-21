@@ -2,6 +2,7 @@ package org.ouracademy.srtomy.person;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import lombok.Getter;
@@ -12,6 +13,8 @@ import org.ouracademy.srtomy.domain.DomainObject;
 @Getter
 @Inheritance(strategy = InheritanceType.JOINED)
 public abstract class Party extends DomainObject {
+
+  @Id PartyId id = PartyId.generate();
 
   @Setter protected String name;
 

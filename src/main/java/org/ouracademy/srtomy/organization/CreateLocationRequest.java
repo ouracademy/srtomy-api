@@ -3,6 +3,7 @@ package org.ouracademy.srtomy.organization;
 import jakarta.validation.constraints.NotNull;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,12 +13,12 @@ public class CreateLocationRequest extends OrganizationRequest {
 
   @NotNull
   @Override
-  public Long getParentId() {
+  public UUID getParentId() {
     return super.getParentId();
   }
 
   @Override
-  public void setParentId(Long parentId) {
+  public void setParentId(UUID parentId) {
     super.setParentId(parentId);
   }
 }

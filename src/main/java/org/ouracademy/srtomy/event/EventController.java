@@ -6,10 +6,12 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.commons.lang3.NotImplementedException;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
+import org.ouracademy.srtomy.person.PartyId;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -40,22 +42,22 @@ public class EventController {
 
   @GetMapping
   public List<SingleEvent> findAll(
-      @RequestParam(required = true) Long organizationId,
+      @RequestParam(required = true) UUID organizationId,
       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
     return eventRepository.searchEventsOfOrgIdAndBetweenDates(
-        organizationId, start.atZone(ZoneId.of("UTC")), end.atZone(ZoneId.of("UTC")));
+        new PartyId(organizationId), start.atZone(ZoneId.of("UTC")), end.atZone(ZoneId.of("UTC")));
   }
 
   @GetMapping("{id}")
-  public ResponseEntity<SingleEvent> findById(@PathVariable Long id) {
-    return ResponseEntity.of(singleEventRepository.findById(id));
+  public ResponseEntity<SingleEvent> findById(@PathVariable UUID id) {
+    return ResponseEntity.of(singleEventRepository.findById(new EventId(id)));
   }
 
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
   @Transactional
-  public Long create(@RequestBody @Valid EventRequest eventRequest) {
+  public UUID create(@RequestBody @Valid EventRequest eventRequest) {
     var startTime = OffsetDateTime.parse(eventRequest.startTime);
     var endTime = OffsetDateTime.parse(eventRequest.endTime);
 
@@ -76,22 +78,25 @@ public class EventController {
       eventRepository.saveAll(events);
     }
 
-    return id;
+    return id.value();
   }
 
   private void mapToModel(EventRequest eventRequest, Event event) {
-    event.organization = organizationRepository.getReferenceById(eventRequest.organizationId);
+    event.organization =
+        organizationRepository.getReferenceById(new PartyId(eventRequest.organizationId));
     event.address = eventRequest.address;
     event.speakers =
-        eventRequest.speakerIds.stream().map(personRepository::getReferenceById).toList();
+        eventRequest.speakerIds.stream()
+            .map(id -> personRepository.getReferenceById(new PartyId(id)))
+            .toList();
     event.description = eventRequest.description;
     event.isACourse = eventRequest.isACourse;
   }
 
   @GetMapping("{id}/attendance")
-  public ResponseEntity<EventAttendanceResponse> getAttendance(@PathVariable Long id) {
+  public ResponseEntity<EventAttendanceResponse> getAttendance(@PathVariable UUID id) {
     return eventAttendanceRepository
-        .findByEventId(id)
+        .findByEventId(new EventId(id))
         .map(x -> EventAttendanceResponse.builder().personIds(x.getPersonIds()).build())
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.noContent().build());
@@ -101,16 +106,17 @@ public class EventController {
   @ResponseStatus(code = HttpStatus.CREATED)
   @Transactional
   public void registerAttendance(
-      @PathVariable Long id, @RequestBody @Valid AttendanceRequest attendanceRequest) {
+      @PathVariable UUID id, @RequestBody @Valid AttendanceRequest attendanceRequest) {
+    var eventId = new EventId(id);
     var eventAttendance =
         eventAttendanceRepository
-            .findByEventId(id)
-            .orElse(new EventAttendance(eventRepository.getReferenceById(id)));
+            .findByEventId(eventId)
+            .orElse(new EventAttendance(eventRepository.getReferenceById(eventId)));
 
     eventAttendance = eventAttendanceRepository.save(eventAttendance);
     eventAttendance.setPeople(
         attendanceRequest.personIds.stream()
-            .map(personId -> personRepository.getReferenceById(personId))
+            .map(personId -> personRepository.getReferenceById(new PartyId(personId)))
             .toList());
     eventAttendanceRepository.save(eventAttendance);
   }
@@ -121,8 +127,8 @@ public class EventController {
   }
 
   @DeleteMapping("{id}")
-  public void delete(@PathVariable Long id, @RequestBody @Valid EventDeleteRequest request) {
-    var event = singleEventRepository.findById(id).orElseThrow();
+  public void delete(@PathVariable UUID id, @RequestBody @Valid EventDeleteRequest request) {
+    var event = singleEventRepository.findById(new EventId(id)).orElseThrow();
     switch (request.option) {
       case THIS_EVENT:
         eventRepository.delete(event);
@@ -143,51 +149,10 @@ public class EventController {
 
   @PutMapping("{id}")
   public ResponseEntity<Event> edit(
-      @PathVariable Long id, @RequestBody @Valid EditEventRequest request) {
+      @PathVariable UUID id, @RequestBody @Valid EditEventRequest request) {
 
     // TODO:
 
     throw new NotImplementedException("TODO:");
-
-    // if (request.isRecurrent()) {
-    // // THIS_AND_THE_FOLLOWING_EVENTS
-    // // ALL_EVENTS
-    // } else {
-    // var event = singleEventRepository.findById(id).orElseThrow();
-    // var start = request.startTime.atZone(ZoneId.of("UTC"));
-    // var end = request.endTime.atZone(ZoneId.of("UTC"));
-
-    // switch (request.option) {
-    // case THIS_EVENT:
-    // event.start = start;
-    // event.end = end;
-    // mapToModel(request, event);
-    // eventRepository.save(event);
-    // break;
-    // case THIS_AND_THE_FOLLOWING_EVENTS:
-    // var followingEvents =
-    // singleEventRepository.findByRecurrentEventAndStartAfter(
-    // event.recurrentEvent,
-    // event.start);
-
-    // eventRepository.deleteAll(followingEvents);
-    // break;
-    // case ALL_EVENTS:
-
-    // eventRepository.deleteAll(singleEventRepository.findByRecurrentEvent(event.recurrentEvent));
-    // break;
-    // }
-    // }
-
-    // return null;
-    // return eventRepository.findById(id).map(organization -> {
-    // organization.name = eventRequest.name;
-    // organization.phoneNumber = eventRequest.phoneNumber;
-    // organization.address = eventRequest.address;
-    // organization.parent = eventRequest.parentId == null ? null
-    // : eventRepository.getReferenceById(eventRequest.parentId);
-
-    // return ResponseEntity.ok(eventRepository.save(organization));
-    // }).orElse(ResponseEntity.notFound().build());
   }
 }

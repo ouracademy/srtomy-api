@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.DiscriminatorType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.ManyToOne;
@@ -22,6 +23,8 @@ import org.ouracademy.srtomy.person.Person;
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(discriminatorType = DiscriminatorType.INTEGER, name = "event_type_id")
 public class Event extends DomainObject {
+
+  @Id EventId id = EventId.generate();
 
   @Column(name = "name")
   String title;
@@ -60,10 +63,6 @@ public class Event extends DomainObject {
   // complex / composite events
   // 10 { name: "Sobredosis Garden" }, // jueves 27-30 de agosto (ver:
   // https://www.facebook.com/photo/?fbid=673593008144144&set=pcb.673593201477458)
-
-  public Event() {
-    // jpa only
-  }
 
   public Duration duration() {
     return Duration.between(start, end);

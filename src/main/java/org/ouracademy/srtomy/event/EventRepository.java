@@ -2,10 +2,11 @@ package org.ouracademy.srtomy.event;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import org.ouracademy.srtomy.person.PartyId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface EventRepository extends JpaRepository<Event, Long> {
+public interface EventRepository extends JpaRepository<Event, EventId> {
 
   // t: -----|----|----
   // e: --|-|--------- X
@@ -27,5 +28,5 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             where e.start <= :end and e.end>=:start
             and e.organization.id=:organizationId""")
   List<SingleEvent> searchEventsOfOrgIdAndBetweenDates(
-      Long organizationId, ZonedDateTime start, ZonedDateTime end);
+      PartyId organizationId, ZonedDateTime start, ZonedDateTime end);
 }

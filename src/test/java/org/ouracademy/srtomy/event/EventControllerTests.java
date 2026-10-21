@@ -7,10 +7,12 @@ import static org.mockito.BDDMockito.given;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.SecurityConfig;
 import org.ouracademy.srtomy.TestSecurityConfig;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
+import org.ouracademy.srtomy.person.PartyId;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -39,13 +41,18 @@ class EventControllerTests {
 
   @Test
   void findAllForAnUnknownOrganizationAndDateRangeReturnsAnEmptyList() {
-    given(eventRepository.searchEventsOfOrgIdAndBetweenDates(eq(999999L), any(), any()))
+    var organizationId = UUID.randomUUID();
+    given(
+            eventRepository.searchEventsOfOrgIdAndBetweenDates(
+                eq(new PartyId(organizationId)), any(), any()))
         .willReturn(List.of());
 
     assertThat(
             mvc.get()
                 .uri(
-                    "/v1/events?organizationId=999999&start=2026-01-01T00:00:00Z&end=2026-12-31T00:00:00Z")
+                    "/v1/events?organizationId="
+                        + organizationId
+                        + "&start=2026-01-01T00:00:00Z&end=2026-12-31T00:00:00Z")
                 .header("Authorization", bearerHeader()))
         .hasStatusOk()
         .bodyText()
@@ -57,11 +64,12 @@ class EventControllerTests {
     // Exercises GlobalExceptionHandler end-to-end: singleEventRepository.findById(id)
     // .orElseThrow() in EventController.delete throws NoSuchElementException for an id
     // that doesn't exist.
-    given(singleEventRepository.findById(999999L)).willReturn(Optional.empty());
+    var missingId = UUID.randomUUID();
+    given(singleEventRepository.findById(new EventId(missingId))).willReturn(Optional.empty());
 
     assertThat(
             mvc.method(org.springframework.http.HttpMethod.DELETE)
-                .uri("/v1/events/999999")
+                .uri("/v1/events/" + missingId)
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))

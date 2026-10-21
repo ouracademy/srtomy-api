@@ -5,7 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface PersonRepository extends JpaRepository<Person, Long> {
+public interface PersonRepository extends JpaRepository<Person, PartyId> {
 
   @Query(
       """
@@ -20,7 +20,7 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
             """)
   Page<Person> findByNameAndOrgId(
       String searchText,
-      Long organizationId,
+      PartyId organizationId,
       AccountabilityType accountabilityType,
       Pageable pageable);
 
@@ -32,5 +32,5 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
             and a.parent.id = :organizationId
             """)
   Page<Person> findByOrgId(
-      Long organizationId, AccountabilityType accountabilityType, Pageable pageable);
+      PartyId organizationId, AccountabilityType accountabilityType, Pageable pageable);
 }

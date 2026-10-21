@@ -13,11 +13,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ouracademy.srtomy.domain.EntityId;
 import org.ouracademy.srtomy.person.Accountability;
+import org.ouracademy.srtomy.person.AccountabilityId;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.ouracademy.srtomy.person.AccountabilityType;
 import org.ouracademy.srtomy.person.AccountabilityType.Category;
+import org.ouracademy.srtomy.person.AccountabilityTypeId;
 import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
+import org.ouracademy.srtomy.person.PartyId;
 import org.ouracademy.srtomy.person.Person;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -37,30 +41,39 @@ class RoleServiceTests {
             accountabilityTypeRepository, accountabilityRepository, organizationRepository);
   }
 
-  private static <T> T withId(T entity, Long id) {
+  private static <T> T withId(T entity, EntityId id) {
     ReflectionTestUtils.setField(entity, "id", id);
     return entity;
   }
 
   @Test
   void syncRemovesRolesNotInTheNewSetAndAddsTheOnesMissing() {
-    var location = withId(new Organization(), 1L);
-    var person = withId(new Person(), 2L);
+    var locationId = PartyId.generate();
+    var personId = PartyId.generate();
+    var location = withId(new Organization(), locationId);
+    var person = withId(new Person(), personId);
 
-    var oldRoleType = withId(new AccountabilityType("USHER", location, Category.ROLE), 10L);
-    var keptRoleType = withId(new AccountabilityType("PASTOR", location, Category.ROLE), 20L);
+    var oldRoleTypeId = AccountabilityTypeId.generate();
+    var keptRoleTypeId = AccountabilityTypeId.generate();
+    var newRoleTypeId = AccountabilityTypeId.generate();
+    var oldRoleType =
+        withId(new AccountabilityType("USHER", location, Category.ROLE), oldRoleTypeId);
+    var keptRoleType =
+        withId(new AccountabilityType("PASTOR", location, Category.ROLE), keptRoleTypeId);
     var newRoleType =
-        withId(new AccountabilityType("WORSHIP_LEADER", location, Category.ROLE), 30L);
+        withId(new AccountabilityType("WORSHIP_LEADER", location, Category.ROLE), newRoleTypeId);
 
-    var oldAccountability = withId(new Accountability(person, location, oldRoleType), 100L);
-    var keptAccountability = withId(new Accountability(person, location, keptRoleType), 101L);
+    var oldAccountability =
+        withId(new Accountability(person, location, oldRoleType), AccountabilityId.generate());
+    var keptAccountability =
+        withId(new Accountability(person, location, keptRoleType), AccountabilityId.generate());
 
-    when(accountabilityRepository.findByParentIdAndChildId(1L, 2L))
+    when(accountabilityRepository.findByParentIdAndChildId(locationId, personId))
         .thenReturn(List.of(oldAccountability, keptAccountability));
-    when(organizationRepository.getReferenceById(1L)).thenReturn(location);
-    when(accountabilityTypeRepository.getReferenceById(30L)).thenReturn(newRoleType);
+    when(organizationRepository.getReferenceById(locationId)).thenReturn(location);
+    when(accountabilityTypeRepository.getReferenceById(newRoleTypeId)).thenReturn(newRoleType);
 
-    roleService.sync(person, 1L, Set.of(20L, 30L));
+    roleService.sync(person, locationId, Set.of(keptRoleTypeId, newRoleTypeId));
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Accountability>> deletedCaptor = ArgumentCaptor.forClass(List.class);
@@ -76,18 +89,23 @@ class RoleServiceTests {
 
   @Test
   void syncIgnoresAccountabilitiesThatAreNotRoles() {
-    var location = withId(new Organization(), 1L);
-    var person = withId(new Person(), 2L);
+    var locationId = PartyId.generate();
+    var personId = PartyId.generate();
+    var location = withId(new Organization(), locationId);
+    var person = withId(new Person(), personId);
     var memberProgressType =
-        withId(new AccountabilityType("BAPTIZED", location, Category.MEMBER_PROGRESS_STATE), 40L);
+        withId(
+            new AccountabilityType("BAPTIZED", location, Category.MEMBER_PROGRESS_STATE),
+            AccountabilityTypeId.generate());
     var nonRoleAccountability =
-        withId(new Accountability(person, location, memberProgressType), 200L);
+        withId(
+            new Accountability(person, location, memberProgressType), AccountabilityId.generate());
 
-    when(accountabilityRepository.findByParentIdAndChildId(1L, 2L))
+    when(accountabilityRepository.findByParentIdAndChildId(locationId, personId))
         .thenReturn(List.of(nonRoleAccountability));
-    when(organizationRepository.getReferenceById(1L)).thenReturn(location);
+    when(organizationRepository.getReferenceById(locationId)).thenReturn(location);
 
-    roleService.sync(person, 1L, Set.of());
+    roleService.sync(person, locationId, Set.of());
 
     verify(accountabilityRepository).deleteAll(anyList());
     // The non-role accountability must not be touched by the role sync.

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,18 +16,18 @@ public class LocationChildRequest extends OrganizationRequest {
 
   @NotNull Organization.Type type;
 
-  @NotEmpty List<Long> leaderIds = new ArrayList<>();
+  @NotEmpty List<UUID> leaderIds = new ArrayList<>();
 
-  @NotEmpty List<Long> memberIds = new ArrayList<>();
+  @NotEmpty List<UUID> memberIds = new ArrayList<>();
 
   @NotNull
   @Override
-  public Long getParentId() {
+  public UUID getParentId() {
     return super.getParentId();
   }
 
   @Override
-  public void setParentId(Long parentId) {
+  public void setParentId(UUID parentId) {
     super.setParentId(parentId);
   }
 

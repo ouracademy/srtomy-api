@@ -9,6 +9,7 @@ import jakarta.validation.ValidatorFactory;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class EventRequestTests {
     request.setName("Culto");
     request.setStartTime("2026-01-01T10:00:00Z");
     request.setEndTime("2026-01-01T12:00:00Z");
-    request.setOrganizationId(1L);
+    request.setOrganizationId(UUID.randomUUID());
     return request;
   }
 

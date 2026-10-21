@@ -3,15 +3,15 @@ package org.ouracademy.srtomy.person;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AccountabilityRepository extends JpaRepository<Accountability, Long> {
+public interface AccountabilityRepository extends JpaRepository<Accountability, AccountabilityId> {
 
-  List<Accountability> findByParentIdAndTypeIn(Long id, List<AccountabilityType> types);
+  List<Accountability> findByParentIdAndTypeIn(PartyId id, List<AccountabilityType> types);
 
   void deleteAllByType(AccountabilityType roleToDelete);
 
-  List<Accountability> findByParentIdAndChildId(Long parentId, Long childId);
+  List<Accountability> findByParentIdAndChildId(PartyId parentId, PartyId childId);
 
-  void deleteAllByParentId(Long parentId);
+  void deleteAllByParentId(PartyId parentId);
 
-  void deleteAllByChildId(Long childId);
+  void deleteAllByChildId(PartyId childId);
 }

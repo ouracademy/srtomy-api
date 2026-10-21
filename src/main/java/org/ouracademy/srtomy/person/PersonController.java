@@ -2,6 +2,9 @@ package org.ouracademy.srtomy.person;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.organization.RoleService;
@@ -35,35 +38,38 @@ public class PersonController {
 
   @GetMapping
   public Page<Person> findAll(
-      @RequestParam(required = true) Long organizationId,
+      @RequestParam(required = true) UUID organizationId,
       String searchText,
       @ParameterObject Pageable pageable) {
 
     var isPartOf =
         accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF);
+    var organizationPartyId = new PartyId(organizationId);
 
     if (searchText != null) {
-      return personRepository.findByNameAndOrgId(searchText, organizationId, isPartOf, pageable);
+      return personRepository.findByNameAndOrgId(
+          searchText, organizationPartyId, isPartOf, pageable);
     }
 
-    return personRepository.findByOrgId(organizationId, isPartOf, pageable);
+    return personRepository.findByOrgId(organizationPartyId, isPartOf, pageable);
   }
 
   @GetMapping("{id}")
-  public ResponseEntity<Person> findById(@PathVariable Long id) {
-    return ResponseEntity.of(personRepository.findById(id));
+  public ResponseEntity<Person> findById(@PathVariable UUID id) {
+    return ResponseEntity.of(personRepository.findById(new PartyId(id)));
   }
 
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
   @Transactional
-  public Long create(@RequestBody @Valid CreatePersonRequest personRequest) {
+  public UUID create(@RequestBody @Valid CreatePersonRequest personRequest) {
     var person = toModel(personRequest, new Person());
     person = personRepository.save(person);
 
-    var organization = organizationRepository.getReferenceById(personRequest.organizationId);
+    var organizationId = new PartyId(personRequest.organizationId);
+    var organization = organizationRepository.getReferenceById(organizationId);
 
-    roleService.sync(person, personRequest.organizationId, personRequest.roles);
+    roleService.sync(person, organizationId, toAccountabilityTypeIds(personRequest.roles));
 
     var visitorState =
         accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
@@ -73,22 +79,29 @@ public class PersonController {
         accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF);
     accountabilityRepository.save(new Accountability(person, organization, isPartOf));
 
-    return person.getId();
+    return person.getId().value();
   }
 
   @PutMapping("{id}")
   @Transactional
-  public ResponseEntity<Long> edit(
-      @PathVariable Long id, @RequestBody @Valid UpdatePersonRequest personRequest) {
+  public ResponseEntity<UUID> edit(
+      @PathVariable UUID id, @RequestBody @Valid UpdatePersonRequest personRequest) {
     return personRepository
-        .findById(id)
+        .findById(new PartyId(id))
         .map(
             person -> {
               toModel(personRequest, person);
-              roleService.sync(person, personRequest.organizationId, personRequest.roles);
-              return ResponseEntity.ok(personRepository.save(person).getId());
+              roleService.sync(
+                  person,
+                  new PartyId(personRequest.organizationId),
+                  toAccountabilityTypeIds(personRequest.roles));
+              return ResponseEntity.ok(personRepository.save(person).getId().value());
             })
         .orElse(ResponseEntity.notFound().build());
+  }
+
+  private Set<AccountabilityTypeId> toAccountabilityTypeIds(Set<UUID> ids) {
+    return ids.stream().map(AccountabilityTypeId::new).collect(Collectors.toSet());
   }
 
   private Person toModel(CreatePersonRequest personRequest, Person person) {

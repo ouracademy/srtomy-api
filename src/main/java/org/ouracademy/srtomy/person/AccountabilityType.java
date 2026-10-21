@@ -3,6 +3,7 @@ package org.ouracademy.srtomy.person;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import java.time.LocalDateTime;
 import lombok.Getter;
@@ -15,6 +16,8 @@ import org.ouracademy.srtomy.domain.DomainObject;
 @SQLDelete(sql = "UPDATE accountability_type SET deleted_time = now() WHERE id=?")
 @SQLRestriction("deleted_time is null")
 public class AccountabilityType extends DomainObject {
+
+  @Id AccountabilityTypeId id = AccountabilityTypeId.generate();
 
   String name;
 
