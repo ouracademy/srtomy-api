@@ -1,6 +1,7 @@
 # Agent instructions
 
 @README.md
+@docs/code-style.md
 
 ## Commits
 
@@ -12,9 +13,14 @@ Enforced by `.githooks/commit-msg` (`git config core.hooksPath .githooks`) and b
 
 Java code is formatted with Spotless (`google-java-format`). It runs automatically on edit via the Claude Code hook; CI verifies it with `./mvnw spotless:check`.
 
-### Entity ids
-
-Every JPA entity has its own typed id class (a `record` implementing `EntityId`, e.g. `PartyId`, `EventId`), not a raw `UUID`/`Long` and not a shared generic id reused across unrelated entities. The id class lives next to its entity (same package), not in a shared/common package. See `org.ouracademy.srtomy.person.PartyId` (and its entity `Party`) for the pattern, and `org.ouracademy.srtomy.domain` for the shared plumbing (`EntityId`, `IdGenerator`, `EntityIdJavaType`, `EntityIdTypeContributor`) every id type relies on. All ids are UUIDv7, generated in Java via a `@Id XxxId id = XxxId.generate();` field initializer — no `@GeneratedValue`, no `AttributeConverter` (Hibernate rejects those on `@Id` fields).
+The project is organized into domain modules (`party`, `person`, `organization`,
+`accountability`, `event`, `attendance`, `complaint`, `auth`, plus the non-domain
+`shared`), each with its own `domain/command/query/repository|gateway/controller`
+structure, naming conventions (`Command`/`Query`/`Handler`/`handle`/`Result`), and
+cross-module communication rules (including the entity-id convention). All of this
+is documented in [docs/code-style.md](./docs/code-style.md) and enforced by
+`src/test/java/org/ouracademy/srtomy/ArchitectureTests.java` (ArchUnit), which runs
+as part of `./mvnw test`.
 
 ## Language policy
 
