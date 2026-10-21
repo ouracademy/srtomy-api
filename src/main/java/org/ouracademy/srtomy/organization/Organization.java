@@ -4,7 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import lombok.Getter;
-import org.ouracademy.srtomy.person.Party;
+import org.ouracademy.srtomy.party.domain.Party;
 
 @Entity
 @Getter

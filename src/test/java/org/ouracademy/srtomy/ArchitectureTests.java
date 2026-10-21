@@ -8,6 +8,8 @@ import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaModifier;
+import com.tngtech.archunit.core.domain.JavaParameterizedType;
+import com.tngtech.archunit.core.domain.JavaType;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchCondition;
@@ -147,7 +149,7 @@ class ArchitectureTests {
         "return a type whose simple name ends with 'Result' (not an @Entity)") {
       @Override
       public void check(JavaMethod method, ConditionEvents events) {
-        JavaClass returnType = method.getRawReturnType();
+        JavaClass returnType = unwrapContainer(method.getReturnType());
         boolean namedResult = returnType.getSimpleName().endsWith("Result");
         boolean isEntity = returnType.isAnnotatedWith("jakarta.persistence.Entity");
         String message =
@@ -157,5 +159,23 @@ class ArchitectureTests {
         events.add(new SimpleConditionEvent(method, namedResult && !isEntity, message));
       }
     };
+  }
+
+  /**
+   * Query handlers may wrap their result in an {@link java.util.Optional} or a {@link
+   * java.util.Collection} (e.g. {@code Optional<GetPartyByIdResult>}, {@code
+   * List<AccountabilityResult>}); the rule then applies to the element type.
+   */
+  private static JavaClass unwrapContainer(JavaType type) {
+    JavaClass raw = type.toErasure();
+    boolean isContainer =
+        raw.isEquivalentTo(java.util.Optional.class)
+            || raw.isAssignableTo(java.util.Collection.class);
+    if (isContainer
+        && type instanceof JavaParameterizedType parameterized
+        && parameterized.getActualTypeArguments().size() == 1) {
+      return parameterized.getActualTypeArguments().getFirst().toErasure();
+    }
+    return raw;
   }
 }

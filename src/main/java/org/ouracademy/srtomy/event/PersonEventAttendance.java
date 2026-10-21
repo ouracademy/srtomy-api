@@ -12,7 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.ouracademy.srtomy.person.PartyId;
+import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.Person;
 
 @Entity

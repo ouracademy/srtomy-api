@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.person;
 
 import java.util.List;
+import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AccountabilityRepository extends JpaRepository<Accountability, AccountabilityId> {

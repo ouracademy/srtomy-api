@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
+import org.ouracademy.srtomy.party.domain.Party;
 
 @Entity
 @Getter

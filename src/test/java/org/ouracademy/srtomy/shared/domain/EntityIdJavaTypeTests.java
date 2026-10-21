@@ -13,7 +13,7 @@ import org.hibernate.type.descriptor.jdbc.JdbcTypeIndicators;
 import org.hibernate.type.descriptor.jdbc.spi.JdbcTypeRegistry;
 import org.hibernate.type.spi.TypeConfiguration;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.srtomy.person.PartyId;
+import org.ouracademy.srtomy.party.domain.PartyId;
 
 class EntityIdJavaTypeTests {
 

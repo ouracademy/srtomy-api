@@ -2,7 +2,7 @@ package org.ouracademy.srtomy.event;
 
 import java.time.ZonedDateTime;
 import java.util.List;
-import org.ouracademy.srtomy.person.PartyId;
+import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 

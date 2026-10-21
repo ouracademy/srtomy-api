@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.organization.RoleService;
+import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -107,8 +108,8 @@ public class PersonController {
   private Person toModel(CreatePersonRequest personRequest, Person person) {
     person.firstName = personRequest.firstName;
     person.lastName = personRequest.lastName;
-    person.name = personRequest.firstName + " " + personRequest.lastName;
-    person.phoneNumber = personRequest.phoneNumber;
+    person.setName(personRequest.firstName + " " + personRequest.lastName);
+    person.setPhoneNumber(personRequest.phoneNumber);
     person.age = personRequest.age;
     person.birthdate = personRequest.birthdate;
     person.hasBeenBaptized = personRequest.hasBeenBaptized;

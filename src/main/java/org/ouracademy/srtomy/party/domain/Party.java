@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.person;
+package org.ouracademy.srtomy.party.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
