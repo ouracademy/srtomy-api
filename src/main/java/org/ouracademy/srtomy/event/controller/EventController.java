@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.event.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -23,13 +23,10 @@ import org.ouracademy.srtomy.event.query.FindEventByIdQuery;
 import org.ouracademy.srtomy.event.query.FindEventByIdQueryHandler;
 import org.ouracademy.srtomy.event.query.SearchEventsQuery;
 import org.ouracademy.srtomy.event.query.SearchEventsQueryHandler;
-import org.ouracademy.srtomy.event.repository.EventRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.repository.PersonRepository;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,9 +39,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The event endpoints go through the event command/query handlers. The attendance endpoints still
- * use the repositories directly (including person's PersonRepository) until they move to the
- * attendance module.
+ * Event endpoints. The {@code events/{id}/attendance} endpoints live in the attendance module's own
+ * controller.
  */
 @RestController
 @RequestMapping("events")
@@ -57,11 +53,6 @@ public class EventController {
   CreateEventCommandHandler createEventCommandHandler;
   DeleteEventCommandHandler deleteEventCommandHandler;
   EditEventCommandHandler editEventCommandHandler;
-
-  // Attendance only; removed when attendance moves to its own module.
-  EventRepository eventRepository;
-  PersonRepository personRepository;
-  EventAttendanceRepository eventAttendanceRepository;
 
   @GetMapping
   public List<EventResponse> findAll(
@@ -106,34 +97,6 @@ public class EventController {
                 eventRequest.isRecurrent()))
         .id()
         .value();
-  }
-
-  @GetMapping("{id}/attendance")
-  public ResponseEntity<EventAttendanceResponse> getAttendance(@PathVariable UUID id) {
-    return eventAttendanceRepository
-        .findByEventId(new EventId(id))
-        .map(x -> EventAttendanceResponse.builder().personIds(x.getPersonIds()).build())
-        .map(ResponseEntity::ok)
-        .orElse(ResponseEntity.noContent().build());
-  }
-
-  @PutMapping("{id}/attendance")
-  @ResponseStatus(code = HttpStatus.CREATED)
-  @Transactional
-  public void registerAttendance(
-      @PathVariable UUID id, @RequestBody @Valid AttendanceRequest attendanceRequest) {
-    var eventId = new EventId(id);
-    var eventAttendance =
-        eventAttendanceRepository
-            .findByEventId(eventId)
-            .orElse(new EventAttendance(eventRepository.getReferenceById(eventId)));
-
-    eventAttendance = eventAttendanceRepository.save(eventAttendance);
-    eventAttendance.setPeople(
-        attendanceRequest.personIds.stream()
-            .map(personId -> personRepository.getReferenceById(new PartyId(personId)))
-            .toList());
-    eventAttendanceRepository.save(eventAttendance);
   }
 
   @DeleteMapping("{id}")

@@ -1,0 +1,124 @@
+package org.ouracademy.srtomy.attendance.controller;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.ouracademy.srtomy.attendance.command.RegisterAttendanceCommand;
+import org.ouracademy.srtomy.attendance.command.RegisterAttendanceCommandHandler;
+import org.ouracademy.srtomy.attendance.command.RegisterAttendanceResult;
+import org.ouracademy.srtomy.attendance.query.GetAttendanceQuery;
+import org.ouracademy.srtomy.attendance.query.GetAttendanceQueryHandler;
+import org.ouracademy.srtomy.attendance.query.GetAttendanceResult;
+import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.party.domain.PartyId;
+import org.ouracademy.srtomy.shared.SecurityConfig;
+import org.ouracademy.srtomy.shared.SrtomyApplication;
+import org.ouracademy.srtomy.shared.TestSecurityConfig;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
+
+@WebMvcTest(AttendanceController.class)
+@ContextConfiguration(classes = SrtomyApplication.class)
+@Import({TestSecurityConfig.class, SecurityConfig.class})
+class AttendanceControllerTests {
+
+  @Autowired MockMvcTester mvc;
+  @Autowired JwtEncoder jwtEncoder;
+
+  @MockitoBean GetAttendanceQueryHandler getAttendanceQueryHandler;
+  @MockitoBean RegisterAttendanceCommandHandler registerAttendanceCommandHandler;
+
+  private String bearerHeader() {
+    return "Bearer " + TestSecurityConfig.validToken(jwtEncoder);
+  }
+
+  @Test
+  void getAttendanceOfAnEventWithoutAttendanceReturnsNoContent() {
+    var eventId = EventId.generate();
+    given(getAttendanceQueryHandler.handle(new GetAttendanceQuery(eventId)))
+        .willReturn(Optional.empty());
+
+    assertThat(
+            mvc.get()
+                .uri("/v1/events/" + eventId.value() + "/attendance")
+                .header("Authorization", bearerHeader()))
+        .hasStatus(204);
+  }
+
+  @Test
+  void getAttendanceReturnsTheAttendeeIds() {
+    var eventId = EventId.generate();
+    var personId = PartyId.generate();
+    given(getAttendanceQueryHandler.handle(new GetAttendanceQuery(eventId)))
+        .willReturn(Optional.of(new GetAttendanceResult(eventId, List.of(personId))));
+
+    var response =
+        assertThat(
+            mvc.get()
+                .uri("/v1/events/" + eventId.value() + "/attendance")
+                .header("Authorization", bearerHeader()));
+
+    response.hasStatusOk();
+    response.bodyJson().extractingPath("$.personIds[0]").isEqualTo(personId.value().toString());
+  }
+
+  @Test
+  void registerAttendanceMapsTheRequestToACommandAndReturns201() {
+    var eventId = EventId.generate();
+    var personId = UUID.randomUUID();
+    given(registerAttendanceCommandHandler.handle(any()))
+        .willReturn(new RegisterAttendanceResult(eventId, List.of(new PartyId(personId))));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + eventId.value() + "/attendance")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"personIds\": [\"%s\"]}".formatted(personId)))
+        .hasStatus(201);
+
+    verify(registerAttendanceCommandHandler)
+        .handle(new RegisterAttendanceCommand(eventId, List.of(new PartyId(personId))));
+  }
+
+  @Test
+  void registerAttendanceWithoutPersonIdsIsRejected() {
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + UUID.randomUUID() + "/attendance")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"personIds\": null}"))
+        .hasStatus(400);
+
+    verifyNoInteractions(registerAttendanceCommandHandler);
+  }
+
+  @Test
+  void registerAttendanceForAMissingEventReturnsA404Problem() {
+    given(registerAttendanceCommandHandler.handle(any())).willThrow(new NoSuchElementException());
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + UUID.randomUUID() + "/attendance")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"personIds\": []}"))
+        .hasStatus(404)
+        .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+  }
+}

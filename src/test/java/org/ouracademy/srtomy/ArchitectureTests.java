@@ -54,19 +54,10 @@ class ArchitectureTests {
 
   /**
    * Known, temporary violations of module isolation, per module, by fully qualified class name.
-   * Each entry must be removed by the migration step named next to it; do not add new ones.
+   * Each entry must be removed by the migration step named next to it; do not add new ones. Empty
+   * now that every module has been migrated.
    */
-  private static final Map<String, List<String>> PENDING_MIGRATION_EXCEPTIONS =
-      Map.of(
-          "person",
-          List.of(
-              // Remove in the attendance module step: the event endpoints no longer touch
-              // PersonRepository, but EventController.registerAttendance still calls
-              // PersonRepository.getReferenceById (and EventControllerTests mocks it). The
-              // attendance module must validate attendees via
-              // person.query.FindPeopleByIdsQueryHandler and use EntityManager.getReference.
-              BASE_PACKAGE + ".event.EventController",
-              BASE_PACKAGE + ".event.EventControllerTests"));
+  private static final Map<String, List<String>> PENDING_MIGRATION_EXCEPTIONS = Map.of();
 
   private static final DescribedPredicate<JavaClass> HANDLER_INTERFACE =
       JavaClass.Predicates.simpleNameEndingWith("CommandHandler")

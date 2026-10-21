@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.event.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,10 +32,8 @@ import org.ouracademy.srtomy.event.query.FindEventByIdQueryHandler;
 import org.ouracademy.srtomy.event.query.FindEventResult;
 import org.ouracademy.srtomy.event.query.SearchEventsQuery;
 import org.ouracademy.srtomy.event.query.SearchEventsQueryHandler;
-import org.ouracademy.srtomy.event.repository.EventRepository;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.repository.PersonRepository;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
 import org.ouracademy.srtomy.shared.TestSecurityConfig;
@@ -62,11 +60,6 @@ class EventControllerTests {
   @MockitoBean CreateEventCommandHandler createEventCommandHandler;
   @MockitoBean DeleteEventCommandHandler deleteEventCommandHandler;
   @MockitoBean EditEventCommandHandler editEventCommandHandler;
-
-  // Still used directly by the attendance endpoints until they move to the attendance module.
-  @MockitoBean EventRepository eventRepository;
-  @MockitoBean PersonRepository personRepository;
-  @MockitoBean EventAttendanceRepository eventAttendanceRepository;
 
   private String bearerHeader() {
     return "Bearer " + TestSecurityConfig.validToken(jwtEncoder);
@@ -263,17 +256,5 @@ class EventControllerTests {
                         .formatted(UUID.randomUUID())))
         .hasStatus(500)
         .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
-  }
-
-  @Test
-  void getAttendanceOfAnEventWithoutAttendanceReturnsNoContent() {
-    var eventId = EventId.generate();
-    given(eventAttendanceRepository.findByEventId(eventId)).willReturn(Optional.empty());
-
-    assertThat(
-            mvc.get()
-                .uri("/v1/events/" + eventId.value() + "/attendance")
-                .header("Authorization", bearerHeader()))
-        .hasStatus(204);
   }
 }

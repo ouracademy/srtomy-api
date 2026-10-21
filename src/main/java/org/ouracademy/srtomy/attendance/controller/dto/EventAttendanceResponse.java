@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.attendance.controller.dto;
 
 import java.util.List;
 import java.util.UUID;
