@@ -2,14 +2,38 @@ package org.ouracademy.srtomy.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.ouracademy.srtomy.event.EventFixtures.singleEvent;
+import static org.ouracademy.srtomy.organization.OrganizationFixtures.organization;
+import static org.ouracademy.srtomy.person.PersonFixtures.person;
 
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
+import org.apache.commons.lang3.NotImplementedException;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
+import org.mockito.ArgumentCaptor;
+import org.ouracademy.srtomy.event.command.CreateEventCommand;
+import org.ouracademy.srtomy.event.command.CreateEventCommandHandler;
+import org.ouracademy.srtomy.event.command.CreateEventResult;
+import org.ouracademy.srtomy.event.command.DeleteEventCommand;
+import org.ouracademy.srtomy.event.command.DeleteEventCommandHandler;
+import org.ouracademy.srtomy.event.command.DeleteEventResult;
+import org.ouracademy.srtomy.event.command.EditEventCommandHandler;
+import org.ouracademy.srtomy.event.domain.EventChangeOption;
+import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.event.query.FindEventByIdQuery;
+import org.ouracademy.srtomy.event.query.FindEventByIdQueryHandler;
+import org.ouracademy.srtomy.event.query.FindEventResult;
+import org.ouracademy.srtomy.event.query.SearchEventsQuery;
+import org.ouracademy.srtomy.event.query.SearchEventsQueryHandler;
+import org.ouracademy.srtomy.event.repository.EventRepository;
+import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.repository.PersonRepository;
 import org.ouracademy.srtomy.shared.SecurityConfig;
@@ -18,6 +42,7 @@ import org.ouracademy.srtomy.shared.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.context.ContextConfiguration;
@@ -32,23 +57,31 @@ class EventControllerTests {
   @Autowired MockMvcTester mvc;
   @Autowired JwtEncoder jwtEncoder;
 
+  @MockitoBean SearchEventsQueryHandler searchEventsQueryHandler;
+  @MockitoBean FindEventByIdQueryHandler findEventByIdQueryHandler;
+  @MockitoBean CreateEventCommandHandler createEventCommandHandler;
+  @MockitoBean DeleteEventCommandHandler deleteEventCommandHandler;
+  @MockitoBean EditEventCommandHandler editEventCommandHandler;
+
+  // Still used directly by the attendance endpoints until they move to the attendance module.
   @MockitoBean EventRepository eventRepository;
-  @MockitoBean SingleEventRepository singleEventRepository;
   @MockitoBean PersonRepository personRepository;
-  @MockitoBean OrganizationRepository organizationRepository;
   @MockitoBean EventAttendanceRepository eventAttendanceRepository;
 
   private String bearerHeader() {
     return "Bearer " + TestSecurityConfig.validToken(jwtEncoder);
   }
 
+  private static FindEventResult eventResult(EventId id) {
+    var church = organization(PartyId.generate(), "Iglesia Central", Organization.Type.CHURCH);
+    var speaker = person(PartyId.generate(), "Jose", "Mena");
+    return FindEventResult.from(singleEvent(id, "Viernes con Jesus", church, List.of(speaker)));
+  }
+
   @Test
   void findAllForAnUnknownOrganizationAndDateRangeReturnsAnEmptyList() {
     var organizationId = UUID.randomUUID();
-    given(
-            eventRepository.searchEventsOfOrgIdAndBetweenDates(
-                eq(new PartyId(organizationId)), any(), any()))
-        .willReturn(List.of());
+    given(searchEventsQueryHandler.handle(any())).willReturn(List.of());
 
     assertThat(
             mvc.get()
@@ -63,20 +96,184 @@ class EventControllerTests {
   }
 
   @Test
-  void deletingAMissingEventReturnsA404Problem() {
-    // Exercises GlobalExceptionHandler end-to-end: singleEventRepository.findById(id)
-    // .orElseThrow() in EventController.delete throws NoSuchElementException for an id
-    // that doesn't exist.
-    var missingId = UUID.randomUUID();
-    given(singleEventRepository.findById(new EventId(missingId))).willReturn(Optional.empty());
+  void findAllSearchesTheOrganizationsEventsInUtcAndReturnsTheEventFields() {
+    var organizationId = UUID.randomUUID();
+    var eventId = EventId.generate();
+    given(
+            searchEventsQueryHandler.handle(
+                new SearchEventsQuery(
+                    new PartyId(organizationId),
+                    ZonedDateTime.parse("2026-01-01T00:00:00Z[UTC]"),
+                    ZonedDateTime.parse("2026-12-31T00:00:00Z[UTC]"))))
+        .willReturn(List.of(eventResult(eventId)));
+
+    var response =
+        assertThat(
+            mvc.get()
+                .uri(
+                    "/v1/events?organizationId="
+                        + organizationId
+                        + "&start=2026-01-01T00:00:00&end=2026-12-31T00:00:00")
+                .header("Authorization", bearerHeader()));
+
+    response.hasStatusOk();
+    response.bodyJson().extractingPath("$[0].id").isEqualTo(eventId.value().toString());
+    response.bodyJson().extractingPath("$[0].title").isEqualTo("Viernes con Jesus");
+    response.bodyJson().extractingPath("$[0].isACourse").isEqualTo(false);
+    response.bodyJson().extractingPath("$[0].organization.name").isEqualTo("Iglesia Central");
+    response.bodyJson().extractingPath("$[0].organization.deletable").isEqualTo(false);
+    response.bodyJson().extractingPath("$[0].speakers[0].fullName").isEqualTo("Jose Mena");
+  }
+
+  @Test
+  void findByIdReturnsTheEvent() {
+    var eventId = EventId.generate();
+    given(findEventByIdQueryHandler.handle(new FindEventByIdQuery(eventId)))
+        .willReturn(Optional.of(eventResult(eventId)));
+
+    var response =
+        assertThat(
+            mvc.get().uri("/v1/events/" + eventId.value()).header("Authorization", bearerHeader()));
+
+    response.hasStatusOk();
+    response.bodyJson().extractingPath("$.id").isEqualTo(eventId.value().toString());
+    response.bodyJson().extractingPath("$.address").isEqualTo("Av. Siempre Viva 123");
+  }
+
+  @Test
+  void findByIdOfAMissingEventReturns404() {
+    given(findEventByIdQueryHandler.handle(any())).willReturn(Optional.empty());
 
     assertThat(
-            mvc.method(org.springframework.http.HttpMethod.DELETE)
-                .uri("/v1/events/" + missingId)
+            mvc.get()
+                .uri("/v1/events/" + UUID.randomUUID())
+                .header("Authorization", bearerHeader()))
+        .hasStatus(404);
+  }
+
+  @Test
+  void createMapsTheRequestToACommandAndReturnsTheNewId() {
+    var organizationId = UUID.randomUUID();
+    var speakerId = UUID.randomUUID();
+    var eventId = EventId.generate();
+    given(createEventCommandHandler.handle(any())).willReturn(new CreateEventResult(eventId));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/events")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name": "Servicio", "startTime": "2026-01-05T10:00:00-05:00",
+                     "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s",
+                     "speakerIds": ["%s"], "address": "Av. 1", "description": "d",
+                     "isACourse": true, "daysOfWeek": [1, 3], "endRecur": "2026-01-14"}
+                    """
+                        .formatted(organizationId, speakerId)))
+        .hasStatus(201)
+        .bodyText()
+        .isEqualTo("\"" + eventId.value() + "\"");
+
+    var command = ArgumentCaptor.forClass(CreateEventCommand.class);
+    verify(createEventCommandHandler).handle(command.capture());
+    assertThat(command.getValue())
+        .isEqualTo(
+            new CreateEventCommand(
+                "Servicio",
+                OffsetDateTime.parse("2026-01-05T10:00:00-05:00"),
+                OffsetDateTime.parse("2026-01-05T12:00:00-05:00"),
+                "Av. 1",
+                "d",
+                true,
+                new PartyId(organizationId),
+                List.of(new PartyId(speakerId)),
+                List.of(1, 3),
+                java.time.LocalDate.of(2026, 1, 14),
+                true));
+  }
+
+  @Test
+  void createARecurrentEventWithoutDaysOfWeekIsRejected() {
+    assertThat(
+            mvc.post()
+                .uri("/v1/events")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name": "Servicio", "startTime": "2026-01-05T10:00:00-05:00",
+                     "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s",
+                     "endRecur": "2026-01-14"}
+                    """
+                        .formatted(UUID.randomUUID())))
+        .hasStatus(400);
+
+    verifyNoInteractions(createEventCommandHandler);
+  }
+
+  @Test
+  void deleteDefaultsToThisEventOnly() {
+    var eventId = EventId.generate();
+    given(deleteEventCommandHandler.handle(any())).willReturn(new DeleteEventResult(eventId));
+
+    assertThat(
+            mvc.method(HttpMethod.DELETE)
+                .uri("/v1/events/" + eventId.value())
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
+        .hasStatusOk();
+
+    verify(deleteEventCommandHandler)
+        .handle(new DeleteEventCommand(eventId, EventChangeOption.THIS_EVENT));
+  }
+
+  @Test
+  void deletingAMissingEventReturnsA404Problem() {
+    // Exercises GlobalExceptionHandler end-to-end: DeleteEventCommandHandler throws
+    // NoSuchElementException for an id that doesn't exist.
+    given(deleteEventCommandHandler.handle(any())).willThrow(new NoSuchElementException());
+
+    assertThat(
+            mvc.method(HttpMethod.DELETE)
+                .uri("/v1/events/" + UUID.randomUUID())
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"option\": \"ALL_EVENTS\"}"))
         .hasStatus(404)
         .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  @Test
+  void editIsNotImplementedYet() {
+    given(editEventCommandHandler.handle(any())).willThrow(new NotImplementedException("TODO:"));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + UUID.randomUUID())
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name": "Servicio", "startTime": "2026-01-05T10:00:00-05:00",
+                     "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s",
+                     "option": "THIS_EVENT"}
+                    """
+                        .formatted(UUID.randomUUID())))
+        .hasStatus(500)
+        .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  @Test
+  void getAttendanceOfAnEventWithoutAttendanceReturnsNoContent() {
+    var eventId = EventId.generate();
+    given(eventAttendanceRepository.findByEventId(eventId)).willReturn(Optional.empty());
+
+    assertThat(
+            mvc.get()
+                .uri("/v1/events/" + eventId.value() + "/attendance")
+                .header("Authorization", bearerHeader()))
+        .hasStatus(204);
   }
 }

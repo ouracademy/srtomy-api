@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.event.controller.dto;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -40,7 +40,7 @@ public class EventRequest {
     }
   }
 
-  boolean isRecurrent() {
+  public boolean isRecurrent() {
     return endRecur != null;
   }
 }

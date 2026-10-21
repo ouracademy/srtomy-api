@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.event.domain;
 
 import java.util.UUID;
 import org.ouracademy.srtomy.shared.domain.EntityId;

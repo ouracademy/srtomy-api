@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
+import org.ouracademy.srtomy.event.domain.Event;
+import org.ouracademy.srtomy.event.domain.EventId;
 import org.ouracademy.srtomy.person.domain.Person;
 import org.ouracademy.srtomy.shared.utils.JpaLists;
 

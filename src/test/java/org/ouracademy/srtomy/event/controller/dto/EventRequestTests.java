@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.event.controller.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

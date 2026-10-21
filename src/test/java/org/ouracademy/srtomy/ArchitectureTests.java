@@ -58,18 +58,13 @@ class ArchitectureTests {
    */
   private static final Map<String, List<String>> PENDING_MIGRATION_EXCEPTIONS =
       Map.of(
-          "organization",
-          List.of(
-              // Remove in the event module step: EventController must validate the organization
-              // via organization.query.FindOrganizationByIdQueryHandler and build the reference
-              // with EntityManager.getReference instead of OrganizationRepository.
-              BASE_PACKAGE + ".event.EventController",
-              BASE_PACKAGE + ".event.EventControllerTests"),
           "person",
           List.of(
-              // Remove in the event module step: EventController must validate speakers and
-              // attendees via person.query.FindPeopleByIdsQueryHandler and build the references
-              // with EntityManager.getReference instead of PersonRepository.
+              // Remove in the attendance module step: the event endpoints no longer touch
+              // PersonRepository, but EventController.registerAttendance still calls
+              // PersonRepository.getReferenceById (and EventControllerTests mocks it). The
+              // attendance module must validate attendees via
+              // person.query.FindPeopleByIdsQueryHandler and use EntityManager.getReference.
               BASE_PACKAGE + ".event.EventController",
               BASE_PACKAGE + ".event.EventControllerTests"));
 

@@ -6,7 +6,7 @@ import org.hibernate.service.ServiceRegistry;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.complaint.ComplaintId;
-import org.ouracademy.srtomy.event.EventId;
+import org.ouracademy.srtomy.event.domain.EventId;
 import org.ouracademy.srtomy.party.domain.PartyId;
 
 /** Registers every {@link EntityId} record as a Hibernate basic type backed by a UUID column. */

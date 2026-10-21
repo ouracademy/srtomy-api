@@ -1,7 +1,10 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.event.repository;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import org.ouracademy.srtomy.event.domain.Event;
+import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.event.domain.SingleEvent;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

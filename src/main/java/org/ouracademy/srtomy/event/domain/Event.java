@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.event.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
@@ -14,6 +14,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
+import lombok.Setter;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.person.domain.Person;
 import org.ouracademy.srtomy.shared.domain.DomainObject;
@@ -29,7 +30,7 @@ public class Event extends DomainObject {
   @Column(name = "name")
   String title;
 
-  @OneToMany // opcional (ver 1 y 2)
+  @Setter @OneToMany // opcional (ver 1 y 2)
   List<Person> speakers = new ArrayList<>();
 
   @Column(name = "start_time")
@@ -38,13 +39,15 @@ public class Event extends DomainObject {
   @Column(name = "end_time")
   ZonedDateTime end;
 
-  String address;
+  @Setter String address;
 
+  @Setter
   @ManyToOne(optional = false)
   Organization organization;
 
-  String description;
+  @Setter String description;
 
+  @Setter
   @Column(name = "is_a_course")
   Boolean isACourse = false;
 

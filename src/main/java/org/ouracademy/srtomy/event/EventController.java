@@ -8,9 +8,22 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
-import lombok.Data;
-import org.apache.commons.lang3.NotImplementedException;
-import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
+import org.ouracademy.srtomy.event.command.CreateEventCommand;
+import org.ouracademy.srtomy.event.command.CreateEventCommandHandler;
+import org.ouracademy.srtomy.event.command.DeleteEventCommand;
+import org.ouracademy.srtomy.event.command.DeleteEventCommandHandler;
+import org.ouracademy.srtomy.event.command.EditEventCommand;
+import org.ouracademy.srtomy.event.command.EditEventCommandHandler;
+import org.ouracademy.srtomy.event.controller.dto.EditEventRequest;
+import org.ouracademy.srtomy.event.controller.dto.EventDeleteRequest;
+import org.ouracademy.srtomy.event.controller.dto.EventRequest;
+import org.ouracademy.srtomy.event.controller.dto.EventResponse;
+import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.event.query.FindEventByIdQuery;
+import org.ouracademy.srtomy.event.query.FindEventByIdQueryHandler;
+import org.ouracademy.srtomy.event.query.SearchEventsQuery;
+import org.ouracademy.srtomy.event.query.SearchEventsQueryHandler;
+import org.ouracademy.srtomy.event.repository.EventRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.repository.PersonRepository;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -28,69 +41,71 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * The event endpoints go through the event command/query handlers. The attendance endpoints still
+ * use the repositories directly (including person's PersonRepository) until they move to the
+ * attendance module.
+ */
 @RestController
 @RequestMapping("events")
 @AllArgsConstructor
 @Tag(name = "events")
 public class EventController {
 
+  SearchEventsQueryHandler searchEventsQueryHandler;
+  FindEventByIdQueryHandler findEventByIdQueryHandler;
+  CreateEventCommandHandler createEventCommandHandler;
+  DeleteEventCommandHandler deleteEventCommandHandler;
+  EditEventCommandHandler editEventCommandHandler;
+
+  // Attendance only; removed when attendance moves to its own module.
   EventRepository eventRepository;
-  SingleEventRepository singleEventRepository;
   PersonRepository personRepository;
-  OrganizationRepository organizationRepository;
   EventAttendanceRepository eventAttendanceRepository;
 
   @GetMapping
-  public List<SingleEvent> findAll(
+  public List<EventResponse> findAll(
       @RequestParam(required = true) UUID organizationId,
       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
-    return eventRepository.searchEventsOfOrgIdAndBetweenDates(
-        new PartyId(organizationId), start.atZone(ZoneId.of("UTC")), end.atZone(ZoneId.of("UTC")));
+    return searchEventsQueryHandler
+        .handle(
+            new SearchEventsQuery(
+                new PartyId(organizationId),
+                start.atZone(ZoneId.of("UTC")),
+                end.atZone(ZoneId.of("UTC"))))
+        .stream()
+        .map(EventResponse::from)
+        .toList();
   }
 
   @GetMapping("{id}")
-  public ResponseEntity<SingleEvent> findById(@PathVariable UUID id) {
-    return ResponseEntity.of(singleEventRepository.findById(new EventId(id)));
+  public ResponseEntity<EventResponse> findById(@PathVariable UUID id) {
+    return ResponseEntity.of(
+        findEventByIdQueryHandler
+            .handle(new FindEventByIdQuery(new EventId(id)))
+            .map(EventResponse::from));
   }
 
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
-  @Transactional
   public UUID create(@RequestBody @Valid EventRequest eventRequest) {
-    var startTime = OffsetDateTime.parse(eventRequest.startTime);
-    var endTime = OffsetDateTime.parse(eventRequest.endTime);
-
-    var start = startTime.atZoneSameInstant(ZoneId.of("UTC"));
-    var end = endTime.atZoneSameInstant(ZoneId.of("UTC"));
-
-    // eventRequest.startTime.
-    var event =
-        eventRequest.isRecurrent()
-            ? new RecurrentEvent(
-                eventRequest.name, start, end, eventRequest.daysOfWeek, eventRequest.endRecur)
-            : new SingleEvent(eventRequest.name, start, end);
-    mapToModel(eventRequest, event);
-    var id = eventRepository.save(event).getId();
-
-    if (event instanceof RecurrentEvent recurrentEvent) {
-      var events = recurrentEvent.expand(startTime, endTime);
-      eventRepository.saveAll(events);
-    }
-
-    return id.value();
-  }
-
-  private void mapToModel(EventRequest eventRequest, Event event) {
-    event.organization =
-        organizationRepository.getReferenceById(new PartyId(eventRequest.organizationId));
-    event.address = eventRequest.address;
-    event.speakers =
-        eventRequest.speakerIds.stream()
-            .map(id -> personRepository.getReferenceById(new PartyId(id)))
-            .toList();
-    event.description = eventRequest.description;
-    event.isACourse = eventRequest.isACourse;
+    return createEventCommandHandler
+        .handle(
+            new CreateEventCommand(
+                eventRequest.getName(),
+                OffsetDateTime.parse(eventRequest.getStartTime()),
+                OffsetDateTime.parse(eventRequest.getEndTime()),
+                eventRequest.getAddress(),
+                eventRequest.getDescription(),
+                eventRequest.getIsACourse(),
+                new PartyId(eventRequest.getOrganizationId()),
+                eventRequest.getSpeakerIds().stream().map(PartyId::new).toList(),
+                eventRequest.getDaysOfWeek(),
+                eventRequest.getEndRecur(),
+                eventRequest.isRecurrent()))
+        .id()
+        .value();
   }
 
   @GetMapping("{id}/attendance")
@@ -121,38 +136,16 @@ public class EventController {
     eventAttendanceRepository.save(eventAttendance);
   }
 
-  @Data
-  public static class EventDeleteRequest {
-    EventChangeOption option = EventChangeOption.THIS_EVENT;
-  }
-
   @DeleteMapping("{id}")
   public void delete(@PathVariable UUID id, @RequestBody @Valid EventDeleteRequest request) {
-    var event = singleEventRepository.findById(new EventId(id)).orElseThrow();
-    switch (request.option) {
-      case THIS_EVENT:
-        eventRepository.delete(event);
-        break;
-      case THIS_AND_THE_FOLLOWING_EVENTS:
-        var followingEvents =
-            singleEventRepository.findByRecurrentEventAndStartAfter(
-                event.recurrentEvent, event.start);
-        eventRepository.deleteAll(followingEvents);
-        eventRepository.delete(event);
-        break;
-      case ALL_EVENTS:
-        eventRepository.deleteAll(singleEventRepository.findByRecurrentEvent(event.recurrentEvent));
-        eventRepository.delete(event.recurrentEvent);
-        break;
-    }
+    deleteEventCommandHandler.handle(new DeleteEventCommand(new EventId(id), request.getOption()));
   }
 
   @PutMapping("{id}")
-  public ResponseEntity<Event> edit(
+  public ResponseEntity<UUID> edit(
       @PathVariable UUID id, @RequestBody @Valid EditEventRequest request) {
-
-    // TODO:
-
-    throw new NotImplementedException("TODO:");
+    var result =
+        editEventCommandHandler.handle(new EditEventCommand(new EventId(id), request.getOption()));
+    return ResponseEntity.ok(result.id().value());
   }
 }

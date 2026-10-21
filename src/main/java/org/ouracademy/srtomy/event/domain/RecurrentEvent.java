@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.event;
+package org.ouracademy.srtomy.event.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
