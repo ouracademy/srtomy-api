@@ -1,7 +1,7 @@
 # Test-only config. Same classpath location as src/main/resources/application.yml,
 # and target/test-classes comes before target/classes on the test classpath,
 # so this file entirely REPLACES (not merges with) the main one for
-# `mvn test`/`verify` — none of its `spring.config.import: sm://` GCP Secret
+# `mvn test`/`verify` — none of its `spring.config.import: sm@` GCP Secret
 # Manager wiring applies here. Tests never touch any real GCP environment
 # (dev or prod); they only need a disposable Postgres (Flyway runs the real
 # migrations from src/main/resources/db/migration on startup) and dummy
