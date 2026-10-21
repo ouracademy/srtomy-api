@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy;
+package org.ouracademy.srtomy.shared;
 
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpHeaders;

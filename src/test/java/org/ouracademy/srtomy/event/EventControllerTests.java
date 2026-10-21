@@ -9,20 +9,23 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.srtomy.SecurityConfig;
-import org.ouracademy.srtomy.TestSecurityConfig;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
 import org.ouracademy.srtomy.person.PartyId;
 import org.ouracademy.srtomy.person.PersonRepository;
+import org.ouracademy.srtomy.shared.SecurityConfig;
+import org.ouracademy.srtomy.shared.SrtomyApplication;
+import org.ouracademy.srtomy.shared.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 @WebMvcTest(EventController.class)
+@ContextConfiguration(classes = SrtomyApplication.class)
 @Import({TestSecurityConfig.class, SecurityConfig.class})
 class EventControllerTests {
 

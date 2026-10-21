@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.domain;
+package org.ouracademy.srtomy.shared.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.domain;
+package org.ouracademy.srtomy.shared.domain;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.UUID;

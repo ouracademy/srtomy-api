@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.domain;
+package org.ouracademy.srtomy.shared.domain;
 
 import org.hibernate.boot.model.TypeContributions;
 import org.hibernate.boot.model.TypeContributor;

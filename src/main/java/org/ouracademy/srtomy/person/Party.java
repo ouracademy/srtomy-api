@@ -7,7 +7,7 @@ import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import lombok.Getter;
 import lombok.Setter;
-import org.ouracademy.srtomy.domain.DomainObject;
+import org.ouracademy.srtomy.shared.domain.DomainObject;
 
 @Entity
 @Getter

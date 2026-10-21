@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
-import org.ouracademy.srtomy.domain.DomainObject;
+import org.ouracademy.srtomy.shared.domain.DomainObject;
 
 @Entity
 @Getter

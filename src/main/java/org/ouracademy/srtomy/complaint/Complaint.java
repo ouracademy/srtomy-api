@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
-import org.ouracademy.srtomy.domain.DomainObject;
+import org.ouracademy.srtomy.shared.domain.DomainObject;
 
 @Entity
 @Getter

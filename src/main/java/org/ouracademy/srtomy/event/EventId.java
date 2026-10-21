@@ -1,8 +1,8 @@
 package org.ouracademy.srtomy.event;
 
 import java.util.UUID;
-import org.ouracademy.srtomy.domain.EntityId;
-import org.ouracademy.srtomy.domain.IdGenerator;
+import org.ouracademy.srtomy.shared.domain.EntityId;
+import org.ouracademy.srtomy.shared.domain.IdGenerator;
 
 public record EventId(UUID value) implements EntityId {
 

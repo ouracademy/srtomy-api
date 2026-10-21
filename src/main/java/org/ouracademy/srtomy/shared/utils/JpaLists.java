@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.utils;
+package org.ouracademy.srtomy.shared.utils;
 
 import java.util.List;
 

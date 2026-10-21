@@ -6,7 +6,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.time.LocalDateTime;
 import lombok.Getter;
-import org.ouracademy.srtomy.domain.DomainObject;
+import org.ouracademy.srtomy.shared.domain.DomainObject;
 
 @Entity
 @Getter

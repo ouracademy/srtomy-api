@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy;
+package org.ouracademy.srtomy.shared;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Contact;

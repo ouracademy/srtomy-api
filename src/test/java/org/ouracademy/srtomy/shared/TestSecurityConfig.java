@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy;
+package org.ouracademy.srtomy.shared;
 
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;

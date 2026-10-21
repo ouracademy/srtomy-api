@@ -1,8 +1,8 @@
 package org.ouracademy.srtomy.person;
 
 import java.util.UUID;
-import org.ouracademy.srtomy.domain.EntityId;
-import org.ouracademy.srtomy.domain.IdGenerator;
+import org.ouracademy.srtomy.shared.domain.EntityId;
+import org.ouracademy.srtomy.shared.domain.IdGenerator;
 
 public record PartyId(UUID value) implements EntityId {
 

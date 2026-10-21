@@ -9,7 +9,8 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.srtomy.TestSecurityConfig;
+import org.ouracademy.srtomy.shared.SrtomyApplication;
+import org.ouracademy.srtomy.shared.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -27,7 +28,7 @@ import org.springframework.web.client.HttpServerErrorException;
  * here since auth0.url is pointed at the always-500 test server below, which would make that call
  * fail outright.
  */
-@SpringBootTest
+@SpringBootTest(classes = SrtomyApplication.class)
 @Import(TestSecurityConfig.class)
 class Auth0GatewayResilienceIntegrationTests {
 

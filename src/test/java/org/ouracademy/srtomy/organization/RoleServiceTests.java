@@ -13,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ouracademy.srtomy.domain.EntityId;
 import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityId;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
@@ -23,6 +22,7 @@ import org.ouracademy.srtomy.person.AccountabilityTypeId;
 import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.person.PartyId;
 import org.ouracademy.srtomy.person.Person;
+import org.ouracademy.srtomy.shared.domain.EntityId;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)

@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy;
+package org.ouracademy.srtomy.shared;
 
 import org.ouracademy.srtomy.auth0.Auth0Config;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -29,10 +29,7 @@ public class SecurityConfig {
 
   static final String AUDIENCE = "https://api.srtommy.com";
   private static final String[] SWAGGER_WHITELIST = {
-          "/v3/api-docs/**",
-          "/v3/api-docs.yaml",
-          "/swagger-ui/**",
-          "/swagger-ui.html"
+    "/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html"
   };
 
   @Bean

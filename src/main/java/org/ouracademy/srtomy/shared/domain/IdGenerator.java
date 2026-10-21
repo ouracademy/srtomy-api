@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.domain;
+package org.ouracademy.srtomy.shared.domain;
 
 import java.util.UUID;
 import org.hibernate.id.uuid.UuidVersion7Strategy;

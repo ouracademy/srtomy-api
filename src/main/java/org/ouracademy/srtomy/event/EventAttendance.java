@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import org.ouracademy.srtomy.person.Person;
-import org.ouracademy.srtomy.utils.JpaLists;
+import org.ouracademy.srtomy.shared.utils.JpaLists;
 
 @Entity
 @Getter

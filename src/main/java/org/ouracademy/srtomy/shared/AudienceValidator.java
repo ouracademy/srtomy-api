@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy;
+package org.ouracademy.srtomy.shared;
 
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
