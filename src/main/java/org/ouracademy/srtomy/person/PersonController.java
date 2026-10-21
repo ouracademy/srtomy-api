@@ -6,8 +6,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import org.ouracademy.srtomy.accountability.command.SyncPersonRolesCommand;
+import org.ouracademy.srtomy.accountability.command.SyncPersonRolesCommandHandler;
+import org.ouracademy.srtomy.accountability.domain.Accountability;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityRepository;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
-import org.ouracademy.srtomy.organization.RoleService;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
@@ -35,7 +41,7 @@ public class PersonController {
   AccountabilityTypeRepository accountabilityTypeRepository;
   PersonRepository personRepository;
   OrganizationRepository organizationRepository;
-  RoleService roleService;
+  SyncPersonRolesCommandHandler syncPersonRolesCommandHandler;
 
   @GetMapping
   public Page<Person> findAll(
@@ -70,7 +76,9 @@ public class PersonController {
     var organizationId = new PartyId(personRequest.organizationId);
     var organization = organizationRepository.getReferenceById(organizationId);
 
-    roleService.sync(person, organizationId, toAccountabilityTypeIds(personRequest.roles));
+    syncPersonRolesCommandHandler.handle(
+        new SyncPersonRolesCommand(
+            person.getId(), organizationId, toAccountabilityTypeIds(personRequest.roles)));
 
     var visitorState =
         accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.VISITOR);
@@ -92,10 +100,11 @@ public class PersonController {
         .map(
             person -> {
               toModel(personRequest, person);
-              roleService.sync(
-                  person,
-                  new PartyId(personRequest.organizationId),
-                  toAccountabilityTypeIds(personRequest.roles));
+              syncPersonRolesCommandHandler.handle(
+                  new SyncPersonRolesCommand(
+                      person.getId(),
+                      new PartyId(personRequest.organizationId),
+                      toAccountabilityTypeIds(personRequest.roles)));
               return ResponseEntity.ok(personRepository.save(person).getId().value());
             })
         .orElse(ResponseEntity.notFound().build());

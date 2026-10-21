@@ -3,11 +3,11 @@ package org.ouracademy.srtomy.shared.domain;
 import org.hibernate.boot.model.TypeContributions;
 import org.hibernate.boot.model.TypeContributor;
 import org.hibernate.service.ServiceRegistry;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.complaint.ComplaintId;
 import org.ouracademy.srtomy.event.EventId;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.AccountabilityId;
-import org.ouracademy.srtomy.person.AccountabilityTypeId;
 
 /** Registers every {@link EntityId} record as a Hibernate basic type backed by a UUID column. */
 public class EntityIdTypeContributor implements TypeContributor {

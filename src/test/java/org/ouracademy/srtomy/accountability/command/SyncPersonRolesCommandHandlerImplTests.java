@@ -1,10 +1,12 @@
-package org.ouracademy.srtomy.organization;
+package org.ouracademy.srtomy.accountability.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.srtomy.accountability.AccountabilityFixtures.party;
+import static org.ouracademy.srtomy.accountability.AccountabilityFixtures.withId;
 
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,45 +15,38 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ouracademy.srtomy.accountability.domain.Accountability;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityType.Category;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityRepository;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
+import org.ouracademy.srtomy.party.domain.Party;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.Accountability;
-import org.ouracademy.srtomy.person.AccountabilityId;
-import org.ouracademy.srtomy.person.AccountabilityRepository;
-import org.ouracademy.srtomy.person.AccountabilityType;
-import org.ouracademy.srtomy.person.AccountabilityType.Category;
-import org.ouracademy.srtomy.person.AccountabilityTypeId;
-import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
-import org.ouracademy.srtomy.person.Person;
-import org.ouracademy.srtomy.shared.domain.EntityId;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
-class RoleServiceTests {
+class SyncPersonRolesCommandHandlerImplTests {
 
   @Mock AccountabilityTypeRepository accountabilityTypeRepository;
   @Mock AccountabilityRepository accountabilityRepository;
-  @Mock OrganizationRepository organizationRepository;
+  @Mock EntityManager entityManager;
 
-  RoleService roleService;
+  SyncPersonRolesCommandHandlerImpl handler;
 
   @BeforeEach
   void setUp() {
-    roleService =
-        new RoleService(
-            accountabilityTypeRepository, accountabilityRepository, organizationRepository);
-  }
-
-  private static <T> T withId(T entity, EntityId id) {
-    ReflectionTestUtils.setField(entity, "id", id);
-    return entity;
+    handler =
+        new SyncPersonRolesCommandHandlerImpl(
+            accountabilityTypeRepository, accountabilityRepository, entityManager);
   }
 
   @Test
-  void syncRemovesRolesNotInTheNewSetAndAddsTheOnesMissing() {
+  void handleRemovesRolesNotInTheNewSetAndAddsTheOnesMissing() {
     var locationId = PartyId.generate();
     var personId = PartyId.generate();
-    var location = withId(new Organization(), locationId);
-    var person = withId(new Person(), personId);
+    var location = party(locationId, "Location");
+    var person = party(personId, "Person");
 
     var oldRoleTypeId = AccountabilityTypeId.generate();
     var keptRoleTypeId = AccountabilityTypeId.generate();
@@ -70,10 +65,16 @@ class RoleServiceTests {
 
     when(accountabilityRepository.findByParentIdAndChildId(locationId, personId))
         .thenReturn(List.of(oldAccountability, keptAccountability));
-    when(organizationRepository.getReferenceById(locationId)).thenReturn(location);
+    when(entityManager.getReference(Party.class, personId)).thenReturn(person);
+    when(entityManager.getReference(Party.class, locationId)).thenReturn(location);
     when(accountabilityTypeRepository.getReferenceById(newRoleTypeId)).thenReturn(newRoleType);
 
-    roleService.sync(person, locationId, Set.of(keptRoleTypeId, newRoleTypeId));
+    var result =
+        handler.handle(
+            new SyncPersonRolesCommand(
+                personId, locationId, Set.of(keptRoleTypeId, newRoleTypeId)));
+
+    assertThat(result).isEqualTo(new SyncPersonRolesResult(1, 1));
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Accountability>> deletedCaptor = ArgumentCaptor.forClass(List.class);
@@ -84,15 +85,18 @@ class RoleServiceTests {
     ArgumentCaptor<List<Accountability>> savedCaptor = ArgumentCaptor.forClass(List.class);
     verify(accountabilityRepository).saveAll(savedCaptor.capture());
     assertThat(savedCaptor.getValue()).hasSize(1);
-    assertThat(savedCaptor.getValue().get(0).getType()).isEqualTo(newRoleType);
+    var added = savedCaptor.getValue().get(0);
+    assertThat(added.getType()).isEqualTo(newRoleType);
+    assertThat(added.getChild()).isSameAs(person);
+    assertThat(added.getParent()).isSameAs(location);
   }
 
   @Test
-  void syncIgnoresAccountabilitiesThatAreNotRoles() {
+  void handleIgnoresAccountabilitiesThatAreNotRoles() {
     var locationId = PartyId.generate();
     var personId = PartyId.generate();
-    var location = withId(new Organization(), locationId);
-    var person = withId(new Person(), personId);
+    var location = party(locationId, "Location");
+    var person = party(personId, "Person");
     var memberProgressType =
         withId(
             new AccountabilityType("BAPTIZED", location, Category.MEMBER_PROGRESS_STATE),
@@ -103,11 +107,10 @@ class RoleServiceTests {
 
     when(accountabilityRepository.findByParentIdAndChildId(locationId, personId))
         .thenReturn(List.of(nonRoleAccountability));
-    when(organizationRepository.getReferenceById(locationId)).thenReturn(location);
 
-    roleService.sync(person, locationId, Set.of());
+    var result = handler.handle(new SyncPersonRolesCommand(personId, locationId, Set.of()));
 
-    verify(accountabilityRepository).deleteAll(anyList());
+    assertThat(result).isEqualTo(new SyncPersonRolesResult(0, 0));
     // The non-role accountability must not be touched by the role sync.
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Accountability>> deletedCaptor = ArgumentCaptor.forClass(List.class);

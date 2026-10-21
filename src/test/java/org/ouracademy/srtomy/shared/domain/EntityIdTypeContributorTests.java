@@ -13,11 +13,11 @@ import org.hibernate.type.descriptor.java.spi.JavaTypeRegistry;
 import org.hibernate.type.spi.TypeConfiguration;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.complaint.ComplaintId;
 import org.ouracademy.srtomy.event.EventId;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.AccountabilityId;
-import org.ouracademy.srtomy.person.AccountabilityTypeId;
 
 class EntityIdTypeContributorTests {
 

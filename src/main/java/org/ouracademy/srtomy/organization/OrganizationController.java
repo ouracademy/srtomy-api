@@ -3,9 +3,9 @@ package org.ouracademy.srtomy.organization;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
-import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.LEADER;
-import static org.ouracademy.srtomy.person.SystemAccountabilityTypes.MEMBER_PROGRESS_STATES;
+import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
+import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes.LEADER;
+import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes.MEMBER_PROGRESS_STATES;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,15 +16,24 @@ import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.ouracademy.srtomy.accountability.command.SyncOrganizationRolesCommand;
+import org.ouracademy.srtomy.accountability.command.SyncOrganizationRolesCommandHandler;
+import org.ouracademy.srtomy.accountability.domain.Accountability;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.srtomy.accountability.query.AccountabilityTypeResult;
+import org.ouracademy.srtomy.accountability.query.GetPredefinedRolesQuery;
+import org.ouracademy.srtomy.accountability.query.GetPredefinedRolesQueryHandler;
+import org.ouracademy.srtomy.accountability.query.GetRolesOfLocationQuery;
+import org.ouracademy.srtomy.accountability.query.GetRolesOfLocationQueryHandler;
+import org.ouracademy.srtomy.accountability.query.GetRolesOfPersonQuery;
+import org.ouracademy.srtomy.accountability.query.GetRolesOfPersonQueryHandler;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityRepository;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.auth.gateway.Auth0Gateway;
 import org.ouracademy.srtomy.organization.Organization.Type;
 import org.ouracademy.srtomy.party.domain.Party;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.Accountability;
-import org.ouracademy.srtomy.person.AccountabilityRepository;
-import org.ouracademy.srtomy.person.AccountabilityType;
-import org.ouracademy.srtomy.person.AccountabilityTypeId;
-import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,7 +57,10 @@ public class OrganizationController {
   OrganizationRepository organizationRepository;
   AccountabilityRepository accountabilityRepository;
   PersonRepository personRepository;
-  RoleService roleService;
+  SyncOrganizationRolesCommandHandler syncOrganizationRolesCommandHandler;
+  GetPredefinedRolesQueryHandler getPredefinedRolesQueryHandler;
+  GetRolesOfLocationQueryHandler getRolesOfLocationQueryHandler;
+  GetRolesOfPersonQueryHandler getRolesOfPersonQueryHandler;
   AccountabilityTypeRepository accountabilityTypeRepository;
   Auth0Gateway auth0Gateway;
 
@@ -91,7 +103,8 @@ public class OrganizationController {
   @Transactional
   public Organization createLocation(@RequestBody @Valid CreateLocationRequest request) {
     Organization location = createOrg(request, Type.LOCATION);
-    roleService.sync(location, request.roles);
+    syncOrganizationRolesCommandHandler.handle(
+        new SyncOrganizationRolesCommand(location.getId(), request.roles));
     return location;
   }
 
@@ -102,7 +115,8 @@ public class OrganizationController {
     return editOrgInfo(id, request)
         .map(
             org -> {
-              roleService.sync(org, request.roles);
+              syncOrganizationRolesCommandHandler.handle(
+                  new SyncOrganizationRolesCommand(org.getId(), request.roles));
               return ResponseEntity.ok(org);
             })
         .orElse(ResponseEntity.notFound().build());
@@ -110,25 +124,27 @@ public class OrganizationController {
 
   @GetMapping("locations/predefined-roles")
   public List<AccountabilityTypeDto> getPredefinedRoles() {
-    return roleService.getPredefinedRoles().stream()
-        .map(x -> new AccountabilityTypeDto(x.getId().value(), x.getName(), x.isPredefined()))
+    return getPredefinedRolesQueryHandler.handle(new GetPredefinedRolesQuery()).stream()
+        .map(AccountabilityTypeDto::from)
         .toList();
   }
 
   @GetMapping("locations/{id}/roles")
   public List<AccountabilityTypeDto> getRolesOfLocation(@PathVariable UUID id) {
-    return roleService
-        .getRolesOfLocation(new PartyId(id))
-        .map(x -> new AccountabilityTypeDto(x.getId().value(), x.getName(), x.isPredefined()))
+    return getRolesOfLocationQueryHandler
+        .handle(new GetRolesOfLocationQuery(new PartyId(id)))
+        .stream()
+        .map(AccountabilityTypeDto::from)
         .toList();
   }
 
   @GetMapping("locations/{id}/person/{personId}/roles")
   public List<AccountabilityTypeDto> getRolesOfPerson(
       @PathVariable UUID id, @PathVariable UUID personId) {
-    return roleService
-        .getRolesOfPerson(new PartyId(id), new PartyId(personId))
-        .map(x -> new AccountabilityTypeDto(x.getId().value(), x.getName(), x.isPredefined()))
+    return getRolesOfPersonQueryHandler
+        .handle(new GetRolesOfPersonQuery(new PartyId(id), new PartyId(personId)))
+        .stream()
+        .map(AccountabilityTypeDto::from)
         .toList();
   }
 
@@ -138,6 +154,10 @@ public class OrganizationController {
     UUID id;
     String name;
     Boolean isPredefined;
+
+    static AccountabilityTypeDto from(AccountabilityTypeResult result) {
+      return new AccountabilityTypeDto(result.id().value(), result.name(), result.predefined());
+    }
   }
 
   @GetMapping("/locations/childs/{id}/members")

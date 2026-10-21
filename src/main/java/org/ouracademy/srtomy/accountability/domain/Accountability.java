@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.person;
+package org.ouracademy.srtomy.accountability.domain;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

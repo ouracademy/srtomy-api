@@ -5,11 +5,16 @@ import static org.mockito.BDDMockito.given;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.srtomy.accountability.command.SyncOrganizationRolesCommandHandler;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.srtomy.accountability.query.AccountabilityTypeResult;
+import org.ouracademy.srtomy.accountability.query.GetPredefinedRolesQuery;
+import org.ouracademy.srtomy.accountability.query.GetPredefinedRolesQueryHandler;
+import org.ouracademy.srtomy.accountability.query.GetRolesOfLocationQueryHandler;
+import org.ouracademy.srtomy.accountability.query.GetRolesOfPersonQueryHandler;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityRepository;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.auth.gateway.Auth0Gateway;
-import org.ouracademy.srtomy.person.AccountabilityRepository;
-import org.ouracademy.srtomy.person.AccountabilityType;
-import org.ouracademy.srtomy.person.AccountabilityType.Category;
-import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
@@ -33,18 +38,22 @@ class OrganizationControllerTests {
   @MockitoBean OrganizationRepository organizationRepository;
   @MockitoBean AccountabilityRepository accountabilityRepository;
   @MockitoBean PersonRepository personRepository;
-  @MockitoBean RoleService roleService;
+  @MockitoBean SyncOrganizationRolesCommandHandler syncOrganizationRolesCommandHandler;
+  @MockitoBean GetPredefinedRolesQueryHandler getPredefinedRolesQueryHandler;
+  @MockitoBean GetRolesOfLocationQueryHandler getRolesOfLocationQueryHandler;
+  @MockitoBean GetRolesOfPersonQueryHandler getRolesOfPersonQueryHandler;
   @MockitoBean AccountabilityTypeRepository accountabilityTypeRepository;
   @MockitoBean Auth0Gateway auth0Gateway;
 
   @Test
   void predefinedRolesReturnsTheSeededRoles() {
-    given(roleService.getPredefinedRoles())
+    given(getPredefinedRolesQueryHandler.handle(new GetPredefinedRolesQuery()))
         .willReturn(
             List.of(
-                new AccountabilityType("PASTOR", null, Category.ROLE),
-                new AccountabilityType("WORSHIP_LEADER", null, Category.ROLE),
-                new AccountabilityType("USHER", null, Category.ROLE)));
+                new AccountabilityTypeResult(AccountabilityTypeId.generate(), "PASTOR", true),
+                new AccountabilityTypeResult(
+                    AccountabilityTypeId.generate(), "WORSHIP_LEADER", true),
+                new AccountabilityTypeResult(AccountabilityTypeId.generate(), "USHER", true)));
 
     assertThat(
             mvc.get()

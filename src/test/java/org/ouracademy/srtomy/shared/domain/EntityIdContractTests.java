@@ -10,11 +10,11 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.complaint.ComplaintId;
 import org.ouracademy.srtomy.event.EventId;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.AccountabilityId;
-import org.ouracademy.srtomy.person.AccountabilityTypeId;
 
 /**
  * Every {@link EntityId} record (PartyId, EventId, ...) is expected to behave the same way; this

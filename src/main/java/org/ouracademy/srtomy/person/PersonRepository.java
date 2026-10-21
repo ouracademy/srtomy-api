@@ -1,5 +1,6 @@
 package org.ouracademy.srtomy.person;
 
+import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

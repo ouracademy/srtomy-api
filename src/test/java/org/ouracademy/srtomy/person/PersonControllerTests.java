@@ -7,8 +7,12 @@ import static org.mockito.BDDMockito.given;
 
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.srtomy.accountability.command.SyncPersonRolesCommandHandler;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
+import org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityRepository;
+import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
 import org.ouracademy.srtomy.organization.OrganizationRepository;
-import org.ouracademy.srtomy.organization.RoleService;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
@@ -35,7 +39,7 @@ class PersonControllerTests {
   @MockitoBean AccountabilityTypeRepository accountabilityTypeRepository;
   @MockitoBean PersonRepository personRepository;
   @MockitoBean OrganizationRepository organizationRepository;
-  @MockitoBean RoleService roleService;
+  @MockitoBean SyncPersonRolesCommandHandler syncPersonRolesCommandHandler;
 
   private String bearerHeader() {
     return "Bearer " + TestSecurityConfig.validToken(jwtEncoder);
@@ -45,7 +49,7 @@ class PersonControllerTests {
   void findAllForAnUnknownOrganizationReturnsAnEmptyPage() {
     var organizationId = UUID.randomUUID();
     given(accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF))
-        .willReturn(new AccountabilityType());
+        .willReturn(new AccountabilityType("IS_PART_OF", null, null));
     given(personRepository.findByOrgId(eq(new PartyId(organizationId)), any(), any()))
         .willReturn(Page.empty());
 
