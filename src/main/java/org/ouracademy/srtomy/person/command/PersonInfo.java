@@ -1,6 +1,8 @@
 package org.ouracademy.srtomy.person.command;
 
 import java.time.LocalDate;
+import org.ouracademy.srtomy.person.command.create_person.CreatePersonCommand;
+import org.ouracademy.srtomy.person.command.update_person.UpdatePersonCommand;
 import org.ouracademy.srtomy.person.domain.Person;
 
 /**
@@ -14,7 +16,7 @@ public record PersonInfo(
     LocalDate birthdate,
     Boolean hasBeenBaptized) {
 
-  void applyTo(Person person) {
+  public void applyTo(Person person) {
     person.setFirstName(firstName);
     person.setLastName(lastName);
     person.setName(firstName + " " + lastName);

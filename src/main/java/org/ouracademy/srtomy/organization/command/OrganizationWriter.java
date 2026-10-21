@@ -4,8 +4,8 @@ import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTy
 
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.srtomy.accountability.command.CreateAccountabilityCommand;
-import org.ouracademy.srtomy.accountability.command.CreateAccountabilityCommandHandler;
+import org.ouracademy.srtomy.accountability.command.create_accountability.CreateAccountabilityCommand;
+import org.ouracademy.srtomy.accountability.command.create_accountability.CreateAccountabilityCommandHandler;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 /** Create/edit steps shared by several organization command handlers. */
 @Component
 @RequiredArgsConstructor
-class OrganizationWriter {
+public class OrganizationWriter {
 
   private final OrganizationRepository organizationRepository;
   private final CreateAccountabilityCommandHandler createAccountabilityCommandHandler;
@@ -23,7 +23,7 @@ class OrganizationWriter {
    * Saves a new organization and, when {@code parentId} is given, links it to its parent with an
    * IS_PART_OF accountability. Callers must run inside a transaction.
    */
-  Organization create(OrganizationInfo info, Organization.Type type, PartyId parentId) {
+  public Organization create(OrganizationInfo info, Organization.Type type, PartyId parentId) {
     var organization = new Organization(info.name(), type);
     fillInfo(info, organization);
     organization = organizationRepository.save(organization);
@@ -37,7 +37,7 @@ class OrganizationWriter {
   }
 
   /** Overwrites the descriptive fields of an existing organization; empty if it does not exist. */
-  Optional<Organization> editInfo(PartyId id, OrganizationInfo info) {
+  public Optional<Organization> editInfo(PartyId id, OrganizationInfo info) {
     return organizationRepository
         .findById(id)
         .map(

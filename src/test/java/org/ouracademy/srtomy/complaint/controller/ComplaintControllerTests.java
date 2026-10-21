@@ -8,9 +8,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.srtomy.complaint.command.CreateComplaintCommand;
-import org.ouracademy.srtomy.complaint.command.CreateComplaintCommandHandler;
-import org.ouracademy.srtomy.complaint.command.CreateComplaintResult;
+import org.ouracademy.srtomy.complaint.command.create_complaint.CreateComplaintCommand;
+import org.ouracademy.srtomy.complaint.command.create_complaint.CreateComplaintCommandHandler;
+import org.ouracademy.srtomy.complaint.command.create_complaint.CreateComplaintResult;
 import org.ouracademy.srtomy.complaint.domain.ComplaintId;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;

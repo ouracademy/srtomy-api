@@ -2,8 +2,8 @@ package org.ouracademy.srtomy.organization.controller.dto;
 
 import java.time.LocalDate;
 import java.util.UUID;
-import org.ouracademy.srtomy.organization.query.MemberStateResult;
 import org.ouracademy.srtomy.organization.query.PersonDetails;
+import org.ouracademy.srtomy.organization.query.get_member_state.MemberStateResult;
 
 /**
  * Keeps the nesting of the Accountability JSON this endpoint used to return ({@code child.name},

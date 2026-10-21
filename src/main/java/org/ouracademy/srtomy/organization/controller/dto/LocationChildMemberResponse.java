@@ -2,8 +2,8 @@ package org.ouracademy.srtomy.organization.controller.dto;
 
 import java.time.LocalDate;
 import java.util.UUID;
-import org.ouracademy.srtomy.organization.query.GetLocationChildrenResult;
 import org.ouracademy.srtomy.organization.query.PersonDetails;
+import org.ouracademy.srtomy.organization.query.get_location_children.GetLocationChildrenResult;
 
 /**
  * A member or leader of a group/ministry; {@code kind} tells organizations and people apart. For

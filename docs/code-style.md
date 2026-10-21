@@ -17,20 +17,45 @@ difieren, gana el test (y hay que corregir uno de los dos).
 <modulo>/
 ├── domain/              # entidades JPA, records de id tipados, excepciones de dominio
 ├── command/
-│   ├── <Accion>Command.java            # record, solo datos
-│   ├── <Accion>CommandHandler.java      # interfaz, único método handle(...)
-│   ├── <Accion>CommandHandlerImpl.java  # @Service, implementación
-│   └── <Accion>Result.java              # DTO de salida
+│   ├── <accion>/                            # una subcarpeta por acción, en snake_case
+│   │   ├── <Accion>Command.java            # record, solo datos
+│   │   ├── <Accion>CommandHandler.java      # interfaz, único método handle(...)
+│   │   ├── <Accion>CommandHandlerImpl.java  # @Service, implementación
+│   │   └── <Accion>Result.java              # DTO de salida
+│   └── <Helper>.java                        # solo si lo usa más de una acción
 ├── query/
-│   ├── <Consulta>Query.java
-│   ├── <Consulta>QueryHandler.java      # interfaz, único método handle(...)
-│   ├── <Consulta>QueryHandlerImpl.java
-│   └── <Consulta>Result.java
+│   ├── <consulta>/
+│   │   ├── <Consulta>Query.java
+│   │   ├── <Consulta>QueryHandler.java      # interfaz, único método handle(...)
+│   │   ├── <Consulta>QueryHandlerImpl.java
+│   │   └── <Consulta>Result.java
+│   └── <Helper>.java
 ├── repository/             # Spring Data JPA, usado SOLO dentro del propio módulo
 └── controller/
     ├── <Modulo>Controller.java
     └── dto/                 # Request/Response del endpoint HTTP
 ```
+
+Dentro de `command/` y `query/`, cada acción tiene su propia subcarpeta con
+sus 3-4 archivos. El nombre de la subcarpeta sale del nombre simple de la
+clase `Command`/`Query` sin el sufijo, pasado de UpperCamelCase a
+snake_case: `CreateChurchCommand` → `command/create_church/`,
+`FindOrganizationByIdQuery` → `query/find_organization_by_id/`. Un `Result`
+usado por una sola acción vive en la carpeta de esa acción aunque no se
+llame `<Accion>Result` (ej. `MemberStateResult` en
+`organization/query/get_member_state/`).
+
+Excepción: una clase usada por más de una acción del mismo `command/` o
+`query/` (un `Result` compartido o un helper tipo `*Info`/`*Writer`/
+`*Resolver`) queda en la raíz de `command/`/`query/`, no dentro de la
+carpeta de una de ellas, y es `public` para que las subcarpetas la vean.
+Ejemplos reales: `organization/command/OrganizationWriter`,
+`organization/query/PersonDetailsResolver`,
+`accountability/query/AccountabilityTypeResult`,
+`person/query/FindPersonResult`. Los `*HandlerImpl` siguen siendo
+package-private, así que sus tests viven en la misma subcarpeta (un test por
+acción) y una acción que usa otra depende de su `*Handler` (interfaz), nunca
+de su `*HandlerImpl`.
 
 Para módulos que llaman servicios externos (`auth` → Auth0) se usa `gateway/`
 en vez de `repository/`, con la misma idea: la llamada externa queda

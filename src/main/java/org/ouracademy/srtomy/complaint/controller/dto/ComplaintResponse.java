@@ -2,7 +2,7 @@ package org.ouracademy.srtomy.complaint.controller.dto;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-import org.ouracademy.srtomy.complaint.command.CreateComplaintResult;
+import org.ouracademy.srtomy.complaint.command.create_complaint.CreateComplaintResult;
 
 /** Same JSON fields the endpoint returned when it serialized the Complaint entity. */
 public record ComplaintResponse(
