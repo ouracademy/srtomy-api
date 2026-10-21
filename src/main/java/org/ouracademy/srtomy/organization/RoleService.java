@@ -13,7 +13,9 @@ import org.ouracademy.srtomy.person.Accountability;
 import org.ouracademy.srtomy.person.AccountabilityRepository;
 import org.ouracademy.srtomy.person.AccountabilityType;
 import org.ouracademy.srtomy.person.AccountabilityType.Category;
+import org.ouracademy.srtomy.person.AccountabilityTypeId;
 import org.ouracademy.srtomy.person.AccountabilityTypeRepository;
+import org.ouracademy.srtomy.person.PartyId;
 import org.ouracademy.srtomy.person.Person;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -28,7 +30,8 @@ public class RoleService {
   OrganizationRepository organizationRepository;
 
   @Transactional(propagation = Propagation.REQUIRED)
-  public void sync(Person person, Long locationId, Set<Long> newAccountabilityTypeIds) {
+  public void sync(
+      Person person, PartyId locationId, Set<AccountabilityTypeId> newAccountabilityTypeIds) {
     var roles =
         accountabilityRepository.findByParentIdAndChildId(locationId, person.getId()).stream()
             .filter(
@@ -81,7 +84,7 @@ public class RoleService {
             .toList());
   }
 
-  public Stream<AccountabilityType> getRolesOfLocation(Long id) {
+  public Stream<AccountabilityType> getRolesOfLocation(PartyId id) {
     var rolesOfLocation =
         accountabilityTypeRepository.findByParty(organizationRepository.getReferenceById(id));
     var defaultRoles = getPredefinedRoles();
@@ -93,7 +96,7 @@ public class RoleService {
     return accountabilityTypeRepository.findAllById(List.of(PASTOR, WORSHIP_LEADER, USHER));
   }
 
-  public Stream<AccountabilityType> getRolesOfPerson(Long locationId, Long personId) {
+  public Stream<AccountabilityType> getRolesOfPerson(PartyId locationId, PartyId personId) {
     return accountabilityRepository.findByParentIdAndChildId(locationId, personId).stream()
         .map(x -> x.getType())
         .filter(x -> x.getCategory() != null && Category.ROLE.equals(x.getCategory()));

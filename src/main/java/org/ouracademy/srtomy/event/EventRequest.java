@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import lombok.Data;
 
 @Data
@@ -16,11 +17,11 @@ public class EventRequest {
 
   @NotNull String endTime;
 
-  List<Long> speakerIds = new ArrayList<>();
+  List<UUID> speakerIds = new ArrayList<>();
 
   String address;
 
-  @NotNull Long organizationId;
+  @NotNull UUID organizationId;
 
   String description;
 

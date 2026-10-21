@@ -7,6 +7,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,7 +26,7 @@ public class CreatePersonRequest {
 
   Boolean hasBeenBaptized;
 
-  Set<Long> roles = new HashSet<>();
+  Set<UUID> roles = new HashSet<>();
 
-  @NotNull Long organizationId;
+  @NotNull UUID organizationId;
 }

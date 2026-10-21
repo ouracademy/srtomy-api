@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.SecurityConfig;
 import org.ouracademy.srtomy.TestSecurityConfig;
@@ -38,13 +39,15 @@ class PersonControllerTests {
 
   @Test
   void findAllForAnUnknownOrganizationReturnsAnEmptyPage() {
+    var organizationId = UUID.randomUUID();
     given(accountabilityTypeRepository.getReferenceById(SystemAccountabilityTypes.IS_PART_OF))
         .willReturn(new AccountabilityType());
-    given(personRepository.findByOrgId(eq(999999L), any(), any())).willReturn(Page.empty());
+    given(personRepository.findByOrgId(eq(new PartyId(organizationId)), any(), any()))
+        .willReturn(Page.empty());
 
     assertThat(
             mvc.get()
-                .uri("/v1/people?organizationId=999999")
+                .uri("/v1/people?organizationId=" + organizationId)
                 .header("Authorization", bearerHeader()))
         .hasStatusOk()
         .bodyText()

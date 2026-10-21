@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.ouracademy.srtomy.person.PartyId;
 import org.ouracademy.srtomy.person.Person;
 
 @Entity
@@ -25,10 +26,10 @@ public class PersonEventAttendance {
   @EqualsAndHashCode
   public static class Id implements Serializable {
     @Column(name = "event_attendance_id")
-    private Long eventAttendanceId;
+    private EventId eventAttendanceId;
 
     @Column(name = "person_id")
-    private Long personId;
+    private PartyId personId;
   }
 
   @EmbeddedId Id id;

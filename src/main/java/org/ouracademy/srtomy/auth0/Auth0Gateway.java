@@ -5,6 +5,7 @@ import io.github.resilience4j.retry.annotation.Retry;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -43,7 +44,7 @@ public class Auth0Gateway {
   @Retry(name = RESILIENCE_INSTANCE)
   @CircuitBreaker(name = RESILIENCE_INSTANCE)
   public ResponseEntity<String> updateAppMetadata(
-      AccessToken accessToken, String userId, Map<String, Long> userMetadata) {
+      AccessToken accessToken, String userId, Map<String, UUID> userMetadata) {
     return restClient
         .patch()
         .uri(uriBuilder -> uriBuilder.path("/api/v2/users/{userId}").build(userId))

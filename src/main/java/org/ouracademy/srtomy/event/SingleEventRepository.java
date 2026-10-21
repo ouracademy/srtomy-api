@@ -4,7 +4,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface SingleEventRepository extends JpaRepository<SingleEvent, Long> {
+public interface SingleEventRepository extends JpaRepository<SingleEvent, EventId> {
 
   List<SingleEvent> findByRecurrentEvent(RecurrentEvent recurrentEvent);
 

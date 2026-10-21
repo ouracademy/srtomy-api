@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.organization;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.UUID;
 import lombok.Data;
 
 @Data
@@ -13,7 +14,7 @@ public class OrganizationRequest {
 
   String phoneNumber;
 
-  Long parentId;
+  UUID parentId;
 
   // TODO: remove this and use current user (principal)
   String userId;

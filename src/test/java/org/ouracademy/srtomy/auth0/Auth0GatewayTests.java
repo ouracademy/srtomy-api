@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import org.junit.jupiter.api.AfterEach;
@@ -54,7 +55,7 @@ class Auth0GatewayTests {
     var accessToken = new AccessToken();
     accessToken.setAccessToken("fake-token");
 
-    gateway.updateAppMetadata(accessToken, "auth0|abc123", Map.of("role", 1L));
+    gateway.updateAppMetadata(accessToken, "auth0|abc123", Map.of("role", UUID.randomUUID()));
 
     String path = receivedPaths.poll(5, java.util.concurrent.TimeUnit.SECONDS);
     assertThat(path).isEqualTo("/api/v2/users/auth0%7Cabc123");
@@ -68,7 +69,7 @@ class Auth0GatewayTests {
 
     // A userId containing "/" must not be able to redirect the request to a
     // different Auth0 Management API endpoint.
-    gateway.updateAppMetadata(accessToken, "../other-endpoint", Map.of("role", 1L));
+    gateway.updateAppMetadata(accessToken, "../other-endpoint", Map.of("role", UUID.randomUUID()));
 
     String path = receivedPaths.poll(5, java.util.concurrent.TimeUnit.SECONDS);
     assertThat(path)

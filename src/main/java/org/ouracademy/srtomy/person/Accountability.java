@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.person;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.time.LocalDateTime;
@@ -14,6 +15,8 @@ import org.ouracademy.srtomy.domain.DomainObject;
 // @SQLDelete(sql = "UPDATE accountability SET deleted_time = now() WHERE id=?")
 // @SQLRestriction("deleted_time is null")
 public class Accountability extends DomainObject {
+
+  @Id AccountabilityId id = AccountabilityId.generate();
 
   @ManyToOne(optional = false)
   Party child;

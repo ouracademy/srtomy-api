@@ -31,11 +31,12 @@ class ComplaintControllerTests {
 
   @Test
   void createWithAllRequiredFieldsReturns201() {
+    var id = ComplaintId.generate();
     given(complaintRepository.save(any(Complaint.class)))
         .willAnswer(
             invocation -> {
               Complaint complaint = invocation.getArgument(0);
-              ReflectionTestUtils.setField(complaint, "id", 1L);
+              ReflectionTestUtils.setField(complaint, "id", id);
               return complaint;
             });
 
@@ -59,7 +60,7 @@ class ComplaintControllerTests {
         .hasStatus(201)
         .bodyJson()
         .extractingPath("$.id")
-        .isEqualTo(1);
+        .isEqualTo(id.value().toString());
   }
 
   @Test
@@ -81,7 +82,7 @@ class ComplaintControllerTests {
         .willAnswer(
             invocation -> {
               Complaint complaint = invocation.getArgument(0);
-              ReflectionTestUtils.setField(complaint, "id", 2L);
+              ReflectionTestUtils.setField(complaint, "id", ComplaintId.generate());
               return complaint;
             });
 

@@ -11,6 +11,7 @@ import jakarta.persistence.OneToOne;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import lombok.Getter;
 import org.ouracademy.srtomy.person.Person;
 import org.ouracademy.srtomy.utils.JpaLists;
@@ -19,7 +20,7 @@ import org.ouracademy.srtomy.utils.JpaLists;
 @Getter
 public class EventAttendance {
 
-  @Id Long id;
+  @Id EventId id;
 
   @MapsId
   @OneToOne(optional = false)
@@ -41,8 +42,8 @@ public class EventAttendance {
     this.dateTime = LocalDateTime.now();
   }
 
-  public List<Long> getPersonIds() {
-    return personEventAttendances.stream().map(x -> x.getPerson().getId()).toList();
+  public List<UUID> getPersonIds() {
+    return personEventAttendances.stream().map(x -> x.getPerson().getId().value()).toList();
   }
 
   public void setPeople(List<Person> people) {
