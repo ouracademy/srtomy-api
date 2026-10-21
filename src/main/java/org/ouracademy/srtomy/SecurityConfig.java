@@ -4,6 +4,7 @@ import org.ouracademy.srtomy.auth0.Auth0Config;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -27,17 +28,27 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
   static final String AUDIENCE = "https://api.srtommy.com";
+  private static final String[] SWAGGER_WHITELIST = {
+          "/v3/api-docs/**",
+          "/v3/api-docs.yaml",
+          "/swagger-ui/**",
+          "/swagger-ui.html"
+  };
 
   @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http) {
+  public SecurityFilterChain filterChain(HttpSecurity http, Environment environment) {
+    boolean local = environment.matchesProfiles("local");
     http.cors(Customizer.withDefaults())
         .authorizeHttpRequests(
-            authorize ->
-                authorize
-                    .requestMatchers("/actuator/health/**")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
+            authorize -> {
+              authorize.requestMatchers("/actuator/health/**").permitAll();
+              // Swagger UI is only ever exposed locally — Cloud Run (dev and prod)
+              // always runs with the "prod" profile, so this never opens it up there.
+              if (local) {
+                authorize.requestMatchers(SWAGGER_WHITELIST).permitAll();
+              }
+              authorize.anyRequest().authenticated();
+            })
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         // Safe here: this is a stateless JWT resource server (no cookies, no
