@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${sm://db-url}
-    username: ${sm://db-user}
-    password: ${sm://db-password}
+    url: ${sm@db-url}
+    username: ${sm@db-user}
+    password: ${sm@db-password}
     # Kept small on purpose: originally sized for ElephantSQL's free tier
     # (long gone), now backed by Neon's free tier (see infra/terraform) —
     # low traffic either way. Don't raise this without checking Neon's

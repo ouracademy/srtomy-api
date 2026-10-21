@@ -1,5 +1,5 @@
 spring:
-  config.import: sm://
+  config.import: sm@
   profiles:
     active:
       - "prod"
@@ -43,8 +43,8 @@ management:
 cors_origin: "*"
 
 auth0:
-  clientId: ${sm://auth0-client-id}
-  clientSecret: ${sm://auth0-client-secret}
+  clientId: ${sm@auth0-client-id}
+  clientSecret: ${sm@auth0-client-secret}
 
 resilience4j:
   retry:
