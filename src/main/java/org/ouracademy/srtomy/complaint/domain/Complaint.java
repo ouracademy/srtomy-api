@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.complaint;
+package org.ouracademy.srtomy.complaint.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

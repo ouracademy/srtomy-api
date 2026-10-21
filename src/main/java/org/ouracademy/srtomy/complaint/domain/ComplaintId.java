@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.complaint;
+package org.ouracademy.srtomy.complaint.domain;
 
 import java.util.UUID;
 import org.ouracademy.srtomy.shared.domain.EntityId;
