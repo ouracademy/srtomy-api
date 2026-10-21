@@ -63,10 +63,7 @@ class ArchitectureTests {
               // Remove in the organization module step: create() must call
               // auth.command.UpdateUserAppMetadataCommandHandler instead of Auth0Gateway.
               BASE_PACKAGE + ".organization.OrganizationController",
-              BASE_PACKAGE + ".organization.OrganizationControllerTests",
-              // Reuses Auth0Config.url as the JWT issuer. Remove once the issuer URL is exposed
-              // outside auth.gateway (e.g. a shared property) instead of through Auth0Config.
-              BASE_PACKAGE + ".shared.SecurityConfig"));
+              BASE_PACKAGE + ".organization.OrganizationControllerTests"));
 
   private static final DescribedPredicate<JavaClass> HANDLER_INTERFACE =
       JavaClass.Predicates.simpleNameEndingWith("CommandHandler")

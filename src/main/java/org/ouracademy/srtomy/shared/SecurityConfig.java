@@ -1,6 +1,6 @@
 package org.ouracademy.srtomy.shared;
 
-import org.ouracademy.srtomy.auth.gateway.Auth0Config;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -69,8 +69,9 @@ public class SecurityConfig {
    */
   @Bean
   @ConditionalOnMissingBean(JwtDecoder.class)
-  public JwtDecoder jwtDecoder(Auth0Config auth0Config) {
-    var issuerUri = auth0Config.getUrl() + "/";
+  public JwtDecoder jwtDecoder(
+      @Value("${auth0.url:https://srtommy.us.auth0.com}") String auth0Url) {
+    var issuerUri = auth0Url + "/";
     var decoder =
         (org.springframework.security.oauth2.jwt.NimbusJwtDecoder)
             JwtDecoders.fromIssuerLocation(issuerUri);
