@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.organization;
+package org.ouracademy.srtomy.organization.controller.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import java.util.UUID;

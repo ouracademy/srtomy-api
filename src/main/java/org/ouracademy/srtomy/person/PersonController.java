@@ -13,7 +13,7 @@ import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes;
 import org.ouracademy.srtomy.accountability.repository.AccountabilityRepository;
 import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
-import org.ouracademy.srtomy.organization.OrganizationRepository;
+import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;

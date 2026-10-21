@@ -58,24 +58,25 @@ class ArchitectureTests {
    */
   private static final Map<String, List<String>> PENDING_MIGRATION_EXCEPTIONS =
       Map.of(
-          "auth",
-          List.of(
-              // Remove in the organization module step: create() must call
-              // auth.command.UpdateUserAppMetadataCommandHandler instead of Auth0Gateway.
-              BASE_PACKAGE + ".organization.OrganizationController",
-              BASE_PACKAGE + ".organization.OrganizationControllerTests"),
           "accountability",
           List.of(
-              // Remove in the organization module step: OrganizationController must go through
-              // the accountability command/query handlers instead of AccountabilityRepository /
-              // AccountabilityTypeRepository.
-              BASE_PACKAGE + ".organization.OrganizationController",
-              BASE_PACKAGE + ".organization.OrganizationControllerTests",
               // Remove in the person module step: PersonController must go through the
               // accountability command/query handlers instead of AccountabilityRepository /
               // AccountabilityTypeRepository.
               BASE_PACKAGE + ".person.PersonController",
-              BASE_PACKAGE + ".person.PersonControllerTests"));
+              BASE_PACKAGE + ".person.PersonControllerTests"),
+          "organization",
+          List.of(
+              // Remove in the person module step: PersonController must validate the
+              // organization via organization.query.FindOrganizationByIdQueryHandler instead of
+              // OrganizationRepository.
+              BASE_PACKAGE + ".person.PersonController",
+              BASE_PACKAGE + ".person.PersonControllerTests",
+              // Remove in the event module step: EventController must validate the organization
+              // via organization.query.FindOrganizationByIdQueryHandler and build the reference
+              // with EntityManager.getReference instead of OrganizationRepository.
+              BASE_PACKAGE + ".event.EventController",
+              BASE_PACKAGE + ".event.EventControllerTests"));
 
   private static final DescribedPredicate<JavaClass> HANDLER_INTERFACE =
       JavaClass.Predicates.simpleNameEndingWith("CommandHandler")

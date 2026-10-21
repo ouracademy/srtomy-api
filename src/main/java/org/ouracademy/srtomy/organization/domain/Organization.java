@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.organization;
+package org.ouracademy.srtomy.organization.domain;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,18 +13,24 @@ public class Organization extends Party {
   @Enumerated(EnumType.STRING)
   Type type;
 
-  enum Type {
+  public enum Type {
     CHURCH,
     LOCATION,
     GROUP,
     MINISTRY
   }
 
-  Organization() {
+  protected Organization() {
     // jpa only
   }
 
-  Organization(String name) {
+  public Organization(String name, Type type) {
     this.name = name;
+    this.type = type;
+  }
+
+  /** Only groups and ministries can be deleted; churches and locations cannot. */
+  public boolean isDeletable() {
+    return type == Type.GROUP || type == Type.MINISTRY;
   }
 }

@@ -14,7 +14,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
-import org.ouracademy.srtomy.organization.Organization;
+import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.person.Person;
 import org.ouracademy.srtomy.shared.domain.DomainObject;
 

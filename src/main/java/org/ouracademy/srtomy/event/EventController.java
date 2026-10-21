@@ -10,7 +10,7 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.commons.lang3.NotImplementedException;
-import org.ouracademy.srtomy.organization.OrganizationRepository;
+import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.PersonRepository;
 import org.springframework.format.annotation.DateTimeFormat;

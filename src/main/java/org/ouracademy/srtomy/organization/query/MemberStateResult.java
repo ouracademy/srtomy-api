@@ -1,0 +1,14 @@
+package org.ouracademy.srtomy.organization.query;
+
+import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.srtomy.party.domain.PartyId;
+
+/** One party's member progress state (the accountability type) in an organization. */
+public record MemberStateResult(
+    AccountabilityId id,
+    PartyId childId,
+    String childName,
+    PartyId parentId,
+    AccountabilityTypeId stateId,
+    String stateName) {}

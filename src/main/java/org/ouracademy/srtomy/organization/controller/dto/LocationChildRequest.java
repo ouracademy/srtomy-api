@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.organization;
+package org.ouracademy.srtomy.organization.controller.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
+import org.ouracademy.srtomy.organization.domain.Organization;
 
 @Setter
 @Getter
