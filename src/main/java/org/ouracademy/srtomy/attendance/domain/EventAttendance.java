@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
+import org.hibernate.annotations.SQLRestriction;
 import org.ouracademy.srtomy.event.domain.Event;
 import org.ouracademy.srtomy.event.domain.EventId;
 import org.ouracademy.srtomy.party.domain.PartyId;
@@ -20,6 +21,8 @@ import org.ouracademy.srtomy.shared.utils.JpaLists;
 
 @Entity
 @Getter
+// Hides deleted rows from every query. Rows are never removed: see delete().
+@SQLRestriction("deleted_time is null")
 public class EventAttendance {
 
   @Id EventId id;
@@ -35,6 +38,8 @@ public class EventAttendance {
   @Column(nullable = false)
   LocalDateTime dateTime;
 
+  LocalDateTime deletedTime;
+
   public EventAttendance() {
     // jpa only
   }
@@ -46,6 +51,14 @@ public class EventAttendance {
 
   public List<PartyId> getPersonIds() {
     return personEventAttendances.stream().map(x -> x.getPerson().getId()).toList();
+  }
+
+  /**
+   * Soft delete. Not {@code em.remove()}: the cascade on personEventAttendances would hard-delete
+   * the person rows. They stay in place, reachable only through this hidden entity.
+   */
+  public void delete() {
+    this.deletedTime = LocalDateTime.now();
   }
 
   public void setPeople(List<Person> people) {

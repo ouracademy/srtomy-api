@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.srtomy.event.EventFixtures.occurrenceOf;
 import static org.ouracademy.srtomy.event.EventFixtures.recurrentEvent;
@@ -18,11 +17,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ouracademy.srtomy.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommand;
+import org.ouracademy.srtomy.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommandHandler;
 import org.ouracademy.srtomy.event.domain.EventChangeOption;
 import org.ouracademy.srtomy.event.domain.EventId;
 import org.ouracademy.srtomy.event.domain.RecurrentEvent;
 import org.ouracademy.srtomy.event.domain.SingleEvent;
-import org.ouracademy.srtomy.event.repository.EventRepository;
 import org.ouracademy.srtomy.event.repository.SingleEventRepository;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.party.domain.PartyId;
@@ -30,8 +30,8 @@ import org.ouracademy.srtomy.party.domain.PartyId;
 @ExtendWith(MockitoExtension.class)
 class DeleteEventCommandHandlerImplTests {
 
-  @Mock EventRepository eventRepository;
   @Mock SingleEventRepository singleEventRepository;
+  @Mock DeleteAttendanceForEventsCommandHandler deleteAttendanceForEventsCommandHandler;
 
   DeleteEventCommandHandlerImpl handler;
 
@@ -40,7 +40,9 @@ class DeleteEventCommandHandlerImplTests {
 
   @BeforeEach
   void setUp() {
-    handler = new DeleteEventCommandHandlerImpl(eventRepository, singleEventRepository);
+    handler =
+        new DeleteEventCommandHandlerImpl(
+            singleEventRepository, deleteAttendanceForEventsCommandHandler);
     var church = organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH);
     recurrent = recurrentEvent(EventId.generate(), church);
     event = occurrenceOf(recurrent, EventId.generate());
@@ -51,42 +53,49 @@ class DeleteEventCommandHandlerImplTests {
   }
 
   @Test
-  void thisEventDeletesOnlyThatEvent() {
+  void thisEventSoftDeletesOnlyThatEventAndItsAttendance() {
     givenTheEventExists();
+
     var result =
         handler.handle(new DeleteEventCommand(event.getId(), EventChangeOption.THIS_EVENT));
 
     assertThat(result.id()).isEqualTo(event.getId());
-    verify(eventRepository).delete(event);
-    verifyNoMoreInteractions(eventRepository);
+    assertThat(event.getDeletedTime()).isNotNull();
+    verify(deleteAttendanceForEventsCommandHandler)
+        .handle(new DeleteAttendanceForEventsCommand(List.of(event.getId())));
   }
 
   @Test
-  void thisAndTheFollowingEventsDeletesTheEventAndTheLaterOccurrences() {
+  void thisAndTheFollowingEventsSoftDeletesTheEventAndTheLaterOccurrences() {
     givenTheEventExists();
-    var following = List.of(occurrenceOf(recurrent, EventId.generate()));
+    var following = occurrenceOf(recurrent, EventId.generate());
     when(singleEventRepository.findByRecurrentEventAndStartAfter(recurrent, event.getStart()))
-        .thenReturn(following);
+        .thenReturn(List.of(following));
 
     handler.handle(
         new DeleteEventCommand(event.getId(), EventChangeOption.THIS_AND_THE_FOLLOWING_EVENTS));
 
-    verify(eventRepository).deleteAll(following);
-    verify(eventRepository).delete(event);
-    verifyNoMoreInteractions(eventRepository);
+    assertThat(following.getDeletedTime()).isNotNull();
+    assertThat(event.getDeletedTime()).isNotNull();
+    verify(deleteAttendanceForEventsCommandHandler)
+        .handle(new DeleteAttendanceForEventsCommand(List.of(following.getId(), event.getId())));
   }
 
   @Test
-  void allEventsDeletesEveryOccurrenceAndTheRecurrentEvent() {
+  void allEventsSoftDeletesEveryOccurrenceAndTheRecurrentEvent() {
     givenTheEventExists();
-    var occurrences = List.of(event, occurrenceOf(recurrent, EventId.generate()));
-    when(singleEventRepository.findByRecurrentEvent(recurrent)).thenReturn(occurrences);
+    var other = occurrenceOf(recurrent, EventId.generate());
+    when(singleEventRepository.findByRecurrentEvent(recurrent)).thenReturn(List.of(event, other));
 
     handler.handle(new DeleteEventCommand(event.getId(), EventChangeOption.ALL_EVENTS));
 
-    verify(eventRepository).deleteAll(occurrences);
-    verify(eventRepository).delete(recurrent);
-    verifyNoMoreInteractions(eventRepository);
+    assertThat(event.getDeletedTime()).isNotNull();
+    assertThat(other.getDeletedTime()).isNotNull();
+    assertThat(recurrent.getDeletedTime()).isNotNull();
+    verify(deleteAttendanceForEventsCommandHandler)
+        .handle(
+            new DeleteAttendanceForEventsCommand(
+                List.of(event.getId(), other.getId(), recurrent.getId())));
   }
 
   @Test
@@ -97,6 +106,6 @@ class DeleteEventCommandHandlerImplTests {
     assertThatThrownBy(
             () -> handler.handle(new DeleteEventCommand(missingId, EventChangeOption.THIS_EVENT)))
         .isInstanceOf(NoSuchElementException.class);
-    verifyNoInteractions(eventRepository);
+    verifyNoInteractions(deleteAttendanceForEventsCommandHandler);
   }
 }

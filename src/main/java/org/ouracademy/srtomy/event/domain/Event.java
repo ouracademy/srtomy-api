@@ -10,17 +10,21 @@ import jakarta.persistence.InheritanceType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLRestriction;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.person.domain.Person;
 import org.ouracademy.srtomy.shared.domain.DomainObject;
 
 @Entity
 @Getter
+// Hides deleted rows from every query, subclasses included. Rows are never removed: see delete().
+@SQLRestriction("deleted_time is null")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(discriminatorType = DiscriminatorType.INTEGER, name = "event_type_id")
 public class Event extends DomainObject {
@@ -47,6 +51,8 @@ public class Event extends DomainObject {
 
   @Setter String description;
 
+  LocalDateTime deletedTime;
+
   @Setter
   @Column(name = "is_a_course")
   Boolean isACourse = false;
@@ -66,6 +72,14 @@ public class Event extends DomainObject {
   // complex / composite events
   // 10 { name: "Sobredosis Garden" }, // jueves 27-30 de agosto (ver:
   // https://www.facebook.com/photo/?fbid=673593008144144&set=pcb.673593201477458)
+
+  /**
+   * Soft delete. Not {@code em.remove()}: a removed entity is still referenced by its managed
+   * attendance, which makes the flush fail, and the attendance cascade would remove its rows too.
+   */
+  public void delete() {
+    this.deletedTime = LocalDateTime.now();
+  }
 
   public Duration duration() {
     return Duration.between(start, end);
