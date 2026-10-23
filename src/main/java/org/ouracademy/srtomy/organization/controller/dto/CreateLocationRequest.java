@@ -1,5 +1,6 @@
 package org.ouracademy.srtomy.organization.controller.dto;
 
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -9,7 +10,7 @@ import lombok.Setter;
 
 public class CreateLocationRequest extends OrganizationRequest {
 
-  @Getter @Setter SortedSet<String> roles = new TreeSet<>();
+  @Getter @Setter @NotEmpty SortedSet<String> roles = new TreeSet<>();
 
   @NotNull
   @Override
