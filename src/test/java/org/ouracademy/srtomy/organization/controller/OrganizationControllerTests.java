@@ -155,6 +155,19 @@ class OrganizationControllerTests {
   }
 
   @Test
+  void updateLocationAcceptsAnEmptyRoleList() {
+    given(updateLocationCommandHandler.handle(any())).willReturn(Optional.empty());
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/organizations/locations/" + PartyId.generate().value())
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Sede\",\"roles\":[]}"))
+        .hasStatus(404);
+  }
+
+  @Test
   void deleteMapsEachOutcomeToItsStatus() {
     var id = PartyId.generate();
     var uri = "/v1/organizations/" + id.value();
