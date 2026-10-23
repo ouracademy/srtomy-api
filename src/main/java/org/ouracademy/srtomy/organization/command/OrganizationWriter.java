@@ -48,6 +48,24 @@ public class OrganizationWriter {
             });
   }
 
+  /**
+   * Overwrites the info and type of an existing group or ministry; empty if it does not exist or is
+   * not a group or ministry (churches and locations are not edited this way).
+   */
+  public Optional<Organization> editChild(
+      PartyId id, OrganizationInfo info, Organization.Type type) {
+    return organizationRepository
+        .findById(id)
+        .filter(Organization::isGroupOrMinistry)
+        .map(
+            organization -> {
+              organization.setName(info.name());
+              organization.changeType(type);
+              fillInfo(info, organization);
+              return organizationRepository.save(organization);
+            });
+  }
+
   private static void fillInfo(OrganizationInfo info, Organization organization) {
     organization.setDescription(info.description());
     organization.setPhoneNumber(info.phoneNumber());

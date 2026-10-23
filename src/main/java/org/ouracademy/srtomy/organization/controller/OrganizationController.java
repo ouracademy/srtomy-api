@@ -27,6 +27,8 @@ import org.ouracademy.srtomy.organization.command.edit_organization.EditOrganiza
 import org.ouracademy.srtomy.organization.command.edit_organization.EditOrganizationCommandHandler;
 import org.ouracademy.srtomy.organization.command.update_location.UpdateLocationCommand;
 import org.ouracademy.srtomy.organization.command.update_location.UpdateLocationCommandHandler;
+import org.ouracademy.srtomy.organization.command.update_location_child.UpdateLocationChildCommand;
+import org.ouracademy.srtomy.organization.command.update_location_child.UpdateLocationChildCommandHandler;
 import org.ouracademy.srtomy.organization.controller.dto.AccountabilityTypeDto;
 import org.ouracademy.srtomy.organization.controller.dto.CreateLocationRequest;
 import org.ouracademy.srtomy.organization.controller.dto.LocationChildMemberResponse;
@@ -34,6 +36,7 @@ import org.ouracademy.srtomy.organization.controller.dto.LocationChildRequest;
 import org.ouracademy.srtomy.organization.controller.dto.MemberStateResponse;
 import org.ouracademy.srtomy.organization.controller.dto.OrganizationRequest;
 import org.ouracademy.srtomy.organization.controller.dto.OrganizationResponse;
+import org.ouracademy.srtomy.organization.controller.dto.UpdateLocationChildRequest;
 import org.ouracademy.srtomy.organization.controller.dto.UpdateLocationRequest;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
@@ -67,6 +70,7 @@ public class OrganizationController {
   CreateLocationCommandHandler createLocationCommandHandler;
   UpdateLocationCommandHandler updateLocationCommandHandler;
   CreateLocationChildCommandHandler createLocationChildCommandHandler;
+  UpdateLocationChildCommandHandler updateLocationChildCommandHandler;
   EditOrganizationCommandHandler editOrganizationCommandHandler;
   DeleteOrganizationCommandHandler deleteOrganizationCommandHandler;
   FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
@@ -176,6 +180,21 @@ public class OrganizationController {
                 request.getMemberIds().stream().map(PartyId::new).toList(),
                 request.getLeaderIds().stream().map(PartyId::new).toList()));
     return OrganizationResponse.from(result.organization());
+  }
+
+  @PutMapping("/locations/childs/{id}")
+  public ResponseEntity<OrganizationResponse> updateLocationChild(
+      @PathVariable UUID id, @RequestBody @Valid UpdateLocationChildRequest request) {
+    return ResponseEntity.of(
+        updateLocationChildCommandHandler
+            .handle(
+                new UpdateLocationChildCommand(
+                    new PartyId(id),
+                    info(request),
+                    request.getType(),
+                    request.getMemberIds().stream().map(PartyId::new).toList(),
+                    request.getLeaderIds().stream().map(PartyId::new).toList()))
+            .map(result -> OrganizationResponse.from(result.organization())));
   }
 
   @PutMapping("{id}")
