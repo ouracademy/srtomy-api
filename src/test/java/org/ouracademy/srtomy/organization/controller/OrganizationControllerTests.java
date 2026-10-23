@@ -155,6 +155,20 @@ class OrganizationControllerTests {
   }
 
   @Test
+  void createLocationWithoutRolesIsBadRequest() {
+    assertThat(
+            mvc.post()
+                .uri("/v1/organizations/locations")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"name\":\"Sede\",\"parentId\":\""
+                        + PartyId.generate().value()
+                        + "\",\"roles\":[]}"))
+        .hasStatus(400);
+  }
+
+  @Test
   void updateLocationWithoutRolesIsBadRequest() {
     assertThat(
             mvc.put()
