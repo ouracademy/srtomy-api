@@ -2,6 +2,7 @@ package org.ouracademy.srtomy.organization.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -74,5 +75,41 @@ class OrganizationWriterTests {
     assertThat(writer.editInfo(id, INFO)).get().extracting(Organization::getName).isEqualTo("Name");
     assertThat(existing.getAddress()).isEqualTo("addr");
     assertThat(writer.editInfo(missing, INFO)).isEmpty();
+  }
+
+  @Test
+  void editChildUpdatesTheInfoAndTypeOfAGroup() {
+    var id = PartyId.generate();
+    var existing = organization(id, "Old", Organization.Type.GROUP);
+    when(organizationRepository.findById(id)).thenReturn(Optional.of(existing));
+    when(organizationRepository.save(existing)).thenReturn(existing);
+
+    var edited = writer.editChild(id, INFO, Organization.Type.MINISTRY);
+
+    assertThat(edited).get().extracting(Organization::getName).isEqualTo("Name");
+    assertThat(existing.getType()).isEqualTo(Organization.Type.MINISTRY);
+    assertThat(existing.getDescription()).isEqualTo("desc");
+    assertThat(existing.getAddress()).isEqualTo("addr");
+    assertThat(existing.getPhoneNumber()).isEqualTo("123");
+  }
+
+  @Test
+  void editChildIsEmptyAndSavesNothingWhenTheOrganizationIsNotAGroupOrMinistry() {
+    var id = PartyId.generate();
+    var church = organization(id, "Church", Organization.Type.CHURCH);
+    when(organizationRepository.findById(id)).thenReturn(Optional.of(church));
+
+    assertThat(writer.editChild(id, INFO, Organization.Type.GROUP)).isEmpty();
+    assertThat(church.getName()).isEqualTo("Church");
+    verify(organizationRepository, never()).save(any(Organization.class));
+  }
+
+  @Test
+  void editChildIsEmptyWhenTheOrganizationDoesNotExist() {
+    var missing = PartyId.generate();
+    when(organizationRepository.findById(missing)).thenReturn(Optional.empty());
+
+    assertThat(writer.editChild(missing, INFO, Organization.Type.GROUP)).isEmpty();
+    verify(organizationRepository, never()).save(any(Organization.class));
   }
 }

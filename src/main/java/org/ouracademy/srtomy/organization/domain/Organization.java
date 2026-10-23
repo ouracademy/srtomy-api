@@ -31,6 +31,14 @@ public class Organization extends Party {
 
   /** Only groups and ministries can be deleted; churches and locations cannot. */
   public boolean isDeletable() {
+    return isGroupOrMinistry();
+  }
+
+  public boolean isGroupOrMinistry() {
     return type == Type.GROUP || type == Type.MINISTRY;
+  }
+
+  public void changeType(Type type) {
+    this.type = type;
   }
 }

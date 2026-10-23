@@ -28,6 +28,7 @@ import org.ouracademy.srtomy.organization.command.delete_organization.DeleteOrga
 import org.ouracademy.srtomy.organization.command.delete_organization.DeleteOrganizationResult.Outcome;
 import org.ouracademy.srtomy.organization.command.edit_organization.EditOrganizationCommandHandler;
 import org.ouracademy.srtomy.organization.command.update_location.UpdateLocationCommandHandler;
+import org.ouracademy.srtomy.organization.command.update_location_child.UpdateLocationChildCommandHandler;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.query.FindOrganizationResult;
 import org.ouracademy.srtomy.organization.query.PersonDetails;
@@ -64,6 +65,7 @@ class OrganizationControllerTests {
   @MockitoBean CreateLocationCommandHandler createLocationCommandHandler;
   @MockitoBean UpdateLocationCommandHandler updateLocationCommandHandler;
   @MockitoBean CreateLocationChildCommandHandler createLocationChildCommandHandler;
+  @MockitoBean UpdateLocationChildCommandHandler updateLocationChildCommandHandler;
   @MockitoBean EditOrganizationCommandHandler editOrganizationCommandHandler;
   @MockitoBean DeleteOrganizationCommandHandler deleteOrganizationCommandHandler;
   @MockitoBean FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
@@ -179,6 +181,44 @@ class OrganizationControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Sede\",\"roles\":[]}"))
         .hasStatus(404);
+  }
+
+  @Test
+  void updateOfAnUnknownGroupIsNotFound() {
+    given(updateLocationChildCommandHandler.handle(any())).willReturn(Optional.empty());
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/organizations/locations/childs/" + PartyId.generate().value())
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"name\":\"Youth\",\"type\":\"MINISTRY\","
+                        + "\"leaderIds\":[\""
+                        + PartyId.generate().value()
+                        + "\"],"
+                        + "\"memberIds\":[\""
+                        + PartyId.generate().value()
+                        + "\"]}"))
+        .hasStatus(404);
+  }
+
+  @Test
+  void updateRejectsAChurchOrLocationType() {
+    assertThat(
+            mvc.put()
+                .uri("/v1/organizations/locations/childs/" + PartyId.generate().value())
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"name\":\"Church\",\"type\":\"CHURCH\","
+                        + "\"leaderIds\":[\""
+                        + PartyId.generate().value()
+                        + "\"],"
+                        + "\"memberIds\":[\""
+                        + PartyId.generate().value()
+                        + "\"]}"))
+        .hasStatus(400);
   }
 
   @Test
