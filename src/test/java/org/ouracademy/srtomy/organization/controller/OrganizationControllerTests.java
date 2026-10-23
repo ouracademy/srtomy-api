@@ -169,14 +169,16 @@ class OrganizationControllerTests {
   }
 
   @Test
-  void updateLocationWithoutRolesIsBadRequest() {
+  void updateLocationWithoutRolesReachesTheHandler() {
+    given(updateLocationCommandHandler.handle(any())).willReturn(Optional.empty());
+
     assertThat(
             mvc.put()
                 .uri("/v1/organizations/locations/" + PartyId.generate().value())
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Sede\",\"roles\":[]}"))
-        .hasStatus(400);
+        .hasStatus(404);
   }
 
   @Test
