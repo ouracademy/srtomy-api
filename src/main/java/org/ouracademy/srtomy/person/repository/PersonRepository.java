@@ -12,69 +12,41 @@ import org.springframework.data.jpa.repository.Query;
 public interface PersonRepository extends JpaRepository<Person, PartyId> {
 
   /**
-   * A person listed under a node of a subtree. {@code organizationName} is one of the nodes the
-   * person belongs to; {@code directMembership} is 1 when they belong to {@code rootId} itself.
-   * Only the id is selected: grouping by a joined-inheritance entity is not valid SQL, so callers
-   * load the people with {@code findAllById}.
+   * People that belong to any of {@code organizationIds}, each once even if they belong to several,
+   * ordered by name.
    */
-  record PersonInSubtree(PartyId personId, String organizationName, int directMembership) {}
-
   @Query(
-      value =
-          """
-            select new org.ouracademy.srtomy.person.repository.PersonRepository$PersonInSubtree(
-                p.id, min(a.parent.name),
-                max(case when a.parent.id = :rootId then 1 else 0 end))
-            from Accountability a join TREAT(a.child as Person) p
-            where a.type = :accountabilityType
-            and a.parent.id in :organizationIds
+      """
+            select p
+            from Person p
+            where p.id in (
+                select a.child.id from Accountability a
+                where a.type = :accountabilityType
+                and a.parent.id in :organizationIds
+            )
             and (
                 lower(p.firstName) like lower(CONCAT('%', :searchText, '%'))
                 or lower(p.lastName) like lower(CONCAT('%', :searchText, '%'))
             )
-            group by p.id
-            order by min(p.firstName), min(p.lastName), p.id
-            """,
-      countQuery =
-          """
-            select count(distinct p)
-            from Accountability a join TREAT(a.child as Person) p
-            where a.type = :accountabilityType
-            and a.parent.id in :organizationIds
-            and (
-                lower(p.firstName) like lower(CONCAT('%', :searchText, '%'))
-                or lower(p.lastName) like lower(CONCAT('%', :searchText, '%'))
-            )
+            order by p.firstName, p.lastName, p.id
             """)
-  Page<PersonInSubtree> findByNameAndOrgIds(
+  Page<Person> findByNameAndOrgIds(
       String searchText,
-      PartyId rootId,
       List<PartyId> organizationIds,
       AccountabilityType accountabilityType,
       Pageable pageable);
 
   @Query(
-      value =
-          """
-            select new org.ouracademy.srtomy.person.repository.PersonRepository$PersonInSubtree(
-                p.id, min(a.parent.name),
-                max(case when a.parent.id = :rootId then 1 else 0 end))
-            from Accountability a join TREAT(a.child as Person) p
-            where a.type = :accountabilityType
-            and a.parent.id in :organizationIds
-            group by p.id
-            order by min(p.firstName), min(p.lastName), p.id
-            """,
-      countQuery =
-          """
-            select count(distinct p)
-            from Accountability a join TREAT(a.child as Person) p
-            where a.type = :accountabilityType
-            and a.parent.id in :organizationIds
+      """
+            select p
+            from Person p
+            where p.id in (
+                select a.child.id from Accountability a
+                where a.type = :accountabilityType
+                and a.parent.id in :organizationIds
+            )
+            order by p.firstName, p.lastName, p.id
             """)
-  Page<PersonInSubtree> findByOrgIds(
-      PartyId rootId,
-      List<PartyId> organizationIds,
-      AccountabilityType accountabilityType,
-      Pageable pageable);
+  Page<Person> findByOrgIds(
+      List<PartyId> organizationIds, AccountabilityType accountabilityType, Pageable pageable);
 }

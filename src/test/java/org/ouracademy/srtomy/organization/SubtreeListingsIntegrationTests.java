@@ -23,7 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
-/** People and events of a node include everything below it, labelled by where they come from. */
+/** People and events of a node include everything below it. */
 @SpringBootTest(classes = SrtomyApplication.class, webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import(TestSecurityConfig.class)
 class SubtreeListingsIntegrationTests {
@@ -63,16 +63,12 @@ class SubtreeListingsIntegrationTests {
   }
 
   @Test
-  void aNodeListsThePeopleOfItsDescendantsLabelledWithTheirOrigin() {
+  void aNodeListsThePeopleOfItsDescendants() {
     createPerson("Ana", location);
     createPerson("Beto", group);
 
     var fromLocation = get("/people?organizationId=" + location).get("content");
     assertThat(values(fromLocation, "firstName")).containsExactlyInAnyOrder("Ana", "Beto");
-    var beto = find(fromLocation, "Beto");
-    assertThat(beto.get("organizationName").asText()).isEqualTo("Jóvenes");
-    assertThat(beto.get("directMember").asBoolean()).isFalse();
-    assertThat(find(fromLocation, "Ana").get("directMember").asBoolean()).isTrue();
 
     // The church sees them too, and the group does not see its parent's people.
     assertThat(get("/people?organizationId=" + church).get("content")).hasSize(2);
@@ -111,15 +107,6 @@ class SubtreeListingsIntegrationTests {
         ("{\"name\":\"%s\",\"startTime\":\"2030-01-01T10:00:00Z\","
                 + "\"endTime\":\"2030-01-01T11:00:00Z\",\"organizationId\":\"%s\"}")
             .formatted(name, organizationId));
-  }
-
-  static JsonNode find(JsonNode array, String firstName) {
-    for (var node : array) {
-      if (firstName.equals(node.get("firstName").asText())) {
-        return node;
-      }
-    }
-    throw new AssertionError("No person " + firstName + " in " + array);
   }
 
   static List<String> values(JsonNode array, String field) {

@@ -22,7 +22,6 @@ import org.ouracademy.srtomy.organization.query.find_organization_subtree.FindOr
 import org.ouracademy.srtomy.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.repository.PersonRepository;
-import org.ouracademy.srtomy.person.repository.PersonRepository.PersonInSubtree;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -55,18 +54,13 @@ class SearchPeopleQueryHandlerImplTests {
     var organizationId = PartyId.generate();
     var ana = PartyId.generate();
     var ids = subtreeOf(organizationId);
-    when(personRepository.findAllById(List.of(ana)))
-        .thenReturn(List.of(person(ana, "Ana", "Diaz")));
-    when(personRepository.findByOrgIds(organizationId, ids, isPartOf, PAGE))
-        .thenReturn(new PageImpl<>(List.of(new PersonInSubtree(ana, "Jóvenes", 0))));
+    when(personRepository.findByOrgIds(ids, isPartOf, PAGE))
+        .thenReturn(new PageImpl<>(List.of(person(ana, "Ana", "Diaz"))));
 
     var result = handler.handle(new SearchPeopleQuery(organizationId, null, PAGE));
 
-    var item = result.people().getContent().get(0);
-    assertThat(item.person().id()).isEqualTo(ana);
-    assertThat(item.organizationName()).isEqualTo("Jóvenes");
-    assertThat(item.direct()).isFalse();
-    verify(personRepository, never()).findByNameAndOrgIds(any(), any(), any(), any(), any());
+    assertThat(result.people().getContent().get(0).id()).isEqualTo(ana);
+    verify(personRepository, never()).findByNameAndOrgIds(any(), any(), any(), any());
   }
 
   @Test
@@ -74,15 +68,12 @@ class SearchPeopleQueryHandlerImplTests {
     var organizationId = PartyId.generate();
     var ana = PartyId.generate();
     var ids = subtreeOf(organizationId);
-    when(personRepository.findAllById(List.of(ana)))
-        .thenReturn(List.of(person(ana, "Ana", "Diaz")));
-    when(personRepository.findByNameAndOrgIds("an", organizationId, ids, isPartOf, PAGE))
-        .thenReturn(new PageImpl<>(List.of(new PersonInSubtree(ana, "Iglesia", 1))));
+    when(personRepository.findByNameAndOrgIds("an", ids, isPartOf, PAGE))
+        .thenReturn(new PageImpl<>(List.of(person(ana, "Ana", "Diaz"))));
 
     var result = handler.handle(new SearchPeopleQuery(organizationId, "an", PAGE));
 
-    assertThat(result.people().getContent().get(0).person().firstName()).isEqualTo("Ana");
-    assertThat(result.people().getContent().get(0).direct()).isTrue();
-    verify(personRepository, never()).findByOrgIds(any(), any(), any(), any());
+    assertThat(result.people().getContent().get(0).firstName()).isEqualTo("Ana");
+    verify(personRepository, never()).findByOrgIds(any(), any(), any());
   }
 }
