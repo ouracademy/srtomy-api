@@ -49,7 +49,8 @@ class SubtreeListingsIntegrationTests {
     church =
         read(post(
                 "/organizations",
-                "{\"name\":\"Iglesia\",\"location\":{\"name\":\"Sede\"},\"positions\":[]}"))
+                "{\"name\":\"Iglesia\",\"location\":{\"name\":\"Sede\"},\"positions\":[],"
+                    + "\"creator\":{\"firstName\":\"Pablo\",\"lastName\":\"Diaz\"}}"))
             .get("id")
             .asText();
     location = get("/organizations/" + church + "/childs").get(0).get("id").asText();
@@ -68,10 +69,11 @@ class SubtreeListingsIntegrationTests {
     createPerson("Beto", group);
 
     var fromLocation = get("/people?organizationId=" + location).get("content");
-    assertThat(values(fromLocation, "firstName")).containsExactlyInAnyOrder("Ana", "Beto");
+    assertThat(values(fromLocation, "firstName")).containsExactlyInAnyOrder("Pablo", "Ana", "Beto");
 
-    // The church sees them too, and the group does not see its parent's people.
-    assertThat(get("/people?organizationId=" + church).get("content")).hasSize(2);
+    // The church sees them too (and its creator, who is a person of the first location), and
+    // the group does not see its parent's people.
+    assertThat(get("/people?organizationId=" + church).get("content")).hasSize(3);
     assertThat(values(get("/people?organizationId=" + group).get("content"), "firstName"))
         .containsExactly("Beto");
     assertThat(

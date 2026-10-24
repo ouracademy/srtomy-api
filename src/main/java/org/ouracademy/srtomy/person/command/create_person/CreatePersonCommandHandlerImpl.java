@@ -45,7 +45,8 @@ class CreatePersonCommandHandlerImpl implements CreatePersonCommandHandler {
     var personId = person.getId();
 
     syncPersonPositionsCommandHandler.handle(
-        new SyncPersonPositionsCommand(personId, organizationId, churchId, command.positionIds()));
+        new SyncPersonPositionsCommand(
+            command.subject(), personId, organizationId, churchId, command.positionIds()));
     createAccountabilitiesCommandHandler.handle(
         new CreateAccountabilitiesCommand(
             List.of(

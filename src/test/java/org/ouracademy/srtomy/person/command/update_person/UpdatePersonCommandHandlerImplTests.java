@@ -57,7 +57,7 @@ class UpdatePersonCommandHandlerImplTests {
     when(findChurchOfOrganizationQueryHandler.handle(new FindChurchOfOrganizationQuery(locationId)))
         .thenReturn(Optional.of(new FindChurchOfOrganizationResult(churchId)));
 
-    var result = handler.handle(new UpdatePersonCommand(id, INFO, locationId, Set.of(usher)));
+    var result = handler.handle(new UpdatePersonCommand("me", id, INFO, locationId, Set.of(usher)));
 
     assertThat(result).contains(new UpdatePersonResult(id));
     assertThat(person.getFirstName()).isEqualTo("Luis");
@@ -68,7 +68,7 @@ class UpdatePersonCommandHandlerImplTests {
     assertThat(person.getBirthdate()).isEqualTo(LocalDate.of(1984, 1, 2));
     assertThat(person.getHasBeenBaptized()).isFalse();
     verify(syncPersonPositionsCommandHandler)
-        .handle(new SyncPersonPositionsCommand(id, locationId, churchId, Set.of(usher)));
+        .handle(new SyncPersonPositionsCommand("me", id, locationId, churchId, Set.of(usher)));
   }
 
   @Test
@@ -76,7 +76,8 @@ class UpdatePersonCommandHandlerImplTests {
     var id = PartyId.generate();
     when(personRepository.findById(id)).thenReturn(Optional.empty());
 
-    var result = handler.handle(new UpdatePersonCommand(id, INFO, PartyId.generate(), Set.of()));
+    var result =
+        handler.handle(new UpdatePersonCommand("me", id, INFO, PartyId.generate(), Set.of()));
 
     assertThat(result).isEmpty();
     verifyNoInteractions(syncPersonPositionsCommandHandler);

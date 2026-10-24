@@ -37,6 +37,17 @@ public class GrantRules {
     }
   }
 
+  /**
+   * Fails unless the caller already holds every one of {@code permissions} on the node, so nobody
+   * hands out (through a position) more than they have.
+   */
+  public void requireHoldsAll(String subject, List<String> permissions, PartyId nodeId) {
+    var held = roleBindingRepository.findPermissions(subject, List.of(nodeId.value()));
+    if (!held.containsAll(permissions)) {
+      throw new AccessDeniedException("No puedes dar permisos que no tienes");
+    }
+  }
+
   /** Revoking only needs the Owner exception, since {@code iam.manage} is checked by the caller. */
   public void requireCanRevoke(String subject, IamRoleId roleId, PartyId nodeId) {
     requireOwnerForOwnerRole(subject, roleId, nodeId);

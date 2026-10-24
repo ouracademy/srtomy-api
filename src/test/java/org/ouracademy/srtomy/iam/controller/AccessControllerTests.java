@@ -9,16 +9,16 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.srtomy.iam.command.add_owner.AddOwnerCommand;
+import org.ouracademy.srtomy.iam.command.add_owner.AddOwnerCommandHandler;
+import org.ouracademy.srtomy.iam.command.add_owner.AddOwnerResult;
 import org.ouracademy.srtomy.iam.command.create_role.CreateRoleCommand;
 import org.ouracademy.srtomy.iam.command.create_role.CreateRoleCommandHandler;
 import org.ouracademy.srtomy.iam.command.create_role.CreateRoleResult;
 import org.ouracademy.srtomy.iam.command.delete_role.DeleteRoleCommand;
 import org.ouracademy.srtomy.iam.command.delete_role.DeleteRoleCommandHandler;
-import org.ouracademy.srtomy.iam.command.grant_access.GrantAccessCommand;
-import org.ouracademy.srtomy.iam.command.grant_access.GrantAccessCommandHandler;
-import org.ouracademy.srtomy.iam.command.grant_access.GrantAccessResult;
-import org.ouracademy.srtomy.iam.command.revoke_access.RevokeAccessCommand;
-import org.ouracademy.srtomy.iam.command.revoke_access.RevokeAccessCommandHandler;
+import org.ouracademy.srtomy.iam.command.remove_owner.RemoveOwnerCommand;
+import org.ouracademy.srtomy.iam.command.remove_owner.RemoveOwnerCommandHandler;
 import org.ouracademy.srtomy.iam.command.update_role.UpdateRoleCommandHandler;
 import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.Permission;
@@ -33,6 +33,7 @@ import org.ouracademy.srtomy.iam.query.get_permission_catalog.PermissionCatalogR
 import org.ouracademy.srtomy.iam.query.list_access.AccessEntryResult;
 import org.ouracademy.srtomy.iam.query.list_access.ListAccessQuery;
 import org.ouracademy.srtomy.iam.query.list_access.ListAccessQueryHandler;
+import org.ouracademy.srtomy.iam.query.list_predefined_roles.ListPredefinedRolesQueryHandler;
 import org.ouracademy.srtomy.iam.query.list_roles.ListRolesQueryHandler;
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
@@ -63,8 +64,9 @@ class AccessControllerTests {
   @MockitoBean ListRolesQueryHandler listRolesQueryHandler;
   @MockitoBean FindRoleByIdQueryHandler findRoleByIdQueryHandler;
   @MockitoBean GetPermissionCatalogQueryHandler getPermissionCatalogQueryHandler;
-  @MockitoBean GrantAccessCommandHandler grantAccessCommandHandler;
-  @MockitoBean RevokeAccessCommandHandler revokeAccessCommandHandler;
+  @MockitoBean ListPredefinedRolesQueryHandler listPredefinedRolesQueryHandler;
+  @MockitoBean AddOwnerCommandHandler addOwnerCommandHandler;
+  @MockitoBean RemoveOwnerCommandHandler removeOwnerCommandHandler;
   @MockitoBean CreateRoleCommandHandler createRoleCommandHandler;
   @MockitoBean UpdateRoleCommandHandler updateRoleCommandHandler;
   @MockitoBean DeleteRoleCommandHandler deleteRoleCommandHandler;
@@ -101,7 +103,10 @@ class AccessControllerTests {
                     "Propietario",
                     church,
                     "Iglesia",
-                    true)));
+                    true,
+                    AccessEntryResult.Source.DIRECT,
+                    null,
+                    12)));
 
     assertThat(
             mvc.get()
@@ -128,40 +133,73 @@ class AccessControllerTests {
   }
 
   @Test
-  void grantingNeedsIamManageAndPassesTheCallerSubject() {
-    given(grantAccessCommandHandler.handle(any())).willReturn(new GrantAccessResult(true));
-    var body = "{\"email\":\"a@x.org\",\"roleId\":\"" + PredefinedRoles.LEADER.value() + "\"}";
+  void addingAnOwnerNeedsIamManageAndPassesTheCallerSubject() {
+    given(addOwnerCommandHandler.handle(any())).willReturn(new AddOwnerResult(true));
+    var uri = "/v1/organizations/" + node.value() + "/owners";
 
     assertThat(
             mvc.post()
-                .uri("/v1/organizations/" + node.value() + "/access")
+                .uri(uri)
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
+                .content("{\"email\":\"a@x.org\"}"))
         .hasStatus(201);
-    verify(grantAccessCommandHandler)
-        .handle(new GrantAccessCommand("test-user", "a@x.org", PredefinedRoles.LEADER, node));
+    verify(addOwnerCommandHandler).handle(new AddOwnerCommand("test-user", "a@x.org", node));
 
     denyOn(node, Permission.IAM_MANAGE);
     assertThat(
             mvc.post()
-                .uri("/v1/organizations/" + node.value() + "/access")
+                .uri(uri)
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
+                .content("{\"email\":\"a@x.org\"}"))
         .hasStatus(403);
   }
 
   @Test
-  void revokingNeedsIamManage() {
+  void anOwnerNeedsAValidEmail() {
+    assertThat(
+            mvc.post()
+                .uri("/v1/organizations/" + node.value() + "/owners")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"not-an-email\"}"))
+        .hasStatus(400);
+  }
+
+  @Test
+  void removingAnOwnerNeedsIamManage() {
     var binding = RoleBindingId.generate();
-    var uri = "/v1/organizations/" + node.value() + "/access/" + binding.value();
+    var uri = "/v1/organizations/" + node.value() + "/owners/" + binding.value();
 
     assertThat(mvc.delete().uri(uri).header("Authorization", bearer())).hasStatus(204);
-    verify(revokeAccessCommandHandler).handle(new RevokeAccessCommand("test-user", binding, node));
+    verify(removeOwnerCommandHandler).handle(new RemoveOwnerCommand("test-user", binding, node));
 
     denyOn(node, Permission.IAM_MANAGE);
     assertThat(mvc.delete().uri(uri).header("Authorization", bearer())).hasStatus(403);
+  }
+
+  @Test
+  void thePredefinedLevelsExcludeOwner() {
+    given(listPredefinedRolesQueryHandler.handle(any()))
+        .willReturn(
+            List.of(
+                new RoleResult(
+                    PredefinedRoles.OWNER,
+                    "Propietario",
+                    null,
+                    List.of("org.read"),
+                    null,
+                    true,
+                    false),
+                new RoleResult(
+                    PredefinedRoles.LEADER, "Líder", null, List.of("org.read"), null, true, true)));
+
+    assertThat(mvc.get().uri("/v1/iam/levels").header("Authorization", bearer()))
+        .hasStatusOk()
+        .bodyJson()
+        .extractingPath("$[*].name")
+        .isEqualTo(List.of("Líder"));
   }
 
   @Test
@@ -171,7 +209,7 @@ class AccessControllerTests {
     given(createRoleCommandHandler.handle(any()))
         .willReturn(
             new CreateRoleResult(
-                new RoleResult(id, "Tesorero", null, List.of("org.read"), church, false)));
+                new RoleResult(id, "Tesorero", null, List.of("org.read"), church, false, true)));
 
     assertThat(
             mvc.post()
@@ -215,7 +253,8 @@ class AccessControllerTests {
   void editingAndDeletingNeedIamManageOnTheRolesChurch() {
     var id = IamRoleId.generate();
     given(findRoleByIdQueryHandler.handle(any()))
-        .willReturn(Optional.of(new RoleResult(id, "T", null, List.of("org.read"), church, false)));
+        .willReturn(
+            Optional.of(new RoleResult(id, "T", null, List.of("org.read"), church, false, true)));
     denyOn(church, Permission.IAM_MANAGE);
 
     assertThat(
@@ -234,7 +273,8 @@ class AccessControllerTests {
   void deletingARoleCallsTheHandler() {
     var id = IamRoleId.generate();
     given(findRoleByIdQueryHandler.handle(any()))
-        .willReturn(Optional.of(new RoleResult(id, "T", null, List.of("org.read"), church, false)));
+        .willReturn(
+            Optional.of(new RoleResult(id, "T", null, List.of("org.read"), church, false, true)));
 
     assertThat(mvc.delete().uri("/v1/roles/" + id.value()).header("Authorization", bearer()))
         .hasStatus(204);

@@ -37,7 +37,11 @@ class UpdatePersonCommandHandlerImpl implements UpdatePersonCommandHandler {
               command.info().applyTo(person);
               syncPersonPositionsCommandHandler.handle(
                   new SyncPersonPositionsCommand(
-                      person.getId(), command.organizationId(), churchId, command.positionIds()));
+                      command.subject(),
+                      person.getId(),
+                      command.organizationId(),
+                      churchId,
+                      command.positionIds()));
               return new UpdatePersonResult(personRepository.save(person).getId());
             });
   }

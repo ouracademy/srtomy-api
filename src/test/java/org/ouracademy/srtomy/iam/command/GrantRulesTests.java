@@ -79,4 +79,21 @@ class GrantRulesTests {
     assertThatCode(() -> rules.requireCanRevoke("me", PredefinedRoles.LEADER, node))
         .doesNotThrowAnyException();
   }
+
+  @Test
+  void permissionsTheCallerHoldsCanBeHandedOutThroughAPosition() {
+    when(roleBindingRepository.findPermissions(any(), any()))
+        .thenReturn(List.of("org.read", "events.read", "iam.manage"));
+
+    assertThatCode(() -> rules.requireHoldsAll("me", List.of("org.read", "events.read"), node))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void permissionsTheCallerLacksCannotBeHandedOut() {
+    when(roleBindingRepository.findPermissions(any(), any())).thenReturn(List.of("org.read"));
+
+    assertThatThrownBy(() -> rules.requireHoldsAll("me", List.of("org.read", "iam.manage"), node))
+        .isInstanceOf(AccessDeniedException.class);
+  }
 }

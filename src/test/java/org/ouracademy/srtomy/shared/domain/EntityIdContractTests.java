@@ -18,6 +18,7 @@ import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.RoleBindingId;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.user.domain.UserId;
+import org.ouracademy.srtomy.user.domain.UserPersonLinkId;
 
 /**
  * Every {@link EntityId} record (PartyId, EventId, ...) is expected to behave the same way; this
@@ -35,6 +36,7 @@ class EntityIdContractTests {
         idType("AccountabilityTypeId", AccountabilityTypeId::generate, AccountabilityTypeId::new),
         idType("ComplaintId", ComplaintId::generate, ComplaintId::new),
         idType("UserId", UserId::generate, UserId::new),
+        idType("UserPersonLinkId", UserPersonLinkId::generate, UserPersonLinkId::new),
         idType("IamRoleId", IamRoleId::generate, IamRoleId::new),
         idType("RoleBindingId", RoleBindingId::generate, RoleBindingId::new));
   }

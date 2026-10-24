@@ -1,8 +1,10 @@
 package org.ouracademy.srtomy.accountability.command.sync_person_positions;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.srtomy.accountability.AccountabilityFixtures.party;
@@ -22,14 +24,19 @@ import org.ouracademy.srtomy.accountability.domain.AccountabilityType.Category;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.accountability.repository.AccountabilityRepository;
 import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
+import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
+import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQuery;
+import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQueryHandler;
 import org.ouracademy.srtomy.party.domain.Party;
 import org.ouracademy.srtomy.party.domain.PartyId;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class SyncPersonPositionsCommandHandlerImplTests {
 
   @Mock AccountabilityTypeRepository accountabilityTypeRepository;
   @Mock AccountabilityRepository accountabilityRepository;
+  @Mock AuthorizeAccessGrantQueryHandler authorizeAccessGrantQueryHandler;
   @Mock EntityManager entityManager;
   @InjectMocks SyncPersonPositionsCommandHandlerImpl handler;
 
@@ -55,7 +62,7 @@ class SyncPersonPositionsCommandHandlerImplTests {
     var result =
         handler.handle(
             new SyncPersonPositionsCommand(
-                person.getId(), location.getId(), churchId, Set.of(pastor.getId(), foreign)));
+                "me", person.getId(), location.getId(), churchId, Set.of(pastor.getId(), foreign)));
 
     assertThat(result).isEqualTo(new SyncPersonPositionsResult(1, 1));
     verify(accountabilityRepository).deleteAll(List.of(heldUsher));
@@ -71,9 +78,85 @@ class SyncPersonPositionsCommandHandlerImplTests {
     var result =
         handler.handle(
             new SyncPersonPositionsCommand(
-                PartyId.generate(), PartyId.generate(), PartyId.generate(), Set.of()));
+                "me", PartyId.generate(), PartyId.generate(), PartyId.generate(), Set.of()));
 
     assertThat(result).isEqualTo(new SyncPersonPositionsResult(0, 0));
     verify(accountabilityRepository).saveAll(anyList());
+  }
+
+  @Test
+  void addingAPositionWithAccessIsAuthorizedOnTheNode() {
+    var churchId = PartyId.generate();
+    var church = party(churchId, "Iglesia");
+    var person = party(PartyId.generate(), "Ana");
+    var location = party(PartyId.generate(), "Sede");
+    var pastor =
+        new AccountabilityType(
+            "Pastor", church, Category.POSITION, Set.of(PredefinedRoles.ADMIN), Set.of());
+    when(accountabilityRepository.findByParentIdAndChildId(location.getId(), person.getId()))
+        .thenReturn(List.of());
+    when(accountabilityTypeRepository.findByIdInAndPartyIdAndCategory(
+            Set.of(pastor.getId()), churchId, Category.POSITION))
+        .thenReturn(List.of(pastor));
+    when(entityManager.getReference(Party.class, person.getId())).thenReturn(person);
+    when(entityManager.getReference(Party.class, location.getId())).thenReturn(location);
+
+    handler.handle(
+        new SyncPersonPositionsCommand(
+            "me", person.getId(), location.getId(), churchId, Set.of(pastor.getId())));
+
+    verify(authorizeAccessGrantQueryHandler)
+        .handle(
+            new AuthorizeAccessGrantQuery(
+                "me", Set.of(PredefinedRoles.ADMIN), Set.of(), location.getId()));
+  }
+
+  @Test
+  void aCallerWhoCannotGrantTheLevelChangesNothing() {
+    var churchId = PartyId.generate();
+    var church = party(churchId, "Iglesia");
+    var person = party(PartyId.generate(), "Ana");
+    var location = party(PartyId.generate(), "Sede");
+    var pastor =
+        new AccountabilityType(
+            "Pastor", church, Category.POSITION, Set.of(PredefinedRoles.ADMIN), Set.of());
+    when(accountabilityRepository.findByParentIdAndChildId(location.getId(), person.getId()))
+        .thenReturn(List.of());
+    when(accountabilityTypeRepository.findByIdInAndPartyIdAndCategory(
+            Set.of(pastor.getId()), churchId, Category.POSITION))
+        .thenReturn(List.of(pastor));
+    when(authorizeAccessGrantQueryHandler.handle(any())).thenThrow(new AccessDeniedException("no"));
+
+    assertThatThrownBy(
+            () ->
+                handler.handle(
+                    new SyncPersonPositionsCommand(
+                        "me", person.getId(), location.getId(), churchId, Set.of(pastor.getId()))))
+        .isInstanceOf(AccessDeniedException.class);
+    verify(accountabilityRepository, never()).saveAll(anyList());
+    verify(accountabilityRepository, never()).deleteAll(anyList());
+  }
+
+  @Test
+  void removingAPositionWithAccessIsAuthorizedToo() {
+    var churchId = PartyId.generate();
+    var church = party(churchId, "Iglesia");
+    var person = party(PartyId.generate(), "Ana");
+    var location = party(PartyId.generate(), "Sede");
+    var pastor =
+        new AccountabilityType(
+            "Pastor", church, Category.POSITION, Set.of(PredefinedRoles.ADMIN), Set.of());
+    when(accountabilityRepository.findByParentIdAndChildId(location.getId(), person.getId()))
+        .thenReturn(List.of(new Accountability(person, location, pastor)));
+    when(entityManager.getReference(Party.class, person.getId())).thenReturn(person);
+    when(entityManager.getReference(Party.class, location.getId())).thenReturn(location);
+
+    handler.handle(
+        new SyncPersonPositionsCommand("me", person.getId(), location.getId(), churchId, Set.of()));
+
+    verify(authorizeAccessGrantQueryHandler)
+        .handle(
+            new AuthorizeAccessGrantQuery(
+                "me", Set.of(PredefinedRoles.ADMIN), Set.of(), location.getId()));
   }
 }

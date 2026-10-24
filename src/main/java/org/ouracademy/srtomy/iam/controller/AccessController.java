@@ -6,18 +6,18 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
+import org.ouracademy.srtomy.iam.command.add_owner.AddOwnerCommand;
+import org.ouracademy.srtomy.iam.command.add_owner.AddOwnerCommandHandler;
 import org.ouracademy.srtomy.iam.command.create_role.CreateRoleCommand;
 import org.ouracademy.srtomy.iam.command.create_role.CreateRoleCommandHandler;
 import org.ouracademy.srtomy.iam.command.delete_role.DeleteRoleCommand;
 import org.ouracademy.srtomy.iam.command.delete_role.DeleteRoleCommandHandler;
-import org.ouracademy.srtomy.iam.command.grant_access.GrantAccessCommand;
-import org.ouracademy.srtomy.iam.command.grant_access.GrantAccessCommandHandler;
-import org.ouracademy.srtomy.iam.command.revoke_access.RevokeAccessCommand;
-import org.ouracademy.srtomy.iam.command.revoke_access.RevokeAccessCommandHandler;
+import org.ouracademy.srtomy.iam.command.remove_owner.RemoveOwnerCommand;
+import org.ouracademy.srtomy.iam.command.remove_owner.RemoveOwnerCommandHandler;
 import org.ouracademy.srtomy.iam.command.update_role.UpdateRoleCommand;
 import org.ouracademy.srtomy.iam.command.update_role.UpdateRoleCommandHandler;
 import org.ouracademy.srtomy.iam.controller.dto.AccessEntryResponse;
-import org.ouracademy.srtomy.iam.controller.dto.GrantAccessRequest;
+import org.ouracademy.srtomy.iam.controller.dto.OwnerRequest;
 import org.ouracademy.srtomy.iam.controller.dto.PermissionGroupResponse;
 import org.ouracademy.srtomy.iam.controller.dto.RoleRequest;
 import org.ouracademy.srtomy.iam.controller.dto.RoleResponse;
@@ -32,6 +32,8 @@ import org.ouracademy.srtomy.iam.query.get_permission_catalog.GetPermissionCatal
 import org.ouracademy.srtomy.iam.query.get_permission_catalog.GetPermissionCatalogQueryHandler;
 import org.ouracademy.srtomy.iam.query.list_access.ListAccessQuery;
 import org.ouracademy.srtomy.iam.query.list_access.ListAccessQueryHandler;
+import org.ouracademy.srtomy.iam.query.list_predefined_roles.ListPredefinedRolesQuery;
+import org.ouracademy.srtomy.iam.query.list_predefined_roles.ListPredefinedRolesQueryHandler;
 import org.ouracademy.srtomy.iam.query.list_roles.ListRolesQuery;
 import org.ouracademy.srtomy.iam.query.list_roles.ListRolesQueryHandler;
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
@@ -51,9 +53,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The "Accesos" tab: who holds which role on a node (directly or inherited), granting and revoking
- * roles, and each church's custom roles. Reading needs {@code iam.read}, changing needs {@code
- * iam.manage}; the escalation rules live in the command handlers.
+ * The "Accesos" tab: who has access to a node and where it comes from (a position, group leadership
+ * or being an Owner), the Owners of a church, and the access levels each church can give to its
+ * positions. Reading needs {@code iam.read}, changing needs {@code iam.manage}; the escalation
+ * rules live in the handlers.
+ *
+ * <p>Access is not handed out one by one: it comes from the access level of a position (see the
+ * positions endpoints). The only direct access left is Owner.
  */
 @RestController
 @AllArgsConstructor
@@ -64,15 +70,16 @@ public class AccessController {
   ListRolesQueryHandler listRolesQueryHandler;
   FindRoleByIdQueryHandler findRoleByIdQueryHandler;
   GetPermissionCatalogQueryHandler getPermissionCatalogQueryHandler;
-  GrantAccessCommandHandler grantAccessCommandHandler;
-  RevokeAccessCommandHandler revokeAccessCommandHandler;
+  ListPredefinedRolesQueryHandler listPredefinedRolesQueryHandler;
+  AddOwnerCommandHandler addOwnerCommandHandler;
+  RemoveOwnerCommandHandler removeOwnerCommandHandler;
   CreateRoleCommandHandler createRoleCommandHandler;
   UpdateRoleCommandHandler updateRoleCommandHandler;
   DeleteRoleCommandHandler deleteRoleCommandHandler;
   FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
-  /** Bindings made on the node plus the ones inherited from its ancestors. */
+  /** The accesses on the node plus the ones inherited from its ancestors. */
   @GetMapping("organizations/{id}/access")
   public List<AccessEntryResponse> access(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var organizationId = new PartyId(id);
@@ -82,30 +89,42 @@ public class AccessController {
         .toList();
   }
 
-  @PostMapping("organizations/{id}/access")
+  /** Makes someone an Owner of the church of {@code id}. Only an Owner can. */
+  @PostMapping("organizations/{id}/owners")
   @ResponseStatus(HttpStatus.CREATED)
-  public void grant(
+  public void addOwner(
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable UUID id,
-      @RequestBody @Valid GrantAccessRequest request) {
+      @RequestBody @Valid OwnerRequest request) {
     var organizationId = new PartyId(id);
     authorize(jwt, organizationId, Permission.IAM_MANAGE);
-    grantAccessCommandHandler.handle(
-        new GrantAccessCommand(
-            jwt.getSubject(), request.email(), new IamRoleId(request.roleId()), organizationId));
+    addOwnerCommandHandler.handle(
+        new AddOwnerCommand(jwt.getSubject(), request.email(), organizationId));
   }
 
-  @DeleteMapping("organizations/{id}/access/{bindingId}")
-  public ResponseEntity<Void> revoke(
+  @DeleteMapping("organizations/{id}/owners/{bindingId}")
+  public ResponseEntity<Void> removeOwner(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @PathVariable UUID bindingId) {
     var organizationId = new PartyId(id);
     authorize(jwt, organizationId, Permission.IAM_MANAGE);
-    revokeAccessCommandHandler.handle(
-        new RevokeAccessCommand(jwt.getSubject(), new RoleBindingId(bindingId), organizationId));
+    removeOwnerCommandHandler.handle(
+        new RemoveOwnerCommand(jwt.getSubject(), new RoleBindingId(bindingId), organizationId));
     return ResponseEntity.noContent().build();
   }
 
-  /** The roles that can be granted in the church of {@code id}: predefined plus custom. */
+  /**
+   * The predefined access levels, for forms that run before the church exists (the sign-up). Any
+   * signed-in user can read them.
+   */
+  @GetMapping("iam/levels")
+  public List<RoleResponse> levels() {
+    return listPredefinedRolesQueryHandler.handle(new ListPredefinedRolesQuery()).stream()
+        .filter(role -> role.assignable())
+        .map(RoleResponse::from)
+        .toList();
+  }
+
+  /** The access levels of the church of {@code id}: predefined plus its own. */
   @GetMapping("organizations/{id}/roles")
   public List<RoleResponse> roles(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var organizationId = new PartyId(id);

@@ -4,12 +4,15 @@ import com.google.common.collect.Sets;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.srtomy.accountability.domain.Accountability;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType.Category;
 import org.ouracademy.srtomy.accountability.repository.AccountabilityRepository;
 import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
+import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQuery;
+import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQueryHandler;
 import org.ouracademy.srtomy.party.domain.Party;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +23,7 @@ class SyncPersonPositionsCommandHandlerImpl implements SyncPersonPositionsComman
 
   private final AccountabilityTypeRepository accountabilityTypeRepository;
   private final AccountabilityRepository accountabilityRepository;
+  private final AuthorizeAccessGrantQueryHandler authorizeAccessGrantQueryHandler;
   private final EntityManager entityManager;
 
   @Override
@@ -40,9 +44,23 @@ class SyncPersonPositionsCommandHandlerImpl implements SyncPersonPositionsComman
     var wantedIds = wanted.stream().map(AccountabilityType::getId).collect(Collectors.toSet());
 
     var toRemove = held.stream().filter(a -> !wantedIds.contains(a.getType().getId())).toList();
-    accountabilityRepository.deleteAll(toRemove);
-
     var idsToAdd = Sets.difference(wantedIds, heldIds);
+
+    // Before changing anything: giving or taking a position that gives access is not for everyone.
+    Stream.concat(
+            toRemove.stream().map(Accountability::getType),
+            wanted.stream().filter(type -> idsToAdd.contains(type.getId())))
+        .filter(AccountabilityType::hasAccess)
+        .forEach(
+            type ->
+                authorizeAccessGrantQueryHandler.handle(
+                    new AuthorizeAccessGrantQuery(
+                        command.subject(),
+                        type.getRoleIds(),
+                        type.getPermissions(),
+                        command.organizationId())));
+
+    accountabilityRepository.deleteAll(toRemove);
     var person = entityManager.getReference(Party.class, command.personId());
     var organization = entityManager.getReference(Party.class, command.organizationId());
     var toAdd =

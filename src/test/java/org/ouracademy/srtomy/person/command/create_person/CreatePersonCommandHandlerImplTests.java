@@ -67,7 +67,8 @@ class CreatePersonCommandHandlerImplTests {
         .thenReturn(Optional.of(new FindChurchOfOrganizationResult(churchId)));
     when(personRepository.save(any(Person.class))).thenAnswer(call -> call.getArgument(0));
 
-    var result = handler.handle(new CreatePersonCommand(INFO, organizationId, Set.of(pastor)));
+    var result =
+        handler.handle(new CreatePersonCommand("me", INFO, organizationId, Set.of(pastor)));
 
     var saved = ArgumentCaptor.forClass(Person.class);
     verify(personRepository).save(saved.capture());
@@ -83,7 +84,8 @@ class CreatePersonCommandHandlerImplTests {
 
     verify(syncPersonPositionsCommandHandler)
         .handle(
-            new SyncPersonPositionsCommand(result.id(), organizationId, churchId, Set.of(pastor)));
+            new SyncPersonPositionsCommand(
+                "me", result.id(), organizationId, churchId, Set.of(pastor)));
     verify(createAccountabilitiesCommandHandler)
         .handle(
             new CreateAccountabilitiesCommand(
@@ -100,7 +102,7 @@ class CreatePersonCommandHandlerImplTests {
         .thenReturn(Optional.empty());
 
     assertThatThrownBy(
-            () -> handler.handle(new CreatePersonCommand(INFO, organizationId, Set.of())))
+            () -> handler.handle(new CreatePersonCommand("me", INFO, organizationId, Set.of())))
         .isInstanceOf(NoSuchElementException.class);
     verifyNoInteractions(
         personRepository, syncPersonPositionsCommandHandler, createAccountabilitiesCommandHandler);
