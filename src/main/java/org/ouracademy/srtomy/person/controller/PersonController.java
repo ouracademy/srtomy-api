@@ -91,7 +91,10 @@ public class PersonController {
     return createPersonCommandHandler
         .handle(
             new CreatePersonCommand(
-                info(request), organizationId, positionIds(request.getPositionIds())))
+                jwt.getSubject(),
+                info(request),
+                organizationId,
+                positionIds(request.getPositionIds())))
         .id()
         .value();
   }
@@ -111,6 +114,7 @@ public class PersonController {
         updatePersonCommandHandler
             .handle(
                 new UpdatePersonCommand(
+                    jwt.getSubject(),
                     new PartyId(id),
                     info(request),
                     organizationId,

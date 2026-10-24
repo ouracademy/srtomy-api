@@ -13,10 +13,13 @@ import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.iam.domain.Permission;
+import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
 import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
 import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.srtomy.organization.command.OrganizationInfo;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommand;
+import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommand.Creator;
+import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommand.PositionSeed;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommandHandler;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchResult;
 import org.ouracademy.srtomy.organization.command.create_location.CreateLocationCommandHandler;
@@ -99,7 +102,8 @@ class OrganizationControllerTests {
                 "123",
                 new SocialLinks(null, "https://facebook.com/x", null, null, null)),
             new OrganizationInfo("Sede", null, "Av. 1", null, SocialLinks.NONE),
-            List.of("Pastor"),
+            List.of(new PositionSeed("Pastor", PredefinedRoles.ADMIN)),
+            new Creator("Ana", "Diaz", "Pastor"),
             "test-user",
             null,
             false);
@@ -116,8 +120,10 @@ class OrganizationControllerTests {
                     {"name":"Church","description":"desc","address":"addr","phoneNumber":"123",
                      "socialLinks":{"facebookUrl":"https://facebook.com/x","website":" "},
                      "location":{"name":"Sede","address":"Av. 1"},
-                     "positions":["Pastor"]}
-                    """))
+                     "positions":[{"name":"Pastor","accessRoleId":"%s"}],
+                     "creator":{"firstName":"Ana","lastName":"Diaz","positionName":"Pastor"}}
+                    """
+                        .formatted(PredefinedRoles.ADMIN.value())))
         .hasStatus(201)
         .bodyJson()
         .extractingPath("$.id")

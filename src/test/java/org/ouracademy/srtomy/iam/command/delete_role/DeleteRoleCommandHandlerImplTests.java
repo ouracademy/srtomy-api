@@ -42,4 +42,16 @@ class DeleteRoleCommandHandlerImplTests {
     assertThatThrownBy(() -> handler.handle(new DeleteRoleCommand(IamRoleId.generate())))
         .isInstanceOf(NoSuchElementException.class);
   }
+
+  @Test
+  void aLevelUsedByPositionsCannotBeDeleted() {
+    var role = IamRole.custom(mock(Organization.class), "Tesorero", null, List.of("org.read"));
+    when(repository.findById(role.getId())).thenReturn(Optional.of(role));
+    when(repository.countPositionsUsing(role.getId().value())).thenReturn(2L);
+
+    assertThatThrownBy(() -> handler.handle(new DeleteRoleCommand(role.getId())))
+        .isInstanceOf(DomainValidationException.class)
+        .hasMessageContaining("2 cargo");
+    assertThat(role.getDeletedTime()).isNull();
+  }
 }

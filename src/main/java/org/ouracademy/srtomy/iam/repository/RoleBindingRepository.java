@@ -12,8 +12,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 /**
- * Bindings are inherited down the tree, so every read walks {@code organization.parent_id} with a
+ * Access is inherited down the tree, so every read walks {@code organization.parent_id} with a
  * recursive CTE (read-only native SQL over the organization table, allowed by the module rules).
+ *
+ * <p>What a user may do comes from the {@code user_access} view, which merges direct bindings
+ * (Owner), the access level of the positions of the person that represents the user, and group
+ * leadership. {@code role_binding} itself only holds the direct ones.
  */
 public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBindingId> {
 
@@ -22,7 +26,7 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
 
   /**
    * Permission values the user identified by {@code subject} holds on any of {@code
-   * organizationIds}, through a binding on that node or on one of its ancestors.
+   * organizationIds}, through an access on that node or on one of its ancestors.
    */
   @Query(
       value =
@@ -34,28 +38,28 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
               join ancestors a on o.id = a.parent_id
           )
           select distinct p.permission
-          from role_binding rb
-          join app_user u on u.id = rb.user_id
-          join iam_role r on r.id = rb.role_id and r.deleted_time is null
+          from user_access ua
+          join app_user u on u.id = ua.user_id
+          join iam_role r on r.id = ua.role_id and r.deleted_time is null
           cross join lateral unnest(r.permissions) as p(permission)
           where u.auth0_sub = :subject
-          and rb.organization_id in (select id from ancestors)
+          and ua.organization_id in (select id from ancestors)
           """,
       nativeQuery = true)
   List<String> findPermissions(String subject, Collection<UUID> organizationIds);
 
   /**
-   * Every node the user can see: those with a binding and their descendants ({@code accessible}),
+   * Every node the user can see: those with an access and their descendants ({@code accessible}),
    * plus their ancestors, which are only shown as a breadcrumb.
    */
   @Query(
       value =
           """
           with recursive bound as (
-              select rb.organization_id as id
-              from role_binding rb
-              join app_user u on u.id = rb.user_id
-              join iam_role r on r.id = rb.role_id and r.deleted_time is null
+              select ua.organization_id as id
+              from user_access ua
+              join app_user u on u.id = ua.user_id
+              join iam_role r on r.id = ua.role_id and r.deleted_time is null
               where u.auth0_sub = :subject
           ),
           descendants as (
@@ -79,19 +83,23 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
       nativeQuery = true)
   List<VisibleOrganization> findVisibleOrganizations(String subject);
 
-  /** The roles bound directly on each node, for the user identified by {@code subject}. */
+  /** The access levels the user holds directly on each node. */
   @Query(
-      """
-      select rb.organization.id as organizationId, rb.role.name as roleName
-      from RoleBinding rb
-      where rb.user.subject = :subject
-      order by rb.role.name
-      """)
+      value =
+          """
+          select distinct ua.organization_id as organizationId, r.name as roleName
+          from user_access ua
+          join app_user u on u.id = ua.user_id
+          join iam_role r on r.id = ua.role_id and r.deleted_time is null
+          where u.auth0_sub = :subject
+          order by r.name
+          """,
+      nativeQuery = true)
   List<BoundRole> findBoundRoles(String subject);
 
   /**
-   * The bindings on the node and on all its ancestors (live roles only), with who holds them and
-   * where each one was made.
+   * The accesses on the node and on all its ancestors (live levels only), with who holds them,
+   * where each one was made and where it comes from.
    */
   @Query(
       value =
@@ -102,15 +110,16 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
               select o.id, o.parent_id from organization o
               join ancestors a on o.id = a.parent_id
           )
-          select rb.id as bindingId, u.id as userId, u.email as email,
+          select ua.binding_id as bindingId, u.id as userId, u.email as email,
                  r.id as roleId, r.name as roleName,
-                 rb.organization_id as organizationId, p.name as organizationName
-          from role_binding rb
-          join app_user u on u.id = rb.user_id
-          join iam_role r on r.id = rb.role_id and r.deleted_time is null
-          join party p on p.id = rb.organization_id
-          where rb.organization_id in (select id from ancestors)
-          order by lower(u.email), r.name
+                 ua.organization_id as organizationId, p.name as organizationName,
+                 ua.source as source, ua.position_name as positionName
+          from user_access ua
+          join app_user u on u.id = ua.user_id
+          join iam_role r on r.id = ua.role_id and r.deleted_time is null
+          join party p on p.id = ua.organization_id
+          where ua.organization_id in (select id from ancestors)
+          order by lower(u.email), r.name, ua.position_name
           """,
       nativeQuery = true)
   List<AccessEntry> findAccess(UUID organizationId);
@@ -126,10 +135,10 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
               join ancestors a on o.id = a.parent_id
           )
           select count(*) > 0
-          from role_binding rb
-          join app_user u on u.id = rb.user_id
-          where u.auth0_sub = :subject and rb.role_id = :roleId
-          and rb.organization_id in (select id from ancestors)
+          from user_access ua
+          join app_user u on u.id = ua.user_id
+          where u.auth0_sub = :subject and ua.role_id = :roleId
+          and ua.organization_id in (select id from ancestors)
           """,
       nativeQuery = true)
   boolean holdsRole(String subject, UUID roleId, UUID organizationId);
@@ -150,6 +159,7 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
   long countByRoleInChurch(UUID roleId, UUID churchId);
 
   interface AccessEntry {
+    /** Only set for direct bindings, which are the only ones that can be revoked one by one. */
     UUID getBindingId();
 
     UUID getUserId();
@@ -163,6 +173,12 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
     UUID getOrganizationId();
 
     String getOrganizationName();
+
+    /** {@code DIRECT}, {@code POSITION} or {@code LEADER}. */
+    String getSource();
+
+    /** The position the access comes from; only set for {@code POSITION}. */
+    String getPositionName();
   }
 
   interface VisibleOrganization {
@@ -178,7 +194,7 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
   }
 
   interface BoundRole {
-    PartyId getOrganizationId();
+    UUID getOrganizationId();
 
     String getRoleName();
   }

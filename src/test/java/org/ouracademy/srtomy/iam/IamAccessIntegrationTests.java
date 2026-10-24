@@ -10,8 +10,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
+import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
 import org.ouracademy.srtomy.shared.TestSecurityConfig;
+import org.ouracademy.srtomy.user.command.link_user_to_person.LinkUserToPersonCommand;
+import org.ouracademy.srtomy.user.command.link_user_to_person.LinkUserToPersonCommandHandler;
 import org.ouracademy.srtomy.user.command.sync_current_user.SyncCurrentUserCommand;
 import org.ouracademy.srtomy.user.command.sync_current_user.SyncCurrentUserCommandHandler;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,8 +28,9 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
- * The "Accesos" rules end to end over the real schema: inherited listing, anti-escalation, the
- * Owner exceptions and the custom role lifecycle. Every test uses fresh random users and emails.
+ * The access rules end to end over the real schema: access that comes from positions held by a
+ * person linked to a user, the anti-escalation rule, the Owner exceptions and the lifecycle of
+ * custom access levels. Every test uses fresh random users and emails.
  */
 @SpringBootTest(classes = SrtomyApplication.class, webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import(TestSecurityConfig.class)
@@ -37,6 +41,7 @@ class IamAccessIntegrationTests {
   @LocalServerPort int port;
   @Autowired JwtEncoder jwtEncoder;
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
+  @Autowired LinkUserToPersonCommandHandler linkUserToPersonCommandHandler;
 
   RestTestClient client;
   String alice;
@@ -52,64 +57,197 @@ class IamAccessIntegrationTests {
   }
 
   @Test
-  void theAccessListMarksInheritedAndDirectBindings() {
+  void aPositionGivesItsLevelToTheLinkedUserOnTheNodeAndBelow() {
     var church = createChurch(alice);
     var group = createGroup(alice, church.location);
-    assertThat(grant(alice, group, email(bob), PredefinedRoles.LEADER.value())).isEqualTo(201);
+    var subgroup = createGroup(alice, group);
+    holdPosition(bob, church, group, PredefinedRoles.LEADER.value());
+
+    assertThat(status(bob, HttpMethod.GET, "/organizations/" + subgroup, null)).isEqualTo(200);
+    assertThat(permissions(bob, subgroup)).contains("members.write").doesNotContain("iam.manage");
+    // The position was given on the group, so its location stays out of reach.
+    assertThat(status(bob, HttpMethod.GET, "/organizations/" + church.location, null))
+        .isEqualTo(403);
+  }
+
+  @Test
+  void aPositionWithoutLinkedUserOrWithoutLevelGivesNoAccess() {
+    var church = createChurch(alice);
+    var group = createGroup(alice, church.location);
+    var withLevel =
+        createPosition(alice, church.id, "Tesorero", PredefinedRoles.COLLABORATOR.value());
+    var label = createPosition(alice, church.id, "Hermano", null);
+
+    // Bob has a person with the position, but no user link yet: only a label for the app.
+    createPerson(alice, "Bob", group, withLevel);
+    assertThat(status(bob, HttpMethod.GET, "/organizations/" + group, null)).isEqualTo(403);
+
+    // Linked, but holding a position without level: still nothing.
+    var other = signUp("other");
+    link(other, church.id, createPerson(alice, "Otro", group, label));
+    assertThat(status(other, HttpMethod.GET, "/organizations/" + group, null)).isEqualTo(403);
+  }
+
+  @Test
+  void removingThePositionOrChangingItsLevelTakesEffectAtOnce() {
+    var church = createChurch(alice);
+    var position =
+        createPosition(alice, church.id, "Tesorero", PredefinedRoles.COLLABORATOR.value());
+    var personId = createPerson(alice, "Bob", church.location, position);
+    link(bob, church.id, personId);
+    assertThat(permissions(bob, church.location)).contains("attendance.write");
+
+    // Lowering the level changes the permissions of whoever holds the position.
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                "/positions/" + position + "/access",
+                "{\"accessRoleId\":\"%s\"}".formatted(PredefinedRoles.MEMBER.value())))
+        .isEqualTo(200);
+    assertThat(permissions(bob, church.location))
+        .containsExactlyInAnyOrder("org.read", "events.read");
+
+    // Taking the level away leaves the position as a label.
+    assertThat(status(alice, HttpMethod.PUT, "/positions/" + position + "/access", "{}"))
+        .isEqualTo(200);
+    assertThat(status(bob, HttpMethod.GET, "/organizations/" + church.location, null))
+        .isEqualTo(403);
+
+    // Giving it back and then removing the position from the person drops the access too.
+    status(
+        alice,
+        HttpMethod.PUT,
+        "/positions/" + position + "/access",
+        "{\"accessRoleId\":\"%s\"}".formatted(PredefinedRoles.COLLABORATOR.value()));
+    assertThat(status(bob, HttpMethod.GET, "/organizations/" + church.location, null))
+        .isEqualTo(200);
+    updatePerson(alice, personId, "Bob", church.location, null);
+    assertThat(status(bob, HttpMethod.GET, "/organizations/" + church.location, null))
+        .isEqualTo(403);
+  }
+
+  @Test
+  void theAccessListSaysWhereEachAccessComesFrom() {
+    var church = createChurch(alice);
+    var group = createGroup(alice, church.location);
+    holdPosition(bob, church, group, PredefinedRoles.LEADER.value());
 
     var access = json(alice, "/organizations/" + group + "/access");
 
-    assertThat(access).hasSize(2);
-    var owner = find(access, email(alice));
-    assertThat(owner.get("roleName").asText()).isEqualTo("Propietario");
+    // Alice has two accesses: Owner (direct) and the level of her own Pastor position.
+    var owner = find(access, "Propietario", "roleName");
+    assertThat(owner.get("email").asText()).isEqualTo(email(alice));
+    assertThat(owner.get("source").asText()).isEqualTo("DIRECT");
+    assertThat(find(access, "Administrador", "roleName").get("source").asText())
+        .isEqualTo("POSITION");
     assertThat(owner.get("inherited").asBoolean()).isTrue();
     assertThat(owner.get("organizationId").asText()).isEqualTo(church.id);
     var leader = find(access, email(bob));
+    assertThat(leader.get("source").asText()).isEqualTo("POSITION");
+    assertThat(leader.get("positionName").asText()).startsWith("Cargo ");
     assertThat(leader.get("inherited").asBoolean()).isFalse();
+    assertThat(leader.get("bindingId").isNull()).isTrue();
     assertThat(leader.get("organizationId").asText()).isEqualTo(group);
 
-    // A leader reads the list (iam.read) but cannot change it (iam.manage).
-    assertThat(json(bob, "/organizations/" + group + "/access")).hasSize(2);
-    assertThat(grant(bob, group, email(carol), PredefinedRoles.MEMBER.value())).isEqualTo(403);
-    // Granting twice is idempotent.
-    assertThat(grant(alice, group, email(bob), PredefinedRoles.LEADER.value())).isEqualTo(201);
-    assertThat(json(alice, "/organizations/" + group + "/access")).hasSize(2);
-    // Someone with no role on the node cannot even read it.
+    // A leader reads the list (iam.read) but is not allowed to add Owners (iam.manage).
+    assertThat(json(bob, "/organizations/" + group + "/access")).isNotEmpty();
+    assertThat(addOwner(bob, group, email(carol))).isEqualTo(403);
+    // Someone with no access on the node cannot even read it.
     assertThat(status(carol, HttpMethod.GET, "/organizations/" + group + "/access", null))
+        .isEqualTo(403);
+  }
+
+  @Test
+  void aUserWhoseCreatorPersonHoldsAPositionKeepsOwnerSeparately() {
+    var church = createChurch(alice);
+
+    var access = json(alice, "/organizations/" + church.location + "/access");
+
+    // Alice is the Owner (direct) and her own position (Pastor, Administrator) as well.
+    assertThat(access).extracting(n -> n.get("source").asText()).contains("DIRECT", "POSITION");
+    var positions = json(alice, "/organizations/" + church.id + "/positions");
+    assertThat(find(positions, "Pastor", "name").get("holders").asInt()).isEqualTo(1);
+  }
+
+  @Test
+  void nobodyGivesAPositionWithMoreAccessThanTheyHold() {
+    var church = createChurch(alice);
+    var pastor =
+        find(json(alice, "/organizations/" + church.id + "/positions"), "Pastor", "name")
+            .get("id")
+            .asText();
+    var usher = createPosition(alice, church.id, "Ujier", PredefinedRoles.COLLABORATOR.value());
+    // Bob leads the location and may manage positions and people, but is no administrator.
+    var manager =
+        createRole(alice, church.id, "Gestor", "org.read", "members.write", "positions.manage");
+    holdPosition(bob, church, church.id, manager);
+    var friend = createPerson(alice, "Amigo", church.location);
+
+    // He cannot give the Pastor position (Administrator level), nor create one like it.
+    assertThat(
+            status(
+                bob,
+                HttpMethod.PUT,
+                "/people/" + friend,
+                personBody("Amigo", church.location, pastor)))
+        .isEqualTo(403);
+    assertThat(
+            status(
+                bob,
+                HttpMethod.POST,
+                "/organizations/" + church.id + "/positions",
+                "{\"name\":\"Obispo\",\"accessRoleId\":\"%s\"}"
+                    .formatted(PredefinedRoles.ADMIN.value())))
+        .isEqualTo(403);
+    // Nor raise the level of an existing position, or delete one that gives access.
+    assertThat(
+            status(
+                bob,
+                HttpMethod.PUT,
+                "/positions/" + usher + "/access",
+                "{\"accessRoleId\":\"%s\"}".formatted(PredefinedRoles.ADMIN.value())))
+        .isEqualTo(403);
+    assertThat(status(bob, HttpMethod.DELETE, "/positions/" + pastor, null)).isEqualTo(403);
+    // Labels are free for him to create and to hand out.
+    var label = createPosition(bob, church.id, "Hermano", null);
+    assertThat(
+            status(
+                bob,
+                HttpMethod.PUT,
+                "/people/" + friend,
+                personBody("Amigo", church.location, label)))
+        .isEqualTo(200);
+  }
+
+  @Test
+  void anAdministratorCannotAddOrRemoveOwners() {
+    var church = createChurch(alice);
+    holdPosition(bob, church, church.id, PredefinedRoles.ADMIN.value());
+    var ownerBinding = bindingOf(alice, church.id, email(alice));
+
+    assertThat(addOwner(bob, church.id, email(carol))).isEqualTo(403);
+    assertThat(
+            status(
+                bob, HttpMethod.DELETE, "/organizations/" + church.id + "/owners/" + ownerBinding))
         .isEqualTo(403);
   }
 
   @Test
   void anUnknownEmailIsRejected() {
     var church = createChurch(alice);
-    assertThat(grant(alice, church.id, "nobody-" + UUID.randomUUID() + "@x.org", role(0)))
-        .isEqualTo(400);
-  }
-
-  @Test
-  void anAdministratorCannotGrantOrRevokeOwner() {
-    var church = createChurch(alice);
-    assertThat(grant(alice, church.id, email(bob), PredefinedRoles.ADMIN.value())).isEqualTo(201);
-
-    assertThat(grant(bob, church.id, email(carol), PredefinedRoles.OWNER.value())).isEqualTo(403);
-    var ownerBinding = bindingOf(alice, church.id, email(alice));
-    assertThat(
-            status(
-                bob, HttpMethod.DELETE, "/organizations/" + church.id + "/access/" + ownerBinding))
-        .isEqualTo(403);
-    // But an Administrator hands out other roles freely.
-    assertThat(grant(bob, church.id, email(carol), PredefinedRoles.LEADER.value())).isEqualTo(201);
+    assertThat(addOwner(alice, church.id, "nobody-" + UUID.randomUUID() + "@x.org")).isEqualTo(400);
   }
 
   @Test
   void theLastOwnerCannotBeRemoved() {
     var church = createChurch(alice);
     var own = bindingOf(alice, church.id, email(alice));
-    var path = "/organizations/" + church.id + "/access/";
+    var path = "/organizations/" + church.id + "/owners/";
 
     assertThat(status(alice, HttpMethod.DELETE, path + own)).isEqualTo(400);
 
-    assertThat(grant(alice, church.id, email(bob), PredefinedRoles.OWNER.value())).isEqualTo(201);
+    assertThat(addOwner(alice, church.id, email(bob))).isEqualTo(201);
     assertThat(status(alice, HttpMethod.DELETE, path + own)).isEqualTo(204);
     // Bob is now the only Owner and cannot remove himself either.
     var bobs = bindingOf(bob, church.id, email(bob));
@@ -117,50 +255,23 @@ class IamAccessIntegrationTests {
   }
 
   @Test
-  void anInheritedBindingCannotBeRevokedFromADescendant() {
+  void anOwnerOfTheOtherChurchIsNotFound() {
     var church = createChurch(alice);
-    var group = createGroup(alice, church.location);
-    var inherited = bindingOf(alice, group, email(alice));
+    var other = createChurch(bob);
+    var bobs = bindingOf(bob, other.id, email(bob));
 
-    assertThat(status(alice, HttpMethod.DELETE, "/organizations/" + group + "/access/" + inherited))
+    assertThat(status(alice, HttpMethod.DELETE, "/organizations/" + church.id + "/owners/" + bobs))
         .isEqualTo(404);
   }
 
   @Test
-  void nobodyGrantsMoreThanTheyHold() {
-    var church = createChurch(alice);
-    var manager =
-        roleId(
-            body(
-                alice,
-                HttpMethod.POST,
-                "/organizations/" + church.id + "/roles",
-                role("Gestor", "org.read", "iam.read", "iam.manage")));
-    assertThat(grant(alice, church.id, email(bob), manager)).isEqualTo(201);
-
-    // Member needs events.read, which the manager lacks; Leader needs far more.
-    assertThat(grant(bob, church.id, email(carol), PredefinedRoles.MEMBER.value())).isEqualTo(403);
-    assertThat(grant(bob, church.id, email(carol), PredefinedRoles.LEADER.value())).isEqualTo(403);
-    // The role they hold themselves is fine.
-    assertThat(grant(bob, church.id, email(carol), manager)).isEqualTo(201);
-    // And they cannot mint a role with permissions they lack.
-    assertThat(
-            status(
-                bob,
-                HttpMethod.POST,
-                "/organizations/" + church.id + "/roles",
-                role("Truco", "org.read", "events.write")))
-        .isEqualTo(403);
-  }
-
-  @Test
-  void customRolesAreCreatedEditedAndSoftDeleted() {
+  void customLevelsAreCreatedEditedAndOnlyDeletedWhenNoPositionUsesThem() {
     var church = createChurch(alice);
     var path = "/organizations/" + church.id + "/roles";
 
-    var created = body(alice, HttpMethod.POST, path, role("Tesorero", "org.read", "events.write"));
-    var treasurer = roleId(created);
-    assertThat(grant(alice, church.location, email(bob), treasurer)).isEqualTo(201);
+    var treasurer = createRole(alice, church.id, "Tesorero", "org.read", "events.write");
+    var position = createPosition(alice, church.id, "Tesorero", treasurer);
+    link(bob, church.id, createPerson(alice, "Bob", church.location, position));
     assertThat(permissions(bob, church.location))
         .containsExactlyInAnyOrder("org.read", "events.write");
 
@@ -170,53 +281,67 @@ class IamAccessIntegrationTests {
     assertThat(status(alice, HttpMethod.POST, path, role("tesorero", "org.read"))).isEqualTo(400);
     assertThat(status(alice, HttpMethod.POST, path, role("líder", "org.read"))).isEqualTo(400);
 
-    // Editing changes the effective permissions of everyone who has the role.
+    // Editing changes the effective permissions of everyone whose position uses the level.
     assertThat(
             status(alice, HttpMethod.PUT, "/roles/" + treasurer, role("Tesorero", "events.read")))
         .isEqualTo(200);
     assertThat(permissions(bob, church.location)).containsExactly("events.read");
 
-    // It shows in the church's role list next to the predefined ones.
+    // It shows next to the predefined ones.
     var roles = json(alice, path);
     assertThat(values(roles, "name")).contains("Propietario", "Líder", "Tesorero");
     assertThat(find(roles, "Tesorero", "name").get("predefined").asBoolean()).isFalse();
+    assertThat(find(roles, "Propietario", "name").get("assignable").asBoolean()).isFalse();
 
-    // Predefined roles can be neither edited nor deleted.
+    // Predefined levels can be neither edited nor deleted.
     var leader = "/roles/" + PredefinedRoles.LEADER.value();
     assertThat(status(alice, HttpMethod.PUT, leader, role("X", "org.read"))).isEqualTo(400);
     assertThat(status(alice, HttpMethod.DELETE, leader)).isEqualTo(400);
 
-    // Soft delete: gone from the list and from the access list, and bob loses its permissions.
+    // In use: cannot be deleted. After changing the position's level it can.
+    assertThat(status(alice, HttpMethod.DELETE, "/roles/" + treasurer)).isEqualTo(400);
+    status(alice, HttpMethod.PUT, "/positions/" + position + "/access", "{}");
     assertThat(status(alice, HttpMethod.DELETE, "/roles/" + treasurer)).isEqualTo(204);
     assertThat(values(json(alice, path), "name")).doesNotContain("Tesorero");
-    assertThat(json(alice, "/organizations/" + church.location + "/access"))
-        .noneMatch(entry -> entry.get("roleName").asText().equals("Tesorero"));
-    assertThat(permissionsStatus(bob, church.location)).isEqualTo(403);
-    assertThat(grant(alice, church.location, email(carol), treasurer)).isEqualTo(404);
     // The name is free again.
     assertThat(status(alice, HttpMethod.POST, path, role("Tesorero", "org.read"))).isEqualTo(201);
   }
 
   @Test
-  void customRolesBelongToTheirChurch() {
+  void customLevelsBelongToTheirChurch() {
     var mine = createChurch(alice);
     var theirs = createChurch(bob);
-    var treasurer =
-        roleId(
-            body(
-                alice,
-                HttpMethod.POST,
-                "/organizations/" + mine.id + "/roles",
-                role("Tesorero", "org.read")));
+    var treasurer = createRole(alice, mine.id, "Tesorero", "org.read");
 
-    // Bob cannot manage Alice's role, nor grant it in his own church.
+    // Bob cannot manage Alice's level, nor use it for a position of his own church.
     assertThat(status(bob, HttpMethod.PUT, "/roles/" + treasurer, role("Mío", "org.read")))
         .isEqualTo(403);
     assertThat(status(bob, HttpMethod.DELETE, "/roles/" + treasurer)).isEqualTo(403);
-    assertThat(grant(bob, theirs.id, email(carol), treasurer)).isEqualTo(400);
-    // Nor does it show in his church's role list.
+    assertThat(
+            status(
+                bob,
+                HttpMethod.POST,
+                "/organizations/" + theirs.id + "/positions",
+                "{\"name\":\"X\",\"accessRoleId\":\"%s\"}".formatted(treasurer)))
+        .isEqualTo(400);
     assertThat(values(json(bob, "/organizations/" + theirs.id + "/roles"), "name"))
         .doesNotContain("Tesorero");
+  }
+
+  @Test
+  void ownerIsNeverAPositionLevel() {
+    var church = createChurch(alice);
+
+    assertThat(
+            status(
+                alice,
+                HttpMethod.POST,
+                "/organizations/" + church.id + "/positions",
+                "{\"name\":\"Dueño\",\"accessRoleId\":\"%s\"}"
+                    .formatted(PredefinedRoles.OWNER.value())))
+        .isEqualTo(400);
+    assertThat(values(json(alice, "/iam/levels"), "name"))
+        .containsExactlyInAnyOrder("Administrador", "Líder", "Colaborador", "Miembro");
   }
 
   @Test
@@ -244,10 +369,6 @@ class IamAccessIntegrationTests {
     return subject.replace("auth0|", "") + "@example.org";
   }
 
-  static String role(int index) {
-    return PredefinedRoles.MEMBER.value().toString();
-  }
-
   static String role(String name, String... permissions) {
     var list = new ArrayList<String>();
     for (var permission : permissions) {
@@ -256,13 +377,29 @@ class IamAccessIntegrationTests {
     return "{\"name\":\"%s\",\"permissions\":[%s]}".formatted(name, String.join(",", list));
   }
 
+  String createRole(String subject, String churchId, String name, String... permissions) {
+    return read(body(
+            subject,
+            HttpMethod.POST,
+            "/organizations/" + churchId + "/roles",
+            role(name, permissions)))
+        .get("id")
+        .asText();
+  }
+
+  /** Alice's church: a location and the positions Pastor (Administrator) and Ujier. */
   Church createChurch(String subject) {
     var created =
         body(
             subject,
             HttpMethod.POST,
             "/organizations",
-            "{\"name\":\"Iglesia\",\"location\":{\"name\":\"Sede\"},\"positions\":[]}");
+            """
+            {"name":"Iglesia","location":{"name":"Sede"},
+             "positions":[{"name":"Pastor","accessRoleId":"%s"}],
+             "creator":{"firstName":"Ana","lastName":"Diaz","positionName":"Pastor"}}
+            """
+                .formatted(PredefinedRoles.ADMIN.value()));
     var churchId = read(created).get("id").asText();
     var location = json(subject, "/organizations/" + churchId + "/childs").get(0);
     return new Church(churchId, location.get("id").asText());
@@ -278,12 +415,74 @@ class IamAccessIntegrationTests {
     return read(created).get("id").asText();
   }
 
-  int grant(String subject, String organizationId, String email, Object roleId) {
+  String createPosition(String subject, String churchId, String name, Object roleId) {
+    var level = roleId == null ? "null" : "\"" + roleId + "\"";
+    return read(body(
+            subject,
+            HttpMethod.POST,
+            "/organizations/" + churchId + "/positions",
+            "{\"name\":\"%s\",\"accessRoleId\":%s}".formatted(name, level)))
+        .get("id")
+        .asText();
+  }
+
+  static String personBody(String firstName, String organizationId, String... positionIds) {
+    var ids = new ArrayList<String>();
+    for (var id : positionIds) {
+      if (id != null) {
+        ids.add("\"" + id + "\"");
+      }
+    }
+    return "{\"firstName\":\"%s\",\"lastName\":\"Prueba\",\"organizationId\":\"%s\",\"positionIds\":[%s]}"
+        .formatted(firstName, organizationId, String.join(",", ids));
+  }
+
+  String createPerson(
+      String subject, String firstName, String organizationId, String... positionIds) {
+    return read(body(
+            subject,
+            HttpMethod.POST,
+            "/people",
+            personBody(firstName, organizationId, positionIds)))
+        .asText();
+  }
+
+  void updatePerson(
+      String subject, String personId, String firstName, String organizationId, String positionId) {
+    assertThat(
+            status(
+                subject,
+                HttpMethod.PUT,
+                "/people/" + personId,
+                personBody(firstName, organizationId, positionId)))
+        .isEqualTo(200);
+  }
+
+  /** Links the user to a person of the church, as accepting an invitation will do. */
+  void link(String subject, String churchId, String personId) {
+    var user =
+        syncCurrentUserCommandHandler
+            .handle(new SyncCurrentUserCommand(subject, email(subject), true))
+            .user();
+    linkUserToPersonCommandHandler.handle(
+        new LinkUserToPersonCommand(
+            user.id(),
+            new PartyId(UUID.fromString(personId)),
+            new PartyId(UUID.fromString(churchId))));
+  }
+
+  /** Gives {@code subject} a fresh position with {@code roleId} on {@code nodeId}. */
+  void holdPosition(String subject, Church church, String nodeId, Object roleId) {
+    var position = createPosition(alice, church.id, "Cargo " + UUID.randomUUID(), roleId);
+    link(subject, church.id, createPerson(alice, "Persona", nodeId, position));
+  }
+
+  int addOwner(String subject, String organizationId, String email) {
     return status(
         subject,
         HttpMethod.POST,
-        "/organizations/" + organizationId + "/access",
-        "{\"email\":\"%s\",\"roleId\":\"%s\"}".formatted(email, roleId));
+        "/organizations/" + organizationId + "/owners",
+        "{\"email\":\"%s\"}".formatted(email));
   }
 
   String bindingOf(String subject, String organizationId, String email) {
@@ -292,16 +491,8 @@ class IamAccessIntegrationTests {
         .asText();
   }
 
-  static String roleId(String createdRoleJson) {
-    return read(createdRoleJson).get("id").asText();
-  }
-
   List<String> permissions(String subject, String organizationId) {
     return values(json(subject, "/me/permissions?organizationId=" + organizationId));
-  }
-
-  int permissionsStatus(String subject, String organizationId) {
-    return status(subject, HttpMethod.GET, "/organizations/" + organizationId, null);
   }
 
   static JsonNode find(JsonNode array, String email) {

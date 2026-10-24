@@ -18,9 +18,11 @@ See [AGENTS.md](./AGENTS.md) for commit message, code style and language convent
 
 There is no seeded church: anyone who signs in creates their own (`POST /v1/organizations`)
 and becomes its Owner. Access is checked per request with GCP-style roles inherited down the
-church → location → group/ministry tree (`iam` module, `specs/003-identity-iam/`). Owners and
-Administrators manage who has access, and custom roles, from the "Accesos" endpoints
-(`specs/004-access-management/`). The API
+church → location → group/ministry tree (`iam` module, `specs/003-identity-iam/`). Access comes
+from **positions** (cargos): each position may carry an access level, and whoever holds it
+(through a person linked to their user) gets that level on the node and below
+(`specs/004b-positions-with-access/`). Owner is the only access granted directly. Custom
+levels are managed from the "Accesos" endpoints (`specs/004-access-management/`). The API
 no longer calls the Auth0 Management API.
 
 To store users' emails, add an Auth0 post-login Action that copies them into the access

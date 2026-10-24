@@ -8,11 +8,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
+import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.Permission;
 import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
 import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.srtomy.organization.command.OrganizationInfo;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommand;
+import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommand.Creator;
+import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommand.PositionSeed;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommandHandler;
 import org.ouracademy.srtomy.organization.command.create_location.CreateLocationCommand;
 import org.ouracademy.srtomy.organization.command.create_location.CreateLocationCommandHandler;
@@ -124,7 +127,19 @@ public class OrganizationController {
                     location.getAddress(),
                     location.getPhoneNumber(),
                     SocialLinksRequest.toDomain(location.getSocialLinks())),
-                request.getPositions(),
+                request.getPositions().stream()
+                    .map(
+                        position ->
+                            new PositionSeed(
+                                position.getName(),
+                                position.getAccessRoleId() == null
+                                    ? null
+                                    : new IamRoleId(position.getAccessRoleId())))
+                    .toList(),
+                new Creator(
+                    request.getCreator().getFirstName(),
+                    request.getCreator().getLastName(),
+                    request.getCreator().getPositionName()),
                 jwt.getSubject(),
                 TokenClaims.email(jwt),
                 TokenClaims.emailVerified(jwt)));

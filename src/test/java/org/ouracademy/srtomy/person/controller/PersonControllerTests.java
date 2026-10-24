@@ -156,6 +156,7 @@ class PersonControllerTests {
     var newId = PartyId.generate();
     var expected =
         new CreatePersonCommand(
+            "test-user",
             new PersonInfo("Ana", "Diaz", "999", 30, LocalDate.of(1995, 5, 17), true),
             new PartyId(organizationId),
             Set.of(new AccountabilityTypeId(roleId)));
@@ -192,6 +193,7 @@ class PersonControllerTests {
     memberOf(new PartyId(organizationId));
     var expected =
         new UpdatePersonCommand(
+            "test-user",
             id,
             new PersonInfo("Ana", "Diaz", "999", 30, LocalDate.of(1995, 5, 17), true),
             new PartyId(organizationId),

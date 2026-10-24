@@ -32,8 +32,8 @@ Cambios de esquema (Flyway, nueva migración `V1.1.0__...`):
 
 ## 2. Identidad: usuario ≠ persona
 
-- Tabla nueva `app_user`: `id`, `auth0_sub` (único), `email`, `email_verified`, `person_id` (nullable). Se crea o actualiza con un upsert en `GET /v1/me`.
-- Una **persona** es un registro de la iglesia y la mayoría nunca usará la app. Un **usuario** es quien inicia sesión. Se vinculan cuando la persona acepta una invitación, o cuando el usuario crea su propia ficha de persona en una iglesia.
+- Tabla nueva `app_user`: `id`, `auth0_sub` (único), `email`, `email_verified`. Se crea o actualiza con un upsert en `GET /v1/me`.
+- Una **persona** es un registro de la iglesia y la mayoría nunca usará la app. Un **usuario** es quien inicia sesión. Se vinculan en la tabla `user_person` (una persona por usuario en cada iglesia, un usuario por persona): al crear la iglesia, con la ficha de quien la crea, o cuando la persona acepta una invitación.
 - Una Auth0 Action agrega `email` y `email_verified` al access token. Se **elimina** el claim `orgId` y la escritura a `app_metadata`. La lista de iglesias del usuario sale de la BD, no del token. Así se resuelven el claim viejo y el límite de una sola iglesia.
 - `OrganizationRequest.userId` desaparece: el creador es siempre el principal del JWT.
 
@@ -41,7 +41,7 @@ Cambios de esquema (Flyway, nueva migración `V1.1.0__...`):
 
 Se separan dos conceptos que hoy se mezclan:
 
-- **Cargo ministerial**: la etiqueta que la iglesia usa para su gente. Sigue como `accountability_type` categoría ROLE. Es información de la iglesia y **no da permisos**. Debe ser flexible para cualquier tradición (evangélica, católica, etc.):
+- **Cargo ministerial**: el nombre que la iglesia usa para su gente. Es un `accountability_type` categoría POSITION. Desde la **004b el cargo lleva un nivel de acceso opcional** (`iam_role_id`), así que hacia fuera hay un solo concepto: _si es pastor tiene estos accesos_. Sin nivel es solo una etiqueta (para quien no usa la app). Debe ser flexible para cualquier tradición (evangélica, católica, etc.):
   - Los cargos pasan a pertenecer a la **iglesia** (`party_id = church_id`). Se eliminan los cargos globales con `party_id = null` (PASTOR, WORSHIP_LEADER, USHER) y su traducción fija en la UI (`Roles.tsx`, `toSpanish`, `getFixedOptions`).
   - Al crear la iglesia se **copian cargos sugeridos**: Pastor, Líder de alabanza, Servidor/Ujier y Maestro. El asistente los muestra y deja quitarlos o renombrarlos antes de guardar.
   - Después, quien tenga `org.update` en la iglesia puede **renombrar, crear o borrar** cargos en "Cargos". Borrar es un soft delete (`deleted_time`), así que las asignaciones existentes se conservan en el historial.
@@ -49,7 +49,7 @@ Se separan dos conceptos que hoy se mezclan:
   - Al asignar un cargo a una persona hay un **autocompletado** que sugiere los cargos de la iglesia más un catálogo estático de sugerencias (Pastor, Copastor, Anciano, Diácono, Sacerdote, Catequista, Asistente, Hermano/a servidor, …). Si se escribe un nombre nuevo, se crea el cargo en la iglesia (`freeSolo`).
   - `requireOwnRole` deja de exigir al menos un cargo por sede.
   - `GET /v1/organizations/locations/predefined-roles` se reemplaza por `GET /v1/churches/{id}/positions`. El catálogo de sugerencias vive en el código del API y se expone en `GET /v1/positions/suggestions`.
-- **Rol de acceso (IAM)** (nuevo): un conjunto de permisos, asignado a un usuario sobre un nodo. **Se hereda a todos los descendientes**, igual que en GCP. Los predefinidos no se editan; cada iglesia puede crear **roles personalizados** eligiendo permisos (ver abajo).
+- **Nivel de acceso (rol IAM)**: un conjunto de permisos. Ya no se otorga suelto por correo: lo da un cargo. Un usuario recibe el nivel del cargo que tiene la persona vinculada a él, en el nodo donde lo tiene y en todo lo que cuelga. **Propietario** es la excepción: no se asigna a un cargo, es un acceso directo (`role_binding`) de quien crea la iglesia y de quienes un Propietario agrega. Antes de la 004b: un conjunto de permisos, asignado a un usuario sobre un nodo. **Se hereda a todos los descendientes**, igual que en GCP. Los predefinidos no se editan; cada iglesia puede crear **roles personalizados** eligiendo permisos (ver abajo).
 
 Tablas:
 
@@ -57,7 +57,10 @@ Tablas:
   - **Roles personalizados**, como en GCP: quien tiene `iam.manage` en la iglesia crea, edita o borra roles. Puede partir de cero o de "Crear a partir de" un rol predefinido, y marca permisos en una lista agrupada por recurso.
   - El API valida que cada permiso exista en el catálogo de permisos del código.
   - Un rol con bindings no se borra en duro: se le hace soft delete y sus bindings dejan de valer.
-- `role_binding` (`id`, `user_id`, `role_id`, `organization_id`, `granted_by`, `created_time`).
+- `role_binding` (`id`, `user_id`, `role_id`, `organization_id`, `granted_by`, `created_time`): desde la 004b solo guarda Propietarios.
+- `accountability_type.iam_role_id` (004b): el nivel del cargo, nullable. Nunca es Propietario.
+- `user_person` (004b): vincula usuario y persona por iglesia.
+- Vista `user_access` (004b): junta los bindings directos, los cargos de la persona vinculada y el liderazgo de grupos. Todas las consultas de permisos leen esta vista.
 
 Permisos (strings, estilo GCP `recurso.acción`):
 `org.read`, `org.update`, `org.create_child`, `org.delete`, `members.read`, `members.write`, `events.read`, `events.write`, `attendance.write`, `iam.read`, `iam.manage`, `invitations.send`.
@@ -76,8 +79,8 @@ Reglas:
 
 - Política efectiva = unión de los bindings en el nodo y en todos sus ancestros (el nodo y sus ancestros, con un CTE recursivo).
 - Al crear una iglesia, el creador recibe **Propietario** en la iglesia.
-- Al asignar a alguien como **líder** de un grupo o ministerio (la accountability `LEADER` que ya existe), si esa persona tiene usuario se le crea un binding **Líder** sobre ese nodo; si no, se ofrece invitarla (sección 5).
-- Solo se pueden otorgar roles que uno mismo tiene en ese nodo o en un ancestro, para evitar la escalada de privilegios. Se impide quitar el último Propietario.
+- Quien figura como **líder** de un grupo o ministerio (la accountability `LEADER`) y tiene usuario vinculado obtiene el nivel Líder en ese nodo (004b, sin binding: sale de la vista).
+- Escalada de privilegios: dar, quitar, crear, borrar o cambiar el nivel de un cargo que da acceso exige `iam.manage` en el nodo y tener todos los permisos de ese nivel. Los cargos sin nivel solo piden `members.write`. Se impide quitar el último Propietario, y solo un Propietario agrega o quita Propietarios.
 - Enforcement en la API: un `AuthorizationService.check(userId, nodeId, permission)` llamado desde cada Command/QueryHandler (o un `@PreAuthorize` con un bean). Los endpoints que reciben `eventId` o `personId` resuelven primero su nodo. La consulta de bindings se cachea por request.
 - `GET /v1/me/permissions?organizationId=` devuelve los permisos efectivos. La UI solo esconde botones; la API sigue siendo la autoridad.
 
@@ -143,11 +146,12 @@ El usuario confirmó que **no hay datos reales**, así que hay libertad para lim
    - API: limpieza de datos y retiro de `Auth0Gateway`.
    - UI: onboarding (asistente con cargos sugeridos y "Otras opciones"), `/portal/[nodeId]`, selector de contexto, permisos en la UI y autocompletado de cargos.
 2. **004-access-management**: pestaña "Accesos" (bindings heredados y directos, otorgar y quitar), reglas de escalada de privilegios y **roles IAM personalizados**. Los grupos y ministerios anidados ya se hicieron en la 003.
-3. **005-invitations**: `person.email`, invitaciones, correo, aceptación, "invitar líderes".
-4. **006-visibility**: `member_visibility`, directorio, páginas públicas de nodos.
-5. **007-sharing**: compartir eventos y cursos, enlaces, inscripción por enlace.
-6. **008-my-space**: la vista del miembro común.
-7. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
+3. **004b-positions-with-access**: el cargo lleva el nivel de acceso; se quita "otorgar rol suelto" (queda solo Propietario); el alta de iglesia pide un nivel por cargo y el cargo de quien crea, que queda como persona vinculada a su usuario; la pantalla de accesos pasa a ser "Personas con acceso". Va antes de la 005 para que la invitación solo pida correo y cargo.
+4. **005-invitations**: `person.email`, invitaciones (correo + cargo), aceptación (vincula usuario y persona), "invitar líderes".
+5. **006-visibility**: `member_visibility`, directorio, páginas públicas de nodos.
+6. **007-sharing**: compartir eventos y cursos, enlaces, inscripción por enlace.
+7. **008-my-space**: la vista del miembro común y el nivel Miembro (cuenta sin cargo).
+8. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
 
 Alcance acordado para este branch (`claude/app-flow-redesign-nq6j60`, en ambos repos):
 
@@ -168,10 +172,11 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 2   | Claim y metadata `orgId` en Auth0         | Auth0    | La UI ya no lee `https://sr-tommy.com/orgId`, y la API ya no escribe `app_metadata.orgId`.                                                                                                       | Revisar en el tenant si hay una Action o Rule que agrega el claim y quitarla; opcionalmente limpiar el `app_metadata.orgId` de los usuarios.               | Pendiente (consultar) |
 | 3   | Nombres `/organizations/locations/childs` | API y UI | Ahora crean y editan grupos a cualquier profundidad, no solo hijos de una sede.                                                                                                                  | Renombrar (p. ej. `/organizations/{id}/groups`); rompe el contrato: `pnpm api:sync` y ajustar la UI y las e2e.                                             | Pendiente (consultar) |
 | 4   | Carpeta `app/portal/[nodeId]/location`    | UI       | Ahora muestra los datos de cualquier nodo (iglesia, sede o grupo).                                                                                                                               | Renombrar a `details` y actualizar enlaces y e2e.                                                                                                          | Pendiente (consultar) |
-| 5   | Columna `app_user.person_id`              | API      | Reservada para la fase 005 (vincular el usuario con su persona al aceptar una invitación). No es abandono.                                                                                       | Usarla en la 005; si la 005 cambia de diseño, borrarla.                                                                                                    | Reservada             |
+| 5   | Columna `app_user.person_id`              | API      | Se reservó para la 005, pero la 004b la reemplazó por la tabla `user_person` (un usuario puede estar en varias iglesias) y la migración `V1.3.0` la borró.                                       | Nada que hacer; quitar este ítem de la lista si el dueño está de acuerdo.                                                                                  | Resuelta (004b)       |
 | 6   | Email del usuario sin Auth0 Action        | API      | El diseño mencionaba leer el email desde `/userinfo` si el token no lo trae; no se implementó.                                                                                                   | Crear la Auth0 Action del README del API (recomendado) o implementar el respaldo con `/userinfo`.                                                          | Pendiente (consultar) |
-| 7   | Binding Líder al asignar un líder         | API      | Decisión del dueño en la 004: asignar la accountability `LEADER` no crea un binding de rol Líder todavía; una persona sin usuario no puede tenerlo.                                              | Hacerlo en la 005: al aceptar la invitación se vincula `app_user.person_id` y se crea el binding Líder en el nodo.                                         | Reservada             |
-| 8   | Bindings de roles personalizados borrados | API      | Borrar un rol personalizado es lógico: sus filas de `role_binding` se quedan, pero no cuentan ni se listan.                                                                                      | Decidir si una limpieza periódica debe borrarlas en duro.                                                                                                 | Pendiente (consultar) |
+| 7   | Binding Líder al asignar un líder         | API      | La 004b lo resolvió sin binding: la vista `user_access` da el nivel Líder a quien figura como líder y tiene usuario vinculado.                                                                   | Nada que hacer; quitar este ítem de la lista si el dueño está de acuerdo.                                                                                  | Resuelta (004b)       |
+| 8   | Bindings de roles personalizados borrados | API      | Desde la 004b `role_binding` solo guarda Propietarios (nunca un nivel propio) y un nivel en uso no se puede borrar, así que ya no quedan bindings de niveles borrados.                           | Nada que hacer; quitar este ítem de la lista si el dueño está de acuerdo.                                                                                  | Resuelta (004b)       |
+| 9   | Nivel "Miembro" sin cargo                | API y UI | La 004b solo da acceso por cargo; una persona con cuenta y sin cargo no tiene ningún acceso.                                                                                                    | Resolverlo en la 008 (Mi espacio): cualquier persona vinculada ve lo básico.                                                                               | Reservada             |
 
 ## Archivos clave
 

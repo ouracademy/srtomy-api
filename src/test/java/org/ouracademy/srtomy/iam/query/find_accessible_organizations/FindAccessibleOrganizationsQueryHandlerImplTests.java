@@ -33,7 +33,7 @@ class FindAccessibleOrganizationsQueryHandlerImplTests {
             node(group, "Coro", "GROUP", church, true));
     when(roleBindingRepository.findVisibleOrganizations("u")).thenReturn(nodes);
     var bound = mock(BoundRole.class);
-    when(bound.getOrganizationId()).thenReturn(new PartyId(group));
+    when(bound.getOrganizationId()).thenReturn(group);
     when(bound.getRoleName()).thenReturn("Líder");
     when(roleBindingRepository.findBoundRoles("u")).thenReturn(List.of(bound));
 

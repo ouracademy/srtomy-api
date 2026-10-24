@@ -27,7 +27,8 @@ class FindAccessibleOrganizationsQueryHandlerImpl
         roleBindingRepository.findBoundRoles(query.subject()).stream()
             .collect(
                 groupingBy(
-                    BoundRole::getOrganizationId, mapping(BoundRole::getRoleName, toList())));
+                    role -> new PartyId(role.getOrganizationId()),
+                    mapping(BoundRole::getRoleName, toList())));
     return roleBindingRepository.findVisibleOrganizations(query.subject()).stream()
         .map(
             node -> {

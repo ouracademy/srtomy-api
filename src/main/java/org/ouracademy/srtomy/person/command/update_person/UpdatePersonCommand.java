@@ -7,9 +7,11 @@ import org.ouracademy.srtomy.person.command.PersonInfo;
 
 /**
  * Replaces the person's data and makes their positions in {@code organizationId} match {@code
- * positionIds}.
+ * positionIds}. {@code subject} is the user who asks; adding or removing a position that carries
+ * access is checked against them.
  */
 public record UpdatePersonCommand(
+    String subject,
     PartyId personId,
     PersonInfo info,
     PartyId organizationId,

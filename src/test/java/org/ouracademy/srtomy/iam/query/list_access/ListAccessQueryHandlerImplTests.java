@@ -24,6 +24,7 @@ class ListAccessQueryHandlerImplTests {
     when(entry.getRoleName()).thenReturn("Líder");
     when(entry.getOrganizationId()).thenReturn(organizationId);
     when(entry.getOrganizationName()).thenReturn("Nodo");
+    when(entry.getSource()).thenReturn("DIRECT");
     return entry;
   }
 

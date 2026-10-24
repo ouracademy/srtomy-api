@@ -13,7 +13,10 @@ class DeleteRoleCommandHandlerImpl implements DeleteRoleCommandHandler {
 
   private final IamRoleRepository iamRoleRepository;
 
-  /** Soft delete: its bindings stay in the table but stop counting. */
+  /**
+   * Soft delete. A level that a position still uses cannot go: that would silently take the access
+   * away from everyone who holds the position.
+   */
   @Override
   @Transactional
   public DeleteRoleResult handle(DeleteRoleCommand command) {
@@ -23,6 +26,14 @@ class DeleteRoleCommandHandlerImpl implements DeleteRoleCommandHandler {
             .orElseThrow(() -> new NoSuchElementException("Role not found"));
     if (role.isPredefined()) {
       throw new DomainValidationException("Los roles predefinidos no se pueden borrar");
+    }
+    var positions = iamRoleRepository.countPositionsUsing(role.getId().value());
+    if (positions > 0) {
+      throw new DomainValidationException(
+          "Este nivel lo usan "
+              + positions
+              + (positions == 1 ? " cargo" : " cargos")
+              + ". Cámbiales el nivel antes de borrarlo");
     }
     role.delete();
     return new DeleteRoleResult();

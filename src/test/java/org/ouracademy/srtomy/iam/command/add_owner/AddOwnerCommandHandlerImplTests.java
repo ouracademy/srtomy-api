@@ -1,8 +1,9 @@
-package org.ouracademy.srtomy.iam.command.grant_access;
+package org.ouracademy.srtomy.iam.command.add_owner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -25,7 +26,6 @@ import org.ouracademy.srtomy.iam.command.grant_role.GrantRoleResult;
 import org.ouracademy.srtomy.iam.domain.IamRole;
 import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
 import org.ouracademy.srtomy.iam.repository.IamRoleRepository;
-import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
 import org.ouracademy.srtomy.party.domain.PartyId;
@@ -37,7 +37,7 @@ import org.ouracademy.srtomy.user.query.find_user_by_subject.FindUserBySubjectQu
 import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
-class GrantAccessCommandHandlerImplTests {
+class AddOwnerCommandHandlerImplTests {
 
   @Mock IamRoleRepository iamRoleRepository;
   @Mock GrantRules grantRules;
@@ -45,13 +45,12 @@ class GrantAccessCommandHandlerImplTests {
   @Mock FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
   @Mock FindUserByEmailQueryHandler findUserByEmailQueryHandler;
   @Mock FindUserBySubjectQueryHandler findUserBySubjectQueryHandler;
-  @InjectMocks GrantAccessCommandHandlerImpl handler;
+  @InjectMocks AddOwnerCommandHandlerImpl handler;
 
   PartyId church = PartyId.generate();
-  PartyId node = PartyId.generate();
   UserResult caller = new UserResult(UserId.generate(), "me", "me@x.org", true);
   UserResult target = new UserResult(UserId.generate(), "you", "you@x.org", true);
-  IamRole leader = mock(IamRole.class);
+  IamRole owner = mock(IamRole.class);
 
   @BeforeEach
   void setUp() {
@@ -60,53 +59,44 @@ class GrantAccessCommandHandlerImplTests {
         .thenReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
   }
 
-  GrantAccessCommand command() {
-    return new GrantAccessCommand("me", "you@x.org", PredefinedRoles.LEADER, node);
+  AddOwnerCommand command() {
+    return new AddOwnerCommand("me", "you@x.org", church);
+  }
+
+  void ownerRoleExists() {
+    when(owner.getId()).thenReturn(PredefinedRoles.OWNER);
+    when(owner.getPermissions()).thenReturn(List.of("org.read"));
+    when(iamRoleRepository.findById(PredefinedRoles.OWNER)).thenReturn(Optional.of(owner));
   }
 
   @Test
-  void grantsTheRoleToTheUserWithThatEmail() {
-    when(leader.getId()).thenReturn(PredefinedRoles.LEADER);
-    when(leader.isPredefined()).thenReturn(true);
-    when(leader.getPermissions()).thenReturn(List.of("org.read"));
-    when(iamRoleRepository.findById(PredefinedRoles.LEADER)).thenReturn(Optional.of(leader));
+  void makesTheUserWithThatEmailAnOwnerOfTheChurch() {
+    ownerRoleExists();
     when(findUserBySubjectQueryHandler.handle(any())).thenReturn(Optional.of(caller));
     when(findUserByEmailQueryHandler.handle(any())).thenReturn(Optional.of(target));
     when(grantRoleCommandHandler.handle(any())).thenReturn(new GrantRoleResult(true));
 
     assertThat(handler.handle(command()).created()).isTrue();
 
-    verify(grantRules).requireCanGrant("me", PredefinedRoles.LEADER, List.of("org.read"), node);
+    verify(grantRules).requireCanGrant("me", PredefinedRoles.OWNER, List.of("org.read"), church);
     verify(grantRoleCommandHandler)
-        .handle(new GrantRoleCommand(target.id(), PredefinedRoles.LEADER, node, caller.id()));
+        .handle(new GrantRoleCommand(target.id(), PredefinedRoles.OWNER, church, caller.id()));
   }
 
   @Test
-  void anUnknownRoleIsNotFound() {
-    when(iamRoleRepository.findById(any())).thenReturn(Optional.empty());
+  void aCallerThatCannotGrantOwnerIsDenied() {
+    ownerRoleExists();
+    doThrow(new AccessDeniedException("no"))
+        .when(grantRules)
+        .requireCanGrant(any(), any(), any(), any());
 
-    assertThatThrownBy(() -> handler.handle(command())).isInstanceOf(NoSuchElementException.class);
-  }
-
-  @Test
-  void aCustomRoleOfAnotherChurchIsRejected() {
-    var foreign = mock(IamRole.class);
-    var foreignChurch = mock(Organization.class);
-    when(foreignChurch.getId()).thenReturn(PartyId.generate());
-    when(foreign.isPredefined()).thenReturn(false);
-    when(foreign.getChurch()).thenReturn(foreignChurch);
-    when(iamRoleRepository.findById(any())).thenReturn(Optional.of(foreign));
-
-    assertThatThrownBy(() -> handler.handle(command()))
-        .isInstanceOf(DomainValidationException.class);
+    assertThatThrownBy(() -> handler.handle(command())).isInstanceOf(AccessDeniedException.class);
     verify(grantRoleCommandHandler, never()).handle(any());
   }
 
   @Test
   void aMissingEmailIsAValidationError() {
-    when(leader.getId()).thenReturn(PredefinedRoles.LEADER);
-    when(leader.isPredefined()).thenReturn(true);
-    when(iamRoleRepository.findById(any())).thenReturn(Optional.of(leader));
+    ownerRoleExists();
     when(findUserBySubjectQueryHandler.handle(any())).thenReturn(Optional.of(caller));
     when(findUserByEmailQueryHandler.handle(any())).thenReturn(Optional.empty());
 
@@ -116,11 +106,16 @@ class GrantAccessCommandHandlerImplTests {
 
   @Test
   void anUnregisteredCallerIsDenied() {
-    when(leader.getId()).thenReturn(PredefinedRoles.LEADER);
-    when(leader.isPredefined()).thenReturn(true);
-    when(iamRoleRepository.findById(any())).thenReturn(Optional.of(leader));
+    ownerRoleExists();
     when(findUserBySubjectQueryHandler.handle(any())).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> handler.handle(command())).isInstanceOf(AccessDeniedException.class);
+  }
+
+  @Test
+  void anUnknownOrganizationIsNotFound() {
+    when(findChurchOfOrganizationQueryHandler.handle(any())).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> handler.handle(command())).isInstanceOf(NoSuchElementException.class);
   }
 }

@@ -12,8 +12,14 @@ import org.ouracademy.srtomy.accountability.command.delete_position.DeletePositi
 import org.ouracademy.srtomy.accountability.command.delete_position.DeletePositionCommandHandler;
 import org.ouracademy.srtomy.accountability.command.rename_position.RenamePositionCommand;
 import org.ouracademy.srtomy.accountability.command.rename_position.RenamePositionCommandHandler;
+import org.ouracademy.srtomy.accountability.command.set_position_access.SetPositionAccessCommand;
+import org.ouracademy.srtomy.accountability.command.set_position_access.SetPositionAccessCommandHandler;
+import org.ouracademy.srtomy.accountability.controller.dto.CreatePositionRequest;
+import org.ouracademy.srtomy.accountability.controller.dto.PositionAccessRequest;
 import org.ouracademy.srtomy.accountability.controller.dto.PositionRequest;
 import org.ouracademy.srtomy.accountability.controller.dto.PositionResponse;
+import org.ouracademy.srtomy.accountability.controller.dto.PositionSuggestionResponse;
+import org.ouracademy.srtomy.accountability.controller.dto.PositionSummaryResponse;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.accountability.query.find_position_by_id.FindPositionByIdQuery;
 import org.ouracademy.srtomy.accountability.query.find_position_by_id.FindPositionByIdQueryHandler;
@@ -23,6 +29,7 @@ import org.ouracademy.srtomy.accountability.query.get_positions_of_church.GetPos
 import org.ouracademy.srtomy.accountability.query.get_positions_of_church.GetPositionsOfChurchQueryHandler;
 import org.ouracademy.srtomy.accountability.query.get_positions_of_person.GetPositionsOfPersonQuery;
 import org.ouracademy.srtomy.accountability.query.get_positions_of_person.GetPositionsOfPersonQueryHandler;
+import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.Permission;
 import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
 import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
@@ -43,8 +50,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Ministerial positions (cargos): labels each church names its own way. They grant no access;
- * managing them needs {@code positions.manage} on the church.
+ * Ministerial positions (cargos): names each church picks its own way. A position may carry an
+ * access level; whoever holds it (through a person linked to their user) gets that level's
+ * permissions. Managing positions needs {@code positions.manage} on the church, and giving or
+ * changing a level is further checked against the access of the user who asks.
  */
 @RestController
 @AllArgsConstructor
@@ -58,18 +67,20 @@ public class PositionController {
   CreatePositionCommandHandler createPositionCommandHandler;
   RenamePositionCommandHandler renamePositionCommandHandler;
   DeletePositionCommandHandler deletePositionCommandHandler;
+  SetPositionAccessCommandHandler setPositionAccessCommandHandler;
   FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
   /** The positions of the church that {@code id} (any node) belongs to. */
   @GetMapping("organizations/{id}/positions")
-  public List<PositionResponse> findAll(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+  public List<PositionSummaryResponse> findAll(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var organizationId = new PartyId(id);
     authorize(jwt, organizationId, Permission.ORG_READ);
     return getPositionsOfChurchQueryHandler
         .handle(new GetPositionsOfChurchQuery(churchOf(organizationId)))
         .stream()
-        .map(PositionResponse::from)
+        .map(PositionSummaryResponse::from)
         .toList();
   }
 
@@ -78,12 +89,14 @@ public class PositionController {
   public PositionResponse create(
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable UUID id,
-      @RequestBody @Valid PositionRequest request) {
+      @RequestBody @Valid CreatePositionRequest request) {
     var churchId = churchOf(new PartyId(id));
     authorize(jwt, churchId, Permission.POSITIONS_MANAGE);
     return PositionResponse.from(
         createPositionCommandHandler
-            .handle(new CreatePositionCommand(churchId, request.name()))
+            .handle(
+                new CreatePositionCommand(
+                    jwt.getSubject(), churchId, request.name(), roleId(request.accessRoleId())))
             .position());
   }
 
@@ -100,17 +113,38 @@ public class PositionController {
             .map(result -> PositionResponse.from(result.position())));
   }
 
+  /** Changes the access level of a position; a null level makes it a plain label. */
+  @PutMapping("positions/{id}/access")
+  public ResponseEntity<PositionResponse> setAccess(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody PositionAccessRequest request) {
+    var positionId = new AccountabilityTypeId(id);
+    authorizeOnPosition(jwt, positionId);
+    return ResponseEntity.of(
+        setPositionAccessCommandHandler
+            .handle(
+                new SetPositionAccessCommand(
+                    jwt.getSubject(), positionId, roleId(request.accessRoleId())))
+            .map(result -> PositionResponse.from(result.position())));
+  }
+
   @DeleteMapping("positions/{id}")
   public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var positionId = new AccountabilityTypeId(id);
     authorizeOnPosition(jwt, positionId);
-    deletePositionCommandHandler.handle(new DeletePositionCommand(positionId));
+    deletePositionCommandHandler.handle(new DeletePositionCommand(jwt.getSubject(), positionId));
     return ResponseEntity.noContent().build();
   }
 
   @GetMapping("positions/suggestions")
-  public List<String> suggestions() {
-    return getPositionSuggestionsQueryHandler.handle(new GetPositionSuggestionsQuery()).names();
+  public List<PositionSuggestionResponse> suggestions() {
+    return getPositionSuggestionsQueryHandler
+        .handle(new GetPositionSuggestionsQuery())
+        .suggestions()
+        .stream()
+        .map(PositionSuggestionResponse::from)
+        .toList();
   }
 
   @GetMapping("organizations/{id}/people/{personId}/positions")
@@ -123,6 +157,10 @@ public class PositionController {
         .stream()
         .map(PositionResponse::from)
         .toList();
+  }
+
+  private static IamRoleId roleId(UUID id) {
+    return id == null ? null : new IamRoleId(id);
   }
 
   private void authorize(Jwt jwt, PartyId organizationId, Permission permission) {

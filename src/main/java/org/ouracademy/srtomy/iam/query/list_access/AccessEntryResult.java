@@ -6,8 +6,9 @@ import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.user.domain.UserId;
 
 /**
- * One role binding as seen from a node. {@code inherited} is true when it was made on an ancestor
- * ({@code organizationId} says which one).
+ * One access as seen from a node. {@code inherited} is true when it was made on an ancestor ({@code
+ * organizationId} says which one). {@code bindingId} is only set for direct accesses (Owner).
+ * {@code positionName} is only set when the access comes from a position.
  */
 public record AccessEntryResult(
     RoleBindingId bindingId,
@@ -17,4 +18,17 @@ public record AccessEntryResult(
     String roleName,
     PartyId organizationId,
     String organizationName,
-    boolean inherited) {}
+    boolean inherited,
+    Source source,
+    String positionName) {
+
+  /** Where an access comes from. */
+  public enum Source {
+    /** A binding made on the node itself; in practice, Owner. */
+    DIRECT,
+    /** The access level of a position the user's person holds. */
+    POSITION,
+    /** Leading a group or ministry. */
+    LEADER
+  }
+}

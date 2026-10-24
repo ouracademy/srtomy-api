@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.iam.command.revoke_access;
+package org.ouracademy.srtomy.iam.command.remove_owner;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,16 +29,22 @@ import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.shared.domain.DomainValidationException;
 
 @ExtendWith(MockitoExtension.class)
-class RevokeAccessCommandHandlerImplTests {
+class RemoveOwnerCommandHandlerImplTests {
 
   @Mock RoleBindingRepository roleBindingRepository;
   @Mock GrantRules grantRules;
   @Mock FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
-  @InjectMocks RevokeAccessCommandHandlerImpl handler;
+  @InjectMocks RemoveOwnerCommandHandlerImpl handler;
 
   PartyId node = PartyId.generate();
   RoleBindingId bindingId = RoleBindingId.generate();
   RoleBinding binding = mock(RoleBinding.class);
+
+  void churchIs(PartyId church) {
+    lenient()
+        .when(findChurchOfOrganizationQueryHandler.handle(any()))
+        .thenReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
+  }
 
   void bindingOf(IamRoleId roleId, PartyId organizationId) {
     var role = mock(IamRole.class);
@@ -51,47 +57,47 @@ class RevokeAccessCommandHandlerImplTests {
   }
 
   @Test
-  void deletesADirectBinding() {
+  void aBindingThatIsNotOwnerIsNotFound() {
     bindingOf(PredefinedRoles.LEADER, node);
+    churchIs(node);
 
-    handler.handle(new RevokeAccessCommand("me", bindingId, node));
-
-    verify(roleBindingRepository).delete(binding);
+    assertThatThrownBy(() -> handler.handle(new RemoveOwnerCommand("me", bindingId, node)))
+        .isInstanceOf(NoSuchElementException.class);
+    verify(roleBindingRepository, never()).delete(any());
   }
 
   @Test
-  void aBindingMadeElsewhereIsNotFound() {
-    bindingOf(PredefinedRoles.LEADER, PartyId.generate());
+  void anOwnerBindingOfAnotherChurchIsNotFound() {
+    bindingOf(PredefinedRoles.OWNER, PartyId.generate());
+    churchIs(node);
 
-    assertThatThrownBy(() -> handler.handle(new RevokeAccessCommand("me", bindingId, node)))
+    assertThatThrownBy(() -> handler.handle(new RemoveOwnerCommand("me", bindingId, node)))
         .isInstanceOf(NoSuchElementException.class);
     verify(roleBindingRepository, never()).delete(any());
   }
 
   @Test
   void theLastOwnerBindingIsKept() {
-    var church = PartyId.generate();
+    var church = node;
     bindingOf(PredefinedRoles.OWNER, node);
-    when(findChurchOfOrganizationQueryHandler.handle(any()))
-        .thenReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
+    churchIs(node);
     when(roleBindingRepository.countByRoleInChurch(PredefinedRoles.OWNER.value(), church.value()))
         .thenReturn(1L);
 
-    assertThatThrownBy(() -> handler.handle(new RevokeAccessCommand("me", bindingId, node)))
+    assertThatThrownBy(() -> handler.handle(new RemoveOwnerCommand("me", bindingId, node)))
         .isInstanceOf(DomainValidationException.class);
     verify(roleBindingRepository, never()).delete(any());
   }
 
   @Test
   void anOwnerBindingIsDeletedWhenAnotherOneRemains() {
-    var church = PartyId.generate();
+    var church = node;
     bindingOf(PredefinedRoles.OWNER, node);
-    when(findChurchOfOrganizationQueryHandler.handle(any()))
-        .thenReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
+    churchIs(node);
     when(roleBindingRepository.countByRoleInChurch(PredefinedRoles.OWNER.value(), church.value()))
         .thenReturn(2L);
 
-    handler.handle(new RevokeAccessCommand("me", bindingId, node));
+    handler.handle(new RemoveOwnerCommand("me", bindingId, node));
 
     verify(roleBindingRepository).delete(binding);
   }

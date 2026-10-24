@@ -1,4 +1,4 @@
-package org.ouracademy.srtomy.iam.command.revoke_access;
+package org.ouracademy.srtomy.iam.command.remove_owner;
 
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-class RevokeAccessCommandHandlerImpl implements RevokeAccessCommandHandler {
+class RemoveOwnerCommandHandlerImpl implements RemoveOwnerCommandHandler {
 
   private final RoleBindingRepository roleBindingRepository;
   private final GrantRules grantRules;
@@ -21,26 +21,25 @@ class RevokeAccessCommandHandlerImpl implements RevokeAccessCommandHandler {
 
   @Override
   @Transactional
-  public RevokeAccessResult handle(RevokeAccessCommand command) {
+  public RemoveOwnerResult handle(RemoveOwnerCommand command) {
+    var churchId =
+        findChurchOfOrganizationQueryHandler
+            .handle(new FindChurchOfOrganizationQuery(command.organizationId()))
+            .orElseThrow(() -> new NoSuchElementException("Organization not found"))
+            .churchId();
     var binding =
         roleBindingRepository
             .findById(command.bindingId())
-            .filter(b -> b.getOrganization().getId().equals(command.organizationId()))
-            .orElseThrow(() -> new NoSuchElementException("Access not found"));
-    var roleId = binding.getRole().getId();
-    grantRules.requireCanRevoke(command.subject(), roleId, command.organizationId());
+            .filter(b -> b.getRole().getId().equals(PredefinedRoles.OWNER))
+            .filter(b -> b.getOrganization().getId().equals(churchId))
+            .orElseThrow(() -> new NoSuchElementException("Owner not found"));
+    grantRules.requireCanRevoke(command.subject(), PredefinedRoles.OWNER, churchId);
 
-    if (roleId.equals(PredefinedRoles.OWNER)) {
-      var churchId =
-          findChurchOfOrganizationQueryHandler
-              .handle(new FindChurchOfOrganizationQuery(command.organizationId()))
-              .orElseThrow(() -> new NoSuchElementException("Organization not found"))
-              .churchId();
-      if (roleBindingRepository.countByRoleInChurch(roleId.value(), churchId.value()) <= 1) {
-        throw new DomainValidationException("La iglesia debe conservar al menos un Propietario");
-      }
+    if (roleBindingRepository.countByRoleInChurch(PredefinedRoles.OWNER.value(), churchId.value())
+        <= 1) {
+      throw new DomainValidationException("La iglesia debe conservar al menos un Propietario");
     }
     roleBindingRepository.delete(binding);
-    return new RevokeAccessResult();
+    return new RemoveOwnerResult();
   }
 }
