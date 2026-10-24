@@ -267,7 +267,10 @@ public class OrganizationController {
         request.getDescription(),
         request.getAddress(),
         request.getPhoneNumber(),
-        SocialLinksRequest.toDomain(request.getSocialLinks()));
+        SocialLinksRequest.toDomain(request.getSocialLinks()),
+        request.getSchedule(),
+        request.getMemberVisibility(),
+        request.getShowOrgChart());
   }
 
   private static PartyId parentId(OrganizationRequest request) {

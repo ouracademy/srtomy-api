@@ -32,6 +32,7 @@ import org.ouracademy.srtomy.organization.command.delete_organization.DeleteOrga
 import org.ouracademy.srtomy.organization.command.edit_organization.EditOrganizationCommandHandler;
 import org.ouracademy.srtomy.organization.command.update_location.UpdateLocationCommandHandler;
 import org.ouracademy.srtomy.organization.command.update_location_child.UpdateLocationChildCommandHandler;
+import org.ouracademy.srtomy.organization.domain.MemberVisibility;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.domain.SocialLinks;
 import org.ouracademy.srtomy.organization.query.FindOrganizationResult;
@@ -88,7 +89,20 @@ class OrganizationControllerTests {
 
   static FindOrganizationResult church(PartyId id) {
     return new FindOrganizationResult(
-        id, "Church", "desc", "addr", "123", Organization.Type.CHURCH, null, null, null, null);
+        id,
+        "Church",
+        "desc",
+        "addr",
+        "123",
+        Organization.Type.CHURCH,
+        null,
+        null,
+        null,
+        MemberVisibility.PUBLIC,
+        true,
+        "slug",
+        null,
+        null);
   }
 
   @Test

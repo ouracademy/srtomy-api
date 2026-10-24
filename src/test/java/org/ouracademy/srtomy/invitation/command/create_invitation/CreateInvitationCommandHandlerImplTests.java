@@ -38,6 +38,7 @@ import org.ouracademy.srtomy.invitation.repository.InvitationRepository;
 import org.ouracademy.srtomy.notification.command.send_email.SendEmailCommand;
 import org.ouracademy.srtomy.notification.command.send_email.SendEmailCommandHandler;
 import org.ouracademy.srtomy.notification.command.send_email.SendEmailResult;
+import org.ouracademy.srtomy.organization.domain.MemberVisibility;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.query.FindOrganizationResult;
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
@@ -109,7 +110,20 @@ class CreateInvitationCommandHandlerImplTests {
 
   static FindOrganizationResult organization(PartyId id, String name) {
     return new FindOrganizationResult(
-        id, name, null, null, null, Organization.Type.LOCATION, null, null, null, null);
+        id,
+        name,
+        null,
+        null,
+        null,
+        Organization.Type.LOCATION,
+        null,
+        null,
+        null,
+        MemberVisibility.PUBLIC,
+        true,
+        "slug",
+        null,
+        null);
   }
 
   CreateInvitationCommand newPerson(String email, AccountabilityTypeId positionId) {

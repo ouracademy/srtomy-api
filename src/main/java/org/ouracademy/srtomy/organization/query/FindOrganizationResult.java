@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.organization.query;
 
 import java.time.LocalDateTime;
+import org.ouracademy.srtomy.organization.domain.MemberVisibility;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.domain.SocialLinks;
 import org.ouracademy.srtomy.party.domain.PartyId;
@@ -15,6 +16,10 @@ public record FindOrganizationResult(
     Organization.Type type,
     PartyId parentId,
     SocialLinks socialLinks,
+    String schedule,
+    MemberVisibility memberVisibility,
+    boolean showOrgChart,
+    String slug,
     LocalDateTime createDate,
     LocalDateTime lastModifiedDate) {
 
@@ -29,6 +34,10 @@ public record FindOrganizationResult(
         organization.getType(),
         parent == null ? null : parent.getId(),
         organization.getSocialLinks(),
+        organization.getSchedule(),
+        organization.getMemberVisibility(),
+        organization.isShowOrgChart(),
+        organization.getSlug(),
         organization.getCreateDate(),
         organization.getLastModifiedDate());
   }

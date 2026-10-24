@@ -2,7 +2,7 @@
 
 El código vive bajo `org.ouracademy.srtomy.<modulo>`. Los módulos actuales son:
 `party`, `person`, `organization`, `accountability`, `event`, `attendance`,
-`complaint`, `user`, `iam`, `invitation`, `notification`, y `shared` (no es un módulo de dominio, ver más abajo).
+`complaint`, `user`, `iam`, `invitation`, `notification`, `directory`, y `shared` (no es un módulo de dominio, ver más abajo).
 
 Son paquetes Java dentro del mismo proyecto Maven/JAR — no hay `module-info.java`
 ni multi-módulo Maven. La regla de aislamiento entre módulos no la impone el
