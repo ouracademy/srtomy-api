@@ -18,8 +18,7 @@ import org.ouracademy.srtomy.accountability.query.get_positions_of_person.GetPos
 import org.ouracademy.srtomy.iam.domain.Permission;
 import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
 import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
-import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQuery;
-import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQueryHandler;
+import org.ouracademy.srtomy.invitation.command.InvitationRules;
 import org.ouracademy.srtomy.invitation.domain.Invitation;
 import org.ouracademy.srtomy.invitation.repository.InvitationRepository;
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
@@ -56,7 +55,7 @@ class AcceptInvitationCommandHandlerImpl implements AcceptInvitationCommandHandl
   private final FindOrganizationsOfMemberQueryHandler findOrganizationsOfMemberQueryHandler;
   private final GetPositionsOfPersonQueryHandler getPositionsOfPersonQueryHandler;
   private final AuthorizeQueryHandler authorizeQueryHandler;
-  private final AuthorizeAccessGrantQueryHandler authorizeAccessGrantQueryHandler;
+  private final InvitationRules invitationRules;
   private final EntityManager entityManager;
 
   @Override
@@ -100,17 +99,14 @@ class AcceptInvitationCommandHandlerImpl implements AcceptInvitationCommandHandl
     var organizationId = invitation.getOrganization().getId();
     var position = invitation.getPosition();
     try {
-      if (position != null && position.hasAccess()) {
-        authorizeAccessGrantQueryHandler.handle(
-            new AuthorizeAccessGrantQuery(
-                inviter,
-                Set.copyOf(position.getRoleIds()),
-                Set.copyOf(position.getPermissions()),
-                organizationId,
-                Permission.INVITATIONS_SEND));
-      } else {
-        authorizeQueryHandler.handle(
-            new AuthorizeQuery(inviter, organizationId, Permission.INVITATIONS_SEND));
+      authorizeQueryHandler.handle(
+          new AuthorizeQuery(inviter, organizationId, Permission.INVITATIONS_SEND));
+      if (position != null) {
+        invitationRules.requireMayGive(inviter, organizationId, PositionResult.from(position));
+      }
+      if (invitation.getPerson() != null) {
+        invitationRules.requireMayLink(
+            inviter, invitationRules.accountabilitiesOf(invitation.getPerson().getId()));
       }
     } catch (AccessDeniedException e) {
       throw new DomainValidationException(

@@ -158,6 +158,62 @@ class InvitationIntegrationTests {
   }
 
   @Test
+  void aLeaderOfAGroupCanInviteSomeoneWhoIsOnlyLeaderThere() {
+    // The leader belongs to the location, not to the group, and leads the group.
+    var location = church.location;
+    var leaderId = createPerson(alice, "Lucía", location);
+    var group =
+        read(body(
+                alice,
+                HttpMethod.POST,
+                "/organizations/locations/childs",
+                "{\"name\":\"Jóvenes\",\"type\":\"GROUP\",\"parentId\":\"%s\",\"leaderIds\":[\"%s\"]}"
+                    .formatted(location, leaderId)))
+            .get("id")
+            .asText();
+
+    invite(alice, group, email(bob), null, leaderId);
+    body(bob, HttpMethod.POST, "/invitations/" + lastToken() + "/accept", null);
+
+    assertThat(permissions(bob, group)).contains("members.write", "invitations.send");
+    assertThat(permissions(bob, location)).isEmpty();
+  }
+
+  @Test
+  void nobodyLinksAnAccountToAPersonWhoHoldsMoreAccessThanTheyCanGive() {
+    var leader = createPosition(alice, church.id, "Líder", PredefinedRoles.LEADER.value());
+    var admin = createPosition(alice, church.id, "Admin", PredefinedRoles.ADMIN.value());
+    var group = createGroup(alice, church.location);
+    invite(alice, group, email(bob), leader, "Beto", "Pérez");
+    body(bob, HttpMethod.POST, "/invitations/" + lastToken() + "/accept", null);
+    // A member of the group who is also an Administrator.
+    var adminPerson =
+        read(body(
+                alice,
+                HttpMethod.POST,
+                "/people",
+                "{\"firstName\":\"Ana\",\"lastName\":\"Jefa\",\"organizationId\":\"%s\",\"positionIds\":[\"%s\"]}"
+                    .formatted(group, admin)))
+            .asText();
+
+    // Bob leads the group but cannot hand over an Administrator's access.
+    assertThat(
+            status(
+                bob,
+                HttpMethod.POST,
+                "/organizations/" + group + "/invitations",
+                "{\"email\":\"%s\",\"personId\":\"%s\"}".formatted(email(carol), adminPerson)))
+        .isEqualTo(403);
+    assertThat(
+            status(
+                alice,
+                HttpMethod.POST,
+                "/organizations/" + group + "/invitations",
+                "{\"email\":\"%s\",\"personId\":\"%s\"}".formatted(email(carol), adminPerson)))
+        .isEqualTo(201);
+  }
+
+  @Test
   void aCollaboratorCannotInviteNorList() {
     var usher = createPosition(alice, church.id, "Ujier", PredefinedRoles.COLLABORATOR.value());
     invite(alice, church.location, email(bob), usher, "Beto", "Pérez");

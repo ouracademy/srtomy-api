@@ -21,15 +21,16 @@ import org.mockito.ArgumentCaptor;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.accountability.query.PositionResult;
-import org.ouracademy.srtomy.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
-import org.ouracademy.srtomy.accountability.query.find_organizations_of_member.OrganizationsOfMemberResult;
 import org.ouracademy.srtomy.accountability.query.find_position_by_id.FindPositionByIdQueryHandler;
+import org.ouracademy.srtomy.accountability.query.get_person_accountabilities.GetPersonAccountabilitiesQueryHandler;
+import org.ouracademy.srtomy.accountability.query.get_person_accountabilities.PersonAccountabilityResult;
 import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.Permission;
 import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
 import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQuery;
 import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQueryHandler;
 import org.ouracademy.srtomy.invitation.InvitationFixtures;
+import org.ouracademy.srtomy.invitation.command.InvitationRules;
 import org.ouracademy.srtomy.invitation.domain.Invitation;
 import org.ouracademy.srtomy.invitation.domain.InvitationStatus;
 import org.ouracademy.srtomy.invitation.domain.InvitationTokens;
@@ -62,8 +63,8 @@ class CreateInvitationCommandHandlerImplTests {
   FindChurchOfOrganizationQueryHandler findChurch =
       mock(FindChurchOfOrganizationQueryHandler.class);
   FindPositionByIdQueryHandler findPosition = mock(FindPositionByIdQueryHandler.class);
-  FindOrganizationsOfMemberQueryHandler findNodesOfMember =
-      mock(FindOrganizationsOfMemberQueryHandler.class);
+  GetPersonAccountabilitiesQueryHandler getPersonAccountabilities =
+      mock(GetPersonAccountabilitiesQueryHandler.class);
   AuthorizeAccessGrantQueryHandler authorizeAccessGrant =
       mock(AuthorizeAccessGrantQueryHandler.class);
   IsPersonLinkedQueryHandler isPersonLinked = mock(IsPersonLinkedQueryHandler.class);
@@ -76,8 +77,7 @@ class CreateInvitationCommandHandlerImplTests {
           findOrganization,
           findChurch,
           findPosition,
-          findNodesOfMember,
-          authorizeAccessGrant,
+          new InvitationRules(authorizeAccessGrant, getPersonAccountabilities),
           isPersonLinked,
           sendEmail,
           entityManager);
@@ -251,14 +251,13 @@ class CreateInvitationCommandHandlerImplTests {
             "auth0|me", "beto@example.org", node, null, personId, null, null);
     when(entityManager.getReference(eq(Person.class), eq(personId))).thenReturn(new Person());
 
-    when(findNodesOfMember.handle(any()))
-        .thenReturn(new OrganizationsOfMemberResult(List.of(PartyId.generate())));
+    when(getPersonAccountabilities.handle(any()))
+        .thenReturn(List.of(held(PartyId.generate(), null)));
     assertThatThrownBy(() -> handler.handle(command))
         .isInstanceOf(DomainValidationException.class)
         .hasMessageContaining("no pertenece");
 
-    when(findNodesOfMember.handle(any()))
-        .thenReturn(new OrganizationsOfMemberResult(List.of(node)));
+    when(getPersonAccountabilities.handle(any())).thenReturn(List.of(held(node, null)));
     when(isPersonLinked.handle(any())).thenReturn(new IsPersonLinkedResult(true));
     assertThatThrownBy(() -> handler.handle(command))
         .isInstanceOf(DomainValidationException.class)
@@ -267,6 +266,41 @@ class CreateInvitationCommandHandlerImplTests {
     when(isPersonLinked.handle(any())).thenReturn(new IsPersonLinkedResult(false));
     var result = handler.handle(command);
     assertThat(result.invitation().status()).isEqualTo(InvitationStatus.PENDING);
+  }
+
+  @Test
+  void linkingAPersonWhoAlreadyHoldsMoreAccessThanTheCallerIsDenied() {
+    var personId = PartyId.generate();
+    var command =
+        new CreateInvitationCommand(
+            "auth0|me", "beto@example.org", node, null, personId, null, null);
+    var pastor =
+        new PositionResult(
+            AccountabilityTypeId.generate(),
+            "Pastor",
+            church,
+            Set.of(PredefinedRoles.ADMIN),
+            Set.of());
+    when(getPersonAccountabilities.handle(any()))
+        .thenReturn(List.of(held(node, null), held(church, pastor)));
+    when(isPersonLinked.handle(any())).thenReturn(new IsPersonLinkedResult(false));
+    when(authorizeAccessGrant.handle(any())).thenThrow(new AccessDeniedException("no"));
+
+    assertThatThrownBy(() -> handler.handle(command)).isInstanceOf(AccessDeniedException.class);
+    verify(authorizeAccessGrant)
+        .handle(
+            new AuthorizeAccessGrantQuery(
+                "auth0|me",
+                Set.of(PredefinedRoles.ADMIN),
+                Set.of(),
+                church,
+                Permission.INVITATIONS_SEND));
+    verify(invitationRepository, never()).save(any());
+  }
+
+  PersonAccountabilityResult held(PartyId organizationId, PositionResult position) {
+    return new PersonAccountabilityResult(
+        organizationId, AccountabilityTypeId.generate(), position);
   }
 
   @Test

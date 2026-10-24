@@ -7,13 +7,9 @@ import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
 import org.ouracademy.srtomy.accountability.query.PositionResult;
-import org.ouracademy.srtomy.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQuery;
-import org.ouracademy.srtomy.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
 import org.ouracademy.srtomy.accountability.query.find_position_by_id.FindPositionByIdQuery;
 import org.ouracademy.srtomy.accountability.query.find_position_by_id.FindPositionByIdQueryHandler;
-import org.ouracademy.srtomy.iam.domain.Permission;
-import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQuery;
-import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQueryHandler;
+import org.ouracademy.srtomy.invitation.command.InvitationRules;
 import org.ouracademy.srtomy.invitation.domain.Invitation;
 import org.ouracademy.srtomy.invitation.domain.InvitationStatus;
 import org.ouracademy.srtomy.invitation.domain.InvitationTokens;
@@ -52,8 +48,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
   private final FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   private final FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
   private final FindPositionByIdQueryHandler findPositionByIdQueryHandler;
-  private final FindOrganizationsOfMemberQueryHandler findOrganizationsOfMemberQueryHandler;
-  private final AuthorizeAccessGrantQueryHandler authorizeAccessGrantQueryHandler;
+  private final InvitationRules invitationRules;
   private final IsPersonLinkedQueryHandler isPersonLinkedQueryHandler;
   private final SendEmailCommandHandler sendEmailCommandHandler;
   private final EntityManager entityManager;
@@ -179,15 +174,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
     if (!position.churchId().equals(churchId)) {
       throw new DomainValidationException("Ese cargo no pertenece a esta iglesia");
     }
-    if (!position.roleIds().isEmpty() || !position.permissions().isEmpty()) {
-      authorizeAccessGrantQueryHandler.handle(
-          new AuthorizeAccessGrantQuery(
-              command.subject(),
-              position.roleIds(),
-              position.permissions(),
-              command.organizationId(),
-              Permission.INVITATIONS_SEND));
-    }
+    invitationRules.requireMayGive(command.subject(), command.organizationId(), position);
     return position;
   }
 
@@ -198,16 +185,16 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
       }
       return;
     }
-    var nodes =
-        findOrganizationsOfMemberQueryHandler
-            .handle(new FindOrganizationsOfMemberQuery(command.personId()))
-            .organizationIds();
-    if (!nodes.contains(command.organizationId())) {
+    var accountabilities = invitationRules.accountabilitiesOf(command.personId());
+    if (accountabilities.stream()
+        .noneMatch(a -> a.organizationId().equals(command.organizationId()))) {
       throw new DomainValidationException("La persona no pertenece a este grupo");
     }
     if (isPersonLinkedQueryHandler.handle(new IsPersonLinkedQuery(command.personId())).linked()) {
       throw new DomainValidationException("Esa persona ya usa la aplicación");
     }
+    // Linking an account to the person hands over the access the person already has.
+    invitationRules.requireMayLink(command.subject(), accountabilities);
   }
 
   private static boolean isBlank(String value) {

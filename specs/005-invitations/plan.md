@@ -11,7 +11,8 @@
 5. **`person`**: campo `email`.
 6. **Seguridad**: `GET /v1/public/**` sin token (también lo usarán la 006 y la 007).
 7. **Aceptar** crea la ficha con `CreatePerson` (sin cargos, para no exigir `iam.manage` al invitador), la vincula (`LinkUserToPerson`) y agrega el cargo con `CreateAccountability`. La comprobación del invitador se rehace al aceptar.
-8. **Configuración**: `app.url` (`APP_URL`, origen de los enlaces), `resend.api-key` (`sm@resend-api-key`), `resend.from`.
+8. **Reglas compartidas**: `InvitationRules` (al enviar y al aceptar) aplica la anti-escalada al cargo y a los cargos que la persona ya tiene; para eso `accountability` expone `get_person_accountabilities`.
+9. **Configuración**: `app.url` (`APP_URL`, origen de los enlaces), `resend.api-key` (`sm@resend-api-key`), `resend.from`.
 
 ## Constitution Check
 

@@ -19,6 +19,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.ouracademy.srtomy.accountability.AccountabilityFixtures;
 import org.ouracademy.srtomy.accountability.command.create_accountability.CreateAccountabilityCommand;
 import org.ouracademy.srtomy.accountability.command.create_accountability.CreateAccountabilityCommandHandler;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
@@ -26,6 +27,7 @@ import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.accountability.query.PositionResult;
 import org.ouracademy.srtomy.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
 import org.ouracademy.srtomy.accountability.query.find_organizations_of_member.OrganizationsOfMemberResult;
+import org.ouracademy.srtomy.accountability.query.get_person_accountabilities.GetPersonAccountabilitiesQueryHandler;
 import org.ouracademy.srtomy.accountability.query.get_positions_of_person.GetPositionsOfPersonQueryHandler;
 import org.ouracademy.srtomy.iam.domain.Permission;
 import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
@@ -34,6 +36,7 @@ import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQuery;
 import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQueryHandler;
 import org.ouracademy.srtomy.invitation.InvitationFixtures;
+import org.ouracademy.srtomy.invitation.command.InvitationRules;
 import org.ouracademy.srtomy.invitation.domain.Invitation;
 import org.ouracademy.srtomy.invitation.domain.InvitationId;
 import org.ouracademy.srtomy.invitation.domain.InvitationStatus;
@@ -72,6 +75,8 @@ class AcceptInvitationCommandHandlerImplTests {
       mock(FindOrganizationsOfMemberQueryHandler.class);
   GetPositionsOfPersonQueryHandler getPositions = mock(GetPositionsOfPersonQueryHandler.class);
   AuthorizeQueryHandler authorize = mock(AuthorizeQueryHandler.class);
+  GetPersonAccountabilitiesQueryHandler getPersonAccountabilities =
+      mock(GetPersonAccountabilitiesQueryHandler.class);
   AuthorizeAccessGrantQueryHandler authorizeAccessGrant =
       mock(AuthorizeAccessGrantQueryHandler.class);
   EntityManager entityManager = mock(EntityManager.class);
@@ -87,7 +92,7 @@ class AcceptInvitationCommandHandlerImplTests {
           findNodesOfMember,
           getPositions,
           authorize,
-          authorizeAccessGrant,
+          new InvitationRules(authorizeAccessGrant, getPersonAccountabilities),
           entityManager);
 
   PartyId church = PartyId.generate();
@@ -126,6 +131,8 @@ class AcceptInvitationCommandHandlerImplTests {
   AccountabilityType position(PartyId id, boolean withAccess) {
     var type = mock(AccountabilityType.class);
     when(type.getId()).thenReturn(AccountabilityTypeId.generate());
+    when(type.getName()).thenReturn("Ujier");
+    when(type.getParty()).thenReturn(AccountabilityFixtures.party(id, "Iglesia"));
     when(type.hasAccess()).thenReturn(withAccess);
     when(type.getRoleIds())
         .thenReturn(withAccess ? Set.of(PredefinedRoles.COLLABORATOR) : Set.of());

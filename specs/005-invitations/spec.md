@@ -31,7 +31,8 @@
 1. **Given** el enlace, **When** el usuario inicia sesión con el correo invitado (verificado) y acepta, **Then** se crea su ficha de persona (o se usa la indicada), queda vinculada a su usuario y recibe el cargo en el nodo.
 2. **Given** otro correo, o el mismo sin verificar, **Then** 403.
 3. **Given** una invitación usada, revocada o vencida, **Then** 400.
-4. **Given** un usuario que ya tiene ficha en la iglesia, **Then** conserva esa ficha y se suma al nodo; si la invitación nombraba a otra persona → 400.
+4. **Given** un Líder que invita a una persona de su grupo que además es Administrador de la iglesia, **Then** 403: no puede entregar ese acceso.
+5. **Given** un usuario que ya tiene ficha en la iglesia, **Then** conserva esa ficha y se suma al nodo; si la invitación nombraba a otra persona → 400.
 
 ### US3 — Invitar líderes (P2)
 
@@ -48,6 +49,7 @@ Quien tiene `invitations.send` lista las pendientes de un nodo (las vencidas sal
 - **FR-003**: El token MUST NOT devolverse por la API ni guardarse en claro.
 - **FR-004**: Aceptar MUST exigir que el correo **verificado** del usuario sea el de la invitación.
 - **FR-005**: Una persona ya vinculada a un usuario MUST NOT poder ser invitada.
+- **FR-009**: Invitar a una persona que ya existe MUST exigir poder dar **todo el acceso que esa persona ya tiene** (sus cargos con permisos, en cualquier nodo), porque vincular una cuenta a la persona se lo entrega. Si no, 403. La persona debe tener alguna acreditación en el nodo (miembro, líder o cargo).
 - **FR-006**: `GET /public/invitations/{token}` (sin sesión) MUST mostrar solo correo, nodo, cargo y estado.
 - **FR-007**: Si el correo no se pudo enviar, la invitación MUST conservarse y la respuesta avisarlo (`emailSent=false`).
 - **FR-008**: `invitations.send` se agrega a Propietario, Administrador y Líder.
