@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes.USHER;
 import static org.ouracademy.srtomy.person.PersonFixtures.person;
 
 import java.time.LocalDate;
@@ -15,8 +14,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ouracademy.srtomy.accountability.command.sync_person_roles.SyncPersonRolesCommand;
-import org.ouracademy.srtomy.accountability.command.sync_person_roles.SyncPersonRolesCommandHandler;
+import org.ouracademy.srtomy.accountability.command.sync_person_positions.SyncPersonPositionsCommand;
+import org.ouracademy.srtomy.accountability.command.sync_person_positions.SyncPersonPositionsCommandHandler;
+import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
+import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
+import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.command.PersonInfo;
 import org.ouracademy.srtomy.person.repository.PersonRepository;
@@ -28,24 +31,33 @@ class UpdatePersonCommandHandlerImplTests {
       new PersonInfo("Luis", "Rojas", "111", 41, LocalDate.of(1984, 1, 2), false);
 
   @Mock PersonRepository personRepository;
-  @Mock SyncPersonRolesCommandHandler syncPersonRolesCommandHandler;
+  @Mock SyncPersonPositionsCommandHandler syncPersonPositionsCommandHandler;
+  @Mock FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
 
   UpdatePersonCommandHandlerImpl handler;
 
   @BeforeEach
   void setUp() {
-    handler = new UpdatePersonCommandHandlerImpl(personRepository, syncPersonRolesCommandHandler);
+    handler =
+        new UpdatePersonCommandHandlerImpl(
+            personRepository,
+            syncPersonPositionsCommandHandler,
+            findChurchOfOrganizationQueryHandler);
   }
 
   @Test
-  void handleOverwritesThePersonDataAndSyncsTheirRoles() {
+  void handleOverwritesThePersonDataAndSyncsTheirPositionsWithinTheChurch() {
     var id = PartyId.generate();
     var locationId = PartyId.generate();
+    var churchId = PartyId.generate();
+    var usher = AccountabilityTypeId.generate();
     var person = person(id, "Ana", "Diaz");
     when(personRepository.findById(id)).thenReturn(Optional.of(person));
     when(personRepository.save(person)).thenReturn(person);
+    when(findChurchOfOrganizationQueryHandler.handle(new FindChurchOfOrganizationQuery(locationId)))
+        .thenReturn(Optional.of(new FindChurchOfOrganizationResult(churchId)));
 
-    var result = handler.handle(new UpdatePersonCommand(id, INFO, locationId, Set.of(USHER)));
+    var result = handler.handle(new UpdatePersonCommand(id, INFO, locationId, Set.of(usher)));
 
     assertThat(result).contains(new UpdatePersonResult(id));
     assertThat(person.getFirstName()).isEqualTo("Luis");
@@ -55,8 +67,8 @@ class UpdatePersonCommandHandlerImplTests {
     assertThat(person.getAge()).isEqualTo(41);
     assertThat(person.getBirthdate()).isEqualTo(LocalDate.of(1984, 1, 2));
     assertThat(person.getHasBeenBaptized()).isFalse();
-    verify(syncPersonRolesCommandHandler)
-        .handle(new SyncPersonRolesCommand(id, locationId, Set.of(USHER)));
+    verify(syncPersonPositionsCommandHandler)
+        .handle(new SyncPersonPositionsCommand(id, locationId, churchId, Set.of(usher)));
   }
 
   @Test
@@ -64,10 +76,9 @@ class UpdatePersonCommandHandlerImplTests {
     var id = PartyId.generate();
     when(personRepository.findById(id)).thenReturn(Optional.empty());
 
-    var result =
-        handler.handle(new UpdatePersonCommand(id, INFO, PartyId.generate(), Set.of(USHER)));
+    var result = handler.handle(new UpdatePersonCommand(id, INFO, PartyId.generate(), Set.of()));
 
     assertThat(result).isEmpty();
-    verifyNoInteractions(syncPersonRolesCommandHandler);
+    verifyNoInteractions(syncPersonPositionsCommandHandler);
   }
 }

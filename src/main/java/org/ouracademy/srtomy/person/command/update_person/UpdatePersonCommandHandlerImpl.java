@@ -1,9 +1,12 @@
 package org.ouracademy.srtomy.person.command.update_person;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.srtomy.accountability.command.sync_person_roles.SyncPersonRolesCommand;
-import org.ouracademy.srtomy.accountability.command.sync_person_roles.SyncPersonRolesCommandHandler;
+import org.ouracademy.srtomy.accountability.command.sync_person_positions.SyncPersonPositionsCommand;
+import org.ouracademy.srtomy.accountability.command.sync_person_positions.SyncPersonPositionsCommandHandler;
+import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
+import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.srtomy.person.repository.PersonRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 class UpdatePersonCommandHandlerImpl implements UpdatePersonCommandHandler {
 
   private final PersonRepository personRepository;
-  private final SyncPersonRolesCommandHandler syncPersonRolesCommandHandler;
+  private final SyncPersonPositionsCommandHandler syncPersonPositionsCommandHandler;
+  private final FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
 
   @Override
   @Transactional
@@ -22,10 +26,18 @@ class UpdatePersonCommandHandlerImpl implements UpdatePersonCommandHandler {
         .findById(command.personId())
         .map(
             person -> {
+              var churchId =
+                  findChurchOfOrganizationQueryHandler
+                      .handle(new FindChurchOfOrganizationQuery(command.organizationId()))
+                      .orElseThrow(
+                          () ->
+                              new NoSuchElementException(
+                                  "Organization not found: " + command.organizationId().value()))
+                      .churchId();
               command.info().applyTo(person);
-              syncPersonRolesCommandHandler.handle(
-                  new SyncPersonRolesCommand(
-                      person.getId(), command.organizationId(), command.roles()));
+              syncPersonPositionsCommandHandler.handle(
+                  new SyncPersonPositionsCommand(
+                      person.getId(), command.organizationId(), churchId, command.positionIds()));
               return new UpdatePersonResult(personRepository.save(person).getId());
             });
   }

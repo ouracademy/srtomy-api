@@ -8,12 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
-import org.ouracademy.srtomy.accountability.query.get_predefined_roles.GetPredefinedRolesQuery;
-import org.ouracademy.srtomy.accountability.query.get_predefined_roles.GetPredefinedRolesQueryHandler;
-import org.ouracademy.srtomy.accountability.query.get_roles_of_location.GetRolesOfLocationQuery;
-import org.ouracademy.srtomy.accountability.query.get_roles_of_location.GetRolesOfLocationQueryHandler;
-import org.ouracademy.srtomy.accountability.query.get_roles_of_person.GetRolesOfPersonQuery;
-import org.ouracademy.srtomy.accountability.query.get_roles_of_person.GetRolesOfPersonQueryHandler;
+import org.ouracademy.srtomy.iam.domain.Permission;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.srtomy.organization.command.OrganizationInfo;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommand;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommandHandler;
@@ -29,15 +26,15 @@ import org.ouracademy.srtomy.organization.command.update_location.UpdateLocation
 import org.ouracademy.srtomy.organization.command.update_location.UpdateLocationCommandHandler;
 import org.ouracademy.srtomy.organization.command.update_location_child.UpdateLocationChildCommand;
 import org.ouracademy.srtomy.organization.command.update_location_child.UpdateLocationChildCommandHandler;
-import org.ouracademy.srtomy.organization.controller.dto.AccountabilityTypeDto;
+import org.ouracademy.srtomy.organization.controller.dto.CreateChurchRequest;
 import org.ouracademy.srtomy.organization.controller.dto.CreateLocationRequest;
 import org.ouracademy.srtomy.organization.controller.dto.LocationChildMemberResponse;
 import org.ouracademy.srtomy.organization.controller.dto.LocationChildRequest;
 import org.ouracademy.srtomy.organization.controller.dto.MemberStateResponse;
 import org.ouracademy.srtomy.organization.controller.dto.OrganizationRequest;
 import org.ouracademy.srtomy.organization.controller.dto.OrganizationResponse;
+import org.ouracademy.srtomy.organization.controller.dto.SocialLinksRequest;
 import org.ouracademy.srtomy.organization.controller.dto.UpdateLocationChildRequest;
-import org.ouracademy.srtomy.organization.controller.dto.UpdateLocationRequest;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
 import org.ouracademy.srtomy.organization.query.find_organization_children.FindOrganizationChildrenQuery;
@@ -47,8 +44,11 @@ import org.ouracademy.srtomy.organization.query.get_location_children.GetLocatio
 import org.ouracademy.srtomy.organization.query.get_member_state.GetMemberStateQuery;
 import org.ouracademy.srtomy.organization.query.get_member_state.GetMemberStateQueryHandler;
 import org.ouracademy.srtomy.party.domain.PartyId;
+import org.ouracademy.srtomy.shared.TokenClaims;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -59,7 +59,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** HTTP adapter only: translates requests to commands/queries and results to responses. */
+/**
+ * HTTP adapter only: translates requests to commands/queries and results to responses. Every
+ * endpoint but church creation first checks the caller's permission on the node it acts on.
+ */
 @RestController
 @RequestMapping("organizations")
 @AllArgsConstructor
@@ -77,14 +80,12 @@ public class OrganizationController {
   FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
   GetLocationChildrenQueryHandler getLocationChildrenQueryHandler;
   GetMemberStateQueryHandler getMemberStateQueryHandler;
-  GetPredefinedRolesQueryHandler getPredefinedRolesQueryHandler;
-  GetRolesOfLocationQueryHandler getRolesOfLocationQueryHandler;
-  GetRolesOfPersonQueryHandler getRolesOfPersonQueryHandler;
+  AuthorizeQueryHandler authorizeQueryHandler;
 
   @GetMapping("{id}/childs")
-  public List<OrganizationResponse> findAll(@PathVariable UUID id) {
-    // TODO: list organizations of a user
-    // TODO: add authorization
+  public List<OrganizationResponse> findAll(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    authorize(jwt, id, Permission.ORG_READ);
     return findOrganizationChildrenQueryHandler
         .handle(new FindOrganizationChildrenQuery(new PartyId(id)))
         .stream()
@@ -93,68 +94,70 @@ public class OrganizationController {
   }
 
   @GetMapping("{id}")
-  public ResponseEntity<OrganizationResponse> findById(@PathVariable UUID id) {
+  public ResponseEntity<OrganizationResponse> findById(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    authorize(jwt, id, Permission.ORG_READ);
     return ResponseEntity.of(
         findOrganizationByIdQueryHandler
             .handle(new FindOrganizationByIdQuery(new PartyId(id)))
             .map(OrganizationResponse::from));
   }
 
+  /** Any signed-in user may create a church; they become its Owner. */
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
-  public OrganizationResponse create(@RequestBody @Valid OrganizationRequest request) {
+  public OrganizationResponse create(
+      @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid CreateChurchRequest request) {
+    var location = request.getLocation();
     var result =
         createChurchCommandHandler.handle(
-            new CreateChurchCommand(info(request), parentId(request), request.getUserId()));
+            new CreateChurchCommand(
+                new OrganizationInfo(
+                    request.getName(),
+                    request.getDescription(),
+                    request.getAddress(),
+                    request.getPhoneNumber(),
+                    SocialLinksRequest.toDomain(request.getSocialLinks())),
+                new OrganizationInfo(
+                    location.getName(),
+                    location.getDescription(),
+                    location.getAddress(),
+                    location.getPhoneNumber(),
+                    SocialLinksRequest.toDomain(location.getSocialLinks())),
+                request.getPositions(),
+                jwt.getSubject(),
+                TokenClaims.email(jwt),
+                TokenClaims.emailVerified(jwt)));
     return OrganizationResponse.from(result.organization());
   }
 
   @PostMapping("/locations")
   @ResponseStatus(code = HttpStatus.CREATED)
-  public OrganizationResponse createLocation(@RequestBody @Valid CreateLocationRequest request) {
+  public OrganizationResponse createLocation(
+      @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid CreateLocationRequest request) {
+    authorize(jwt, request.getParentId(), Permission.ORG_CREATE_CHILD);
     var result =
         createLocationCommandHandler.handle(
-            new CreateLocationCommand(info(request), parentId(request), request.getRoles()));
+            new CreateLocationCommand(info(request), parentId(request)));
     return OrganizationResponse.from(result.organization());
   }
 
   @PutMapping("/locations/{id}")
   public ResponseEntity<OrganizationResponse> updateLocation(
-      @PathVariable UUID id, @RequestBody @Valid UpdateLocationRequest request) {
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid OrganizationRequest request) {
+    authorize(jwt, id, Permission.ORG_UPDATE);
     return ResponseEntity.of(
         updateLocationCommandHandler
-            .handle(new UpdateLocationCommand(new PartyId(id), info(request), request.getRoles()))
+            .handle(new UpdateLocationCommand(new PartyId(id), info(request)))
             .map(result -> OrganizationResponse.from(result.organization())));
   }
 
-  @GetMapping("locations/predefined-roles")
-  public List<AccountabilityTypeDto> getPredefinedRoles() {
-    return getPredefinedRolesQueryHandler.handle(new GetPredefinedRolesQuery()).stream()
-        .map(AccountabilityTypeDto::from)
-        .toList();
-  }
-
-  @GetMapping("locations/{id}/roles")
-  public List<AccountabilityTypeDto> getRolesOfLocation(@PathVariable UUID id) {
-    return getRolesOfLocationQueryHandler
-        .handle(new GetRolesOfLocationQuery(new PartyId(id)))
-        .stream()
-        .map(AccountabilityTypeDto::from)
-        .toList();
-  }
-
-  @GetMapping("locations/{id}/person/{personId}/roles")
-  public List<AccountabilityTypeDto> getRolesOfPerson(
-      @PathVariable UUID id, @PathVariable UUID personId) {
-    return getRolesOfPersonQueryHandler
-        .handle(new GetRolesOfPersonQuery(new PartyId(id), new PartyId(personId)))
-        .stream()
-        .map(AccountabilityTypeDto::from)
-        .toList();
-  }
-
   @GetMapping("/locations/childs/{id}/members")
-  public Map<String, List<LocationChildMemberResponse>> getLocationChilds(@PathVariable UUID id) {
+  public Map<String, List<LocationChildMemberResponse>> getLocationChilds(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    authorize(jwt, id, Permission.MEMBERS_READ);
     return getLocationChildrenQueryHandler
         .handle(new GetLocationChildrenQuery(new PartyId(id)))
         .childrenByType()
@@ -167,10 +170,12 @@ public class OrganizationController {
                     entry.getValue().stream().map(LocationChildMemberResponse::from).toList()));
   }
 
+  /** A group or ministry under a location, group or ministry. */
   @PostMapping("/locations/childs")
   @ResponseStatus(code = HttpStatus.CREATED)
   public OrganizationResponse createLocationChild(
-      @RequestBody @Valid LocationChildRequest request) {
+      @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid LocationChildRequest request) {
+    authorize(jwt, request.getParentId(), Permission.ORG_CREATE_CHILD);
     var result =
         createLocationChildCommandHandler.handle(
             new CreateLocationChildCommand(
@@ -184,7 +189,10 @@ public class OrganizationController {
 
   @PutMapping("/locations/childs/{id}")
   public ResponseEntity<OrganizationResponse> updateLocationChild(
-      @PathVariable UUID id, @RequestBody @Valid UpdateLocationChildRequest request) {
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid UpdateLocationChildRequest request) {
+    authorize(jwt, id, Permission.ORG_UPDATE);
     return ResponseEntity.of(
         updateLocationChildCommandHandler
             .handle(
@@ -199,7 +207,10 @@ public class OrganizationController {
 
   @PutMapping("{id}")
   public ResponseEntity<OrganizationResponse> edit(
-      @PathVariable UUID id, @RequestBody @Valid OrganizationRequest request) {
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid OrganizationRequest request) {
+    authorize(jwt, id, Permission.ORG_UPDATE);
     return ResponseEntity.of(
         editOrganizationCommandHandler
             .handle(new EditOrganizationCommand(new PartyId(id), info(request)))
@@ -207,14 +218,17 @@ public class OrganizationController {
   }
 
   @GetMapping("{id}/member-state")
-  public List<MemberStateResponse> getMemberState(@PathVariable UUID id) {
+  public List<MemberStateResponse> getMemberState(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    authorize(jwt, id, Permission.MEMBERS_READ);
     return getMemberStateQueryHandler.handle(new GetMemberStateQuery(new PartyId(id))).stream()
         .map(MemberStateResponse::from)
         .toList();
   }
 
   @DeleteMapping("{id}")
-  public ResponseEntity<Void> delete(@PathVariable UUID id) {
+  public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    authorize(jwt, id, Permission.ORG_DELETE);
     var result =
         deleteOrganizationCommandHandler.handle(new DeleteOrganizationCommand(new PartyId(id)));
     return switch (result.outcome()) {
@@ -224,12 +238,18 @@ public class OrganizationController {
     };
   }
 
+  private void authorize(Jwt jwt, UUID organizationId, Permission permission) {
+    authorizeQueryHandler.handle(
+        new AuthorizeQuery(jwt.getSubject(), new PartyId(organizationId), permission));
+  }
+
   private static OrganizationInfo info(OrganizationRequest request) {
     return new OrganizationInfo(
         request.getName(),
         request.getDescription(),
         request.getAddress(),
-        request.getPhoneNumber());
+        request.getPhoneNumber(),
+        SocialLinksRequest.toDomain(request.getSocialLinks()));
   }
 
   private static PartyId parentId(OrganizationRequest request) {

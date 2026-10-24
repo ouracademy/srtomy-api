@@ -21,11 +21,4 @@ public class SystemAccountabilityTypes {
   // Person to group/ministry
   public static final AccountabilityTypeId LEADER =
       new AccountabilityTypeId(UUID.fromString("6e0cebd8-4a7a-4ac5-b9dd-658c23708672"));
-  // Person to location
-  public static final AccountabilityTypeId PASTOR =
-      new AccountabilityTypeId(UUID.fromString("e8a28a06-4560-4077-aa3c-79838b581ef1"));
-  public static final AccountabilityTypeId WORSHIP_LEADER =
-      new AccountabilityTypeId(UUID.fromString("c10a7a54-1ed1-4773-aa61-c3526ac09740"));
-  public static final AccountabilityTypeId USHER =
-      new AccountabilityTypeId(UUID.fromString("b504cabb-c35d-4e92-9048-972ae69ce88f"));
 }

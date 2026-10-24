@@ -30,7 +30,8 @@ public class AccountabilityType extends DomainObject {
   Category category;
 
   public enum Category {
-    ROLE,
+    /** A ministerial position (cargo) owned by a church; grants no access. */
+    POSITION,
     MEMBER_PROGRESS_STATE
   }
 
@@ -44,7 +45,11 @@ public class AccountabilityType extends DomainObject {
     this.category = category;
   }
 
-  public boolean isPredefined() {
-    return party == null;
+  public boolean isPosition() {
+    return category == Category.POSITION;
+  }
+
+  public void rename(String name) {
+    this.name = name;
   }
 }

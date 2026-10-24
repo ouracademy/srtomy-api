@@ -14,4 +14,11 @@ public final class OrganizationFixtures {
     ReflectionTestUtils.setField(organization, "id", id);
     return organization;
   }
+
+  public static Organization organization(
+      PartyId id, String name, Organization.Type type, Organization parent) {
+    var organization = organization(id, name, type);
+    ReflectionTestUtils.setField(organization, "parent", parent);
+    return organization;
+  }
 }

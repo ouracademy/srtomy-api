@@ -59,19 +59,24 @@ public class TestSecurityConfig {
 
   /** A token with the audience this API requires — requests using it should be authenticated. */
   public static String validToken(JwtEncoder encoder) {
-    return token(encoder, List.of(VALID_AUDIENCE));
+    return validToken(encoder, "test-user");
+  }
+
+  /** A valid token for the user identified by {@code subject}, e.g. to act as several users. */
+  public static String validToken(JwtEncoder encoder, String subject) {
+    return token(encoder, subject, List.of(VALID_AUDIENCE));
   }
 
   /** A token for a *different* API — requests using it should still be rejected. */
   public static String tokenWithWrongAudience(JwtEncoder encoder) {
-    return token(encoder, List.of("https://some-other-api.example.com"));
+    return token(encoder, "test-user", List.of("https://some-other-api.example.com"));
   }
 
-  private static String token(JwtEncoder encoder, List<String> audience) {
+  private static String token(JwtEncoder encoder, String subject, List<String> audience) {
     var claims =
         JwtClaimsSet.builder()
             .issuer("https://test-issuer.example.com/")
-            .subject("test-user")
+            .subject(subject)
             .audience(audience)
             .issuedAt(Instant.now())
             .expiresAt(Instant.now().plusSeconds(60))
