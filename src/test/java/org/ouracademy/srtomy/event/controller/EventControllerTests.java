@@ -26,13 +26,15 @@ import org.ouracademy.srtomy.event.command.delete_event.DeleteEventCommand;
 import org.ouracademy.srtomy.event.command.delete_event.DeleteEventCommandHandler;
 import org.ouracademy.srtomy.event.command.delete_event.DeleteEventResult;
 import org.ouracademy.srtomy.event.command.edit_event.EditEventCommandHandler;
+import org.ouracademy.srtomy.event.domain.AccessLevel;
 import org.ouracademy.srtomy.event.domain.EventChangeOption;
 import org.ouracademy.srtomy.event.domain.EventId;
 import org.ouracademy.srtomy.event.query.FindEventResult;
+import org.ouracademy.srtomy.event.query.authorize_event.AuthorizeEventQuery;
+import org.ouracademy.srtomy.event.query.authorize_event.AuthorizeEventQueryHandler;
+import org.ouracademy.srtomy.event.query.authorize_event.AuthorizeEventResult;
 import org.ouracademy.srtomy.event.query.find_event_by_id.FindEventByIdQuery;
 import org.ouracademy.srtomy.event.query.find_event_by_id.FindEventByIdQueryHandler;
-import org.ouracademy.srtomy.event.query.find_event_organization.EventOrganizationResult;
-import org.ouracademy.srtomy.event.query.find_event_organization.FindEventOrganizationQueryHandler;
 import org.ouracademy.srtomy.event.query.search_events.SearchEventsQuery;
 import org.ouracademy.srtomy.event.query.search_events.SearchEventsQueryHandler;
 import org.ouracademy.srtomy.iam.domain.Permission;
@@ -67,15 +69,13 @@ class EventControllerTests {
   @MockitoBean CreateEventCommandHandler createEventCommandHandler;
   @MockitoBean DeleteEventCommandHandler deleteEventCommandHandler;
   @MockitoBean EditEventCommandHandler editEventCommandHandler;
-  @MockitoBean FindEventOrganizationQueryHandler findEventOrganizationQueryHandler;
+  @MockitoBean AuthorizeEventQueryHandler authorizeEventQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
 
-  static final PartyId EVENT_ORGANIZATION = PartyId.generate();
-
   @BeforeEach
-  void everyEventBelongsToTheSameNode() {
-    given(findEventOrganizationQueryHandler.handle(any()))
-        .willReturn(Optional.of(new EventOrganizationResult(EVENT_ORGANIZATION)));
+  void everyoneCanDoEverythingWithAnEventUnlessTold() {
+    given(authorizeEventQueryHandler.handle(any()))
+        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
   }
 
   private String bearerHeader() {
@@ -277,31 +277,45 @@ class EventControllerTests {
 
   @Test
   void anEventThatDoesNotExistIsNotFoundBeforeAnyPermissionCheck() {
-    given(findEventOrganizationQueryHandler.handle(any())).willReturn(Optional.empty());
+    given(authorizeEventQueryHandler.handle(any())).willThrow(new NoSuchElementException("no"));
 
     assertThat(
             mvc.get()
                 .uri("/v1/events/" + UUID.randomUUID())
                 .header("Authorization", bearerHeader()))
         .hasStatus(404);
-    verifyNoInteractions(authorizeQueryHandler, findEventByIdQueryHandler);
+    verifyNoInteractions(findEventByIdQueryHandler);
   }
 
   @Test
-  void editingAnEventNeedsEventsWriteOnItsNode() {
+  void deletingAnEventNeedsToManageIt() {
+    var id = UUID.randomUUID();
     given(
-            authorizeQueryHandler.handle(
-                new AuthorizeQuery("test-user", EVENT_ORGANIZATION, Permission.EVENTS_WRITE)))
+            authorizeEventQueryHandler.handle(
+                new AuthorizeEventQuery("test-user", new EventId(id), AccessLevel.MANAGER)))
         .willThrow(new AccessDeniedException("no"));
 
     assertThat(
             mvc.method(HttpMethod.DELETE)
-                .uri("/v1/events/" + UUID.randomUUID())
+                .uri("/v1/events/" + id)
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .hasStatus(403);
     verifyNoInteractions(deleteEventCommandHandler);
+  }
+
+  @Test
+  void readingAnEventNeedsAtLeastViewing() {
+    var id = UUID.randomUUID();
+    given(
+            authorizeEventQueryHandler.handle(
+                new AuthorizeEventQuery("test-user", new EventId(id), AccessLevel.VIEWER)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(mvc.get().uri("/v1/events/" + id).header("Authorization", bearerHeader()))
+        .hasStatus(403);
+    verifyNoInteractions(findEventByIdQueryHandler);
   }
 
   @Test

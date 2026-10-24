@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.ouracademy.srtomy.party.domain.Party;
 import org.ouracademy.srtomy.shared.domain.DomainValidationException;
+import org.ouracademy.srtomy.shared.domain.RandomSlugs;
 
 /**
  * A node of a church's tree: the church itself (root), its locations, and nested groups and
@@ -40,7 +41,7 @@ public class Organization extends Party {
   String schedule;
 
   @Column(nullable = false, updatable = false)
-  String slug = Slugs.random();
+  String slug = RandomSlugs.next();
 
   public enum Type {
     CHURCH,
