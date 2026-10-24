@@ -142,7 +142,7 @@ El usuario confirmó que **no hay datos reales**, así que hay libertad para lim
    - API: `POST /churches` atómico (iglesia, primera sede y cargos sugeridos, con enlaces sociales opcionales).
    - API: limpieza de datos y retiro de `Auth0Gateway`.
    - UI: onboarding (asistente con cargos sugeridos y "Otras opciones"), `/portal/[nodeId]`, selector de contexto, permisos en la UI y autocompletado de cargos.
-2. **004-recursive-groups-access**: grupos y ministerios anidados, ministerios en la UI, pestaña "Accesos" (bindings) y **roles IAM personalizados**.
+2. **004-access-management**: pestaña "Accesos" (bindings heredados y directos, otorgar y quitar), reglas de escalada de privilegios y **roles IAM personalizados**. Los grupos y ministerios anidados ya se hicieron en la 003.
 3. **005-invitations**: `person.email`, invitaciones, correo, aceptación, "invitar líderes".
 4. **006-visibility**: `member_visibility`, directorio, páginas públicas de nodos.
 5. **007-sharing**: compartir eventos y cursos, enlaces, inscripción por enlace.
@@ -170,6 +170,8 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 4   | Carpeta `app/portal/[nodeId]/location`    | UI       | Ahora muestra los datos de cualquier nodo (iglesia, sede o grupo).                                                                                                                               | Renombrar a `details` y actualizar enlaces y e2e.                                                                                                          | Pendiente (consultar) |
 | 5   | Columna `app_user.person_id`              | API      | Reservada para la fase 005 (vincular el usuario con su persona al aceptar una invitación). No es abandono.                                                                                       | Usarla en la 005; si la 005 cambia de diseño, borrarla.                                                                                                    | Reservada             |
 | 6   | Email del usuario sin Auth0 Action        | API      | El diseño mencionaba leer el email desde `/userinfo` si el token no lo trae; no se implementó.                                                                                                   | Crear la Auth0 Action del README del API (recomendado) o implementar el respaldo con `/userinfo`.                                                          | Pendiente (consultar) |
+| 7   | Binding Líder al asignar un líder         | API      | Decisión del dueño en la 004: asignar la accountability `LEADER` no crea un binding de rol Líder todavía; una persona sin usuario no puede tenerlo.                                              | Hacerlo en la 005: al aceptar la invitación se vincula `app_user.person_id` y se crea el binding Líder en el nodo.                                         | Reservada             |
+| 8   | Bindings de roles personalizados borrados | API      | Borrar un rol personalizado es lógico: sus filas de `role_binding` se quedan, pero no cuentan ni se listan.                                                                                      | Decidir si una limpieza periódica debe borrarlas en duro.                                                                                                 | Pendiente (consultar) |
 
 ## Archivos clave
 
