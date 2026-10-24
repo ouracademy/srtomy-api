@@ -48,6 +48,7 @@ your shell before running Terraform:
 
 ```sh
 export NEON_API_KEY="..."
+export TF_VAR_resend_api_key="re_..."   # Resend API key (invitation and sharing emails)
 ```
 
 ## Day to day

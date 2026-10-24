@@ -69,4 +69,7 @@ jobs:
           # this Spring Boot app's startup (JVM + Hibernate + GCP client
           # libs) — it was hitting the memory ceiling mid-startup, slowing
           # it down just enough to miss the startup probe's timeout.
+          # Origin of the web app: the links in the invitation and sharing
+          # emails point to it (app.url in application.yml). Public, not a secret.
+          env_vars: APP_URL=https://srtommy-ui-test.vercel.app
           flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost

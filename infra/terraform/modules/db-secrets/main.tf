@@ -8,12 +8,13 @@ terraform {
 }
 
 # Names must match exactly what application-prod.yml references via
-# ${sm://db-url}, ${sm://db-user}, ${sm://db-password}.
+# ${sm@db-url}, ${sm@db-user}, ${sm@db-password}, ${sm@resend-api-key}.
 locals {
   secrets = {
-    "db-url"      = var.jdbc_url
-    "db-user"     = var.database_user
-    "db-password" = var.database_password
+    "db-url"         = var.jdbc_url
+    "db-user"        = var.database_user
+    "db-password"    = var.database_password
+    "resend-api-key" = var.resend_api_key
   }
 }
 
