@@ -22,7 +22,7 @@ Objetivo: cualquiera se registra y crea una o varias iglesias (cada una con al m
 | Resource     | Evento / curso, persona           | Pertenece a un nodo y hereda su acceso.                        |
 
 Cambios de esquema (Flyway, nueva migración `V1.1.0__...`):
-- `organization.parent_id uuid null` (FK a `organization`) y `organization.path uuid[]`, la ruta materializada de ancestros. `path` permite responder "¿es ancestro?" y "todos los descendientes" con un índice GIN, sin CTE recursivo en cada request.
+- `organization.parent_id uuid null` (FK a `organization`). Los ancestros y descendientes se recorren con un CTE recursivo (`WITH RECURSIVE`). Se descartó una ruta materializada (`path uuid[]`) por simplicidad, ya que los árboles son pequeños.
 - Se rellenan desde las `accountability IS_PART_OF` actuales entre organizaciones. Esas filas ya no se usan para el árbol. Para *persona ↔ organización* (membresía, LEADER, cargos, estados) se sigue usando `accountability`.
 - Validar padre/tipo en `OrganizationWriter.create`: CHURCH sin padre; LOCATION bajo CHURCH; GROUP o MINISTRY bajo LOCATION, GROUP o MINISTRY.
 - **Quitar la iglesia falsa `LCDP`**. El usuario confirmó que es solo data de prueba: se elimina del seed y una migración la borra de la BD. Los 8 accountability types del sistema se quedan (los usa el código).
@@ -69,7 +69,7 @@ Roles predefinidos:
 | **Miembro**     | Cualquier miembro con cuenta    | `org.read` (información básica), `events.read` de lo que es visible para miembros |
 
 Reglas:
-- Política efectiva = unión de los bindings en el nodo y en todos sus ancestros (`organization_id = ANY(node.path || node.id)`).
+- Política efectiva = unión de los bindings en el nodo y en todos sus ancestros (el nodo y sus ancestros, con un CTE recursivo).
 - Al crear una iglesia, el creador recibe **Propietario** en la iglesia.
 - Al asignar a alguien como **líder** de un grupo o ministerio (la accountability `LEADER` que ya existe), si esa persona tiene usuario se le crea un binding **Líder** sobre ese nodo; si no, se ofrece invitarla (sección 5).
 - Solo se pueden otorgar roles que uno mismo tiene en ese nodo o en un ancestro, para evitar la escalada de privilegios. Se impide quitar el último Propietario.

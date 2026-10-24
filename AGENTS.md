@@ -14,7 +14,7 @@ Enforced by `.githooks/commit-msg` (`git config core.hooksPath .githooks`) and b
 Java code is formatted with Spotless (`google-java-format`). It runs automatically on edit via the Claude Code hook; CI verifies it with `./mvnw spotless:check`.
 
 The project is organized into domain modules (`party`, `person`, `organization`,
-`accountability`, `event`, `attendance`, `complaint`, `auth`, plus the non-domain
+`accountability`, `event`, `attendance`, `complaint`, `user`, `iam`, plus the non-domain
 `shared`), each with its own `domain/command/query/repository|gateway/controller`
 structure, naming conventions (`Command`/`Query`/`Handler`/`handle`/`Result`), and
 cross-module communication rules (including the entity-id convention). All of this
