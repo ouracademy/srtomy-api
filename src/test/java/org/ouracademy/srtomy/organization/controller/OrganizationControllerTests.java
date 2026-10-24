@@ -310,16 +310,9 @@ class OrganizationControllerTests {
                 Map.of(
                     "IS_PART_OF",
                     List.of(
+                        new GetLocationChildrenResult.Child(memberId, "Ana Diaz", ANA_DETAILS),
                         new GetLocationChildrenResult.Child(
-                            memberId,
-                            "Ana Diaz",
-                            GetLocationChildrenResult.Kind.PERSON,
-                            ANA_DETAILS),
-                        new GetLocationChildrenResult.Child(
-                            PartyId.generate(),
-                            "Kids",
-                            GetLocationChildrenResult.Kind.ORGANIZATION,
-                            null)))));
+                            PartyId.generate(), "Sin ficha", null)))));
 
     var response =
         assertThat(
@@ -329,12 +322,11 @@ class OrganizationControllerTests {
             .hasStatusOk()
             .bodyJson();
     response.extractingPath("$.IS_PART_OF[0].name").isEqualTo("Ana Diaz");
-    response.extractingPath("$.IS_PART_OF[0].kind").isEqualTo("PERSON");
+    response.doesNotHavePath("$.IS_PART_OF[0].kind");
     response.extractingPath("$.IS_PART_OF[0].firstName").isEqualTo("Ana");
     response.extractingPath("$.IS_PART_OF[0].lastName").isEqualTo("Diaz");
     response.extractingPath("$.IS_PART_OF[0].age").isEqualTo(30);
     response.extractingPath("$.IS_PART_OF[0].birthdate").isEqualTo("1995-05-17");
-    response.extractingPath("$.IS_PART_OF[1].kind").isEqualTo("ORGANIZATION");
     response.extractingPath("$.IS_PART_OF[1].firstName").isNull();
   }
 

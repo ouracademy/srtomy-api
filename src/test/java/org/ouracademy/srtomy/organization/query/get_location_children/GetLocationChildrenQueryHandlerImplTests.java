@@ -5,7 +5,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
 import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes.LEADER;
-import static org.ouracademy.srtomy.organization.OrganizationFixtures.organization;
 import static org.ouracademy.srtomy.person.PersonFixtures.personResult;
 
 import java.time.LocalDate;
@@ -19,12 +18,9 @@ import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
 import org.ouracademy.srtomy.accountability.query.get_accountabilities_by_parent_and_types.AccountabilityResult;
 import org.ouracademy.srtomy.accountability.query.get_accountabilities_by_parent_and_types.GetAccountabilitiesByParentAndTypesQuery;
 import org.ouracademy.srtomy.accountability.query.get_accountabilities_by_parent_and_types.GetAccountabilitiesByParentAndTypesQueryHandler;
-import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.query.PersonDetails;
 import org.ouracademy.srtomy.organization.query.PersonDetailsResolver;
 import org.ouracademy.srtomy.organization.query.get_location_children.GetLocationChildrenResult.Child;
-import org.ouracademy.srtomy.organization.query.get_location_children.GetLocationChildrenResult.Kind;
-import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.query.find_people_by_ids.FindPeopleByIdsQuery;
 import org.ouracademy.srtomy.person.query.find_people_by_ids.FindPeopleByIdsQueryHandler;
@@ -33,7 +29,6 @@ import org.ouracademy.srtomy.person.query.find_people_by_ids.FindPeopleByIdsQuer
 class GetLocationChildrenQueryHandlerImplTests {
 
   @Mock GetAccountabilitiesByParentAndTypesQueryHandler accountabilitiesQueryHandler;
-  @Mock OrganizationRepository organizationRepository;
   @Mock FindPeopleByIdsQueryHandler findPeopleByIdsQueryHandler;
 
   GetLocationChildrenQueryHandlerImpl handler;
@@ -42,16 +37,13 @@ class GetLocationChildrenQueryHandlerImplTests {
   void setUp() {
     handler =
         new GetLocationChildrenQueryHandlerImpl(
-            accountabilitiesQueryHandler,
-            organizationRepository,
-            new PersonDetailsResolver(findPeopleByIdsQueryHandler));
+            accountabilitiesQueryHandler, new PersonDetailsResolver(findPeopleByIdsQueryHandler));
   }
 
   @Test
-  void handleGroupsChildrenByTypeNameTypesThemAndEnrichesPeopleInOneCall() {
+  void handleGroupsChildrenByTypeNameAndEnrichesPeopleInOneCall() {
     var groupId = PartyId.generate();
     var member = PartyId.generate();
-    var subGroup = PartyId.generate();
     var leader = PartyId.generate();
     when(accountabilitiesQueryHandler.handle(
             new GetAccountabilitiesByParentAndTypesQuery(groupId, List.of(IS_PART_OF, LEADER))))
@@ -60,16 +52,7 @@ class GetLocationChildrenQueryHandlerImplTests {
                 new AccountabilityResult(
                     AccountabilityId.generate(), member, "Ana", groupId, IS_PART_OF, "IS_PART_OF"),
                 new AccountabilityResult(
-                    AccountabilityId.generate(),
-                    subGroup,
-                    "Kids",
-                    groupId,
-                    IS_PART_OF,
-                    "IS_PART_OF"),
-                new AccountabilityResult(
                     AccountabilityId.generate(), leader, "Luis", groupId, LEADER, "LEADER")));
-    when(organizationRepository.findAllById(List.of(member, subGroup, leader)))
-        .thenReturn(List.of(organization(subGroup, "Kids", Organization.Type.GROUP)));
     var ana = personResult(member, "Ana", "Diaz");
     var luis = personResult(leader, "Luis", "Rojas");
     when(findPeopleByIdsQueryHandler.handle(new FindPeopleByIdsQuery(List.of(member, leader))))
@@ -79,13 +62,8 @@ class GetLocationChildrenQueryHandlerImplTests {
 
     assertThat(result.childrenByType())
         .containsOnlyKeys("IS_PART_OF", "LEADER")
-        .containsEntry(
-            "IS_PART_OF",
-            List.of(
-                new Child(member, "Ana", Kind.PERSON, PersonDetails.from(ana)),
-                new Child(subGroup, "Kids", Kind.ORGANIZATION, null)))
-        .containsEntry(
-            "LEADER", List.of(new Child(leader, "Luis", Kind.PERSON, PersonDetails.from(luis))));
+        .containsEntry("IS_PART_OF", List.of(new Child(member, "Ana", PersonDetails.from(ana))))
+        .containsEntry("LEADER", List.of(new Child(leader, "Luis", PersonDetails.from(luis))));
     var anaDetails = result.childrenByType().get("IS_PART_OF").getFirst().person();
     assertThat(anaDetails.firstName()).isEqualTo("Ana");
     assertThat(anaDetails.lastName()).isEqualTo("Diaz");
@@ -94,27 +72,37 @@ class GetLocationChildrenQueryHandlerImplTests {
   }
 
   @Test
-  void handleDoesNotCallThePersonModuleWhenEveryChildIsAnOrganization() {
+  void handleKeepsAnIdThatIsNotAPersonWithoutDetails() {
     var groupId = PartyId.generate();
-    var subGroup = PartyId.generate();
+    var unknown = PartyId.generate();
     when(accountabilitiesQueryHandler.handle(
             new GetAccountabilitiesByParentAndTypesQuery(groupId, List.of(IS_PART_OF, LEADER))))
         .thenReturn(
             List.of(
                 new AccountabilityResult(
                     AccountabilityId.generate(),
-                    subGroup,
+                    unknown,
                     "Kids",
                     groupId,
                     IS_PART_OF,
                     "IS_PART_OF")));
-    when(organizationRepository.findAllById(List.of(subGroup)))
-        .thenReturn(List.of(organization(subGroup, "Kids", Organization.Type.GROUP)));
+    when(findPeopleByIdsQueryHandler.handle(new FindPeopleByIdsQuery(List.of(unknown))))
+        .thenReturn(List.of());
 
     var result = handler.handle(new GetLocationChildrenQuery(groupId));
 
     assertThat(result.childrenByType())
-        .containsEntry("IS_PART_OF", List.of(new Child(subGroup, "Kids", Kind.ORGANIZATION, null)));
+        .containsEntry("IS_PART_OF", List.of(new Child(unknown, "Kids", null)));
+  }
+
+  @Test
+  void handleOfAGroupWithoutMembersDoesNotCallThePersonModule() {
+    var groupId = PartyId.generate();
+    when(accountabilitiesQueryHandler.handle(
+            new GetAccountabilitiesByParentAndTypesQuery(groupId, List.of(IS_PART_OF, LEADER))))
+        .thenReturn(List.of());
+
+    assertThat(handler.handle(new GetLocationChildrenQuery(groupId)).childrenByType()).isEmpty();
     verifyNoInteractions(findPeopleByIdsQueryHandler);
   }
 }
