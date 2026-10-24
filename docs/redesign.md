@@ -3,6 +3,7 @@
 ## Contexto
 
 Hoy:
+
 - **API** (`srtomy-api`): `V1.0.0__initial_schema.sql` siembra una iglesia falsa `LCDP` (`bb8d09a1-…`). No hay usuarios en BD: la única unión Auth0↔iglesia es `app_metadata.orgId` escrito por `Auth0Gateway` al crear la iglesia (y el `userId` llega en el body, con un TODO). **No hay autorización**: cualquier token válido puede hacer todo (`SecurityConfig`: "authenticated = full access").
 - La jerarquía ya es genérica: `organization.type ∈ {CHURCH, LOCATION, GROUP, MINISTRY}` unida por filas `accountability` de tipo `IS_PART_OF`. Los niveles no se validan, y un grafo de accountabilities no sirve bien para heredar permisos.
 - Los "roles" que existen (PASTOR, WORSHIP_LEADER, USHER y personalizados por sede) son **cargos ministeriales**, no permisos.
@@ -14,16 +15,17 @@ Objetivo: cualquiera se registra y crea una o varias iglesias (cada una con al m
 
 ## 1. Modelo de recursos (como la jerarquía de GCP)
 
-| GCP          | Sr. Tommy                         | Reglas                                                         |
-| ------------ | --------------------------------- | -------------------------------------------------------------- |
-| Organization | **Iglesia** (`CHURCH`)            | Raíz. Al crearla se exige al menos una sede.                   |
-| Folder       | **Sede** (`LOCATION`)             | Hija directa de una iglesia.                                   |
+| GCP            | Sr. Tommy                                    | Reglas                                                                                   |
+| -------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Organization   | **Iglesia** (`CHURCH`)                       | Raíz. Al crearla se exige al menos una sede.                                             |
+| Folder         | **Sede** (`LOCATION`)                        | Hija directa de una iglesia.                                                             |
 | Folder/Project | **Grupo / Ministerio** (`GROUP`, `MINISTRY`) | Hijo de una sede o de otro grupo o ministerio. **Recursivo, sin límite de profundidad.** |
-| Resource     | Evento / curso, persona           | Pertenece a un nodo y hereda su acceso.                        |
+| Resource       | Evento / curso, persona                      | Pertenece a un nodo y hereda su acceso.                                                  |
 
 Cambios de esquema (Flyway, nueva migración `V1.1.0__...`):
+
 - `organization.parent_id uuid null` (FK a `organization`). Los ancestros y descendientes se recorren con un CTE recursivo (`WITH RECURSIVE`). Se descartó una ruta materializada (`path uuid[]`) por simplicidad, ya que los árboles son pequeños.
-- Se rellenan desde las `accountability IS_PART_OF` actuales entre organizaciones. Esas filas ya no se usan para el árbol. Para *persona ↔ organización* (membresía, LEADER, cargos, estados) se sigue usando `accountability`.
+- Se rellenan desde las `accountability IS_PART_OF` actuales entre organizaciones. Esas filas ya no se usan para el árbol. Para _persona ↔ organización_ (membresía, LEADER, cargos, estados) se sigue usando `accountability`.
 - Validar padre/tipo en `OrganizationWriter.create`: CHURCH sin padre; LOCATION bajo CHURCH; GROUP o MINISTRY bajo LOCATION, GROUP o MINISTRY.
 - **Quitar la iglesia falsa `LCDP`**. El usuario confirmó que es solo data de prueba: se elimina del seed y una migración la borra de la BD. Los 8 accountability types del sistema se quedan (los usa el código).
 - Enlaces sociales opcionales en `organization`: `website`, `facebook_url`, `instagram_url`, `youtube_url`, `tiktok_url`. Se validan como URL. En los formularios de iglesia y sede (y de grupo o ministerio) aparecen en una sección plegable **"Otras opciones"**, y se muestran en la página pública.
@@ -38,6 +40,7 @@ Cambios de esquema (Flyway, nueva migración `V1.1.0__...`):
 ## 3. IAM: roles, permisos y bindings con herencia
 
 Se separan dos conceptos que hoy se mezclan:
+
 - **Cargo ministerial**: la etiqueta que la iglesia usa para su gente. Sigue como `accountability_type` categoría ROLE. Es información de la iglesia y **no da permisos**. Debe ser flexible para cualquier tradición (evangélica, católica, etc.):
   - Los cargos pasan a pertenecer a la **iglesia** (`party_id = church_id`). Se eliminan los cargos globales con `party_id = null` (PASTOR, WORSHIP_LEADER, USHER) y su traducción fija en la UI (`Roles.tsx`, `toSpanish`, `getFixedOptions`).
   - Al crear la iglesia se **copian cargos sugeridos**: Pastor, Líder de alabanza, Servidor/Ujier y Maestro. El asistente los muestra y deja quitarlos o renombrarlos antes de guardar.
@@ -49,6 +52,7 @@ Se separan dos conceptos que hoy se mezclan:
 - **Rol de acceso (IAM)** (nuevo): un conjunto de permisos, asignado a un usuario sobre un nodo. **Se hereda a todos los descendientes**, igual que en GCP. Los predefinidos no se editan; cada iglesia puede crear **roles personalizados** eligiendo permisos (ver abajo).
 
 Tablas:
+
 - `iam_role` (`id`, `name`, `description`, `church_id` null = predefinido, `permissions text[]`, `deleted_time`).
   - **Roles personalizados**, como en GCP: quien tiene `iam.manage` en la iglesia crea, edita o borra roles. Puede partir de cero o de "Crear a partir de" un rol predefinido, y marca permisos en una lista agrupada por recurso.
   - El API valida que cada permiso exista en el catálogo de permisos del código.
@@ -60,15 +64,16 @@ Permisos (strings, estilo GCP `recurso.acción`):
 
 Roles predefinidos:
 
-| Rol             | Pensado para                    | Permisos                                                                  |
-| --------------- | ------------------------------- | ------------------------------------------------------------------------- |
-| **Propietario** | Quien crea la iglesia           | Todos, incluido `org.delete` de la iglesia y `iam.manage`                 |
-| **Administrador** | Pastor o secretaría           | Todos menos borrar la iglesia                                             |
-| **Líder**       | Líder de grupo, ministerio o sede | `org.read/update/create_child`, `members.*`, `events.*`, `attendance.write`, `invitations.send` en su nodo y descendientes |
-| **Colaborador** | Ujier, asistente                | `org.read`, `members.read`, `events.read`, `attendance.write`            |
-| **Miembro**     | Cualquier miembro con cuenta    | `org.read` (información básica), `events.read` de lo que es visible para miembros |
+| Rol               | Pensado para                      | Permisos                                                                                                                   |
+| ----------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Propietario**   | Quien crea la iglesia             | Todos, incluido `org.delete` de la iglesia y `iam.manage`                                                                  |
+| **Administrador** | Pastor o secretaría               | Todos menos borrar la iglesia                                                                                              |
+| **Líder**         | Líder de grupo, ministerio o sede | `org.read/update/create_child`, `members.*`, `events.*`, `attendance.write`, `invitations.send` en su nodo y descendientes |
+| **Colaborador**   | Ujier, asistente                  | `org.read`, `members.read`, `events.read`, `attendance.write`                                                              |
+| **Miembro**       | Cualquier miembro con cuenta      | `org.read` (información básica), `events.read` de lo que es visible para miembros                                          |
 
 Reglas:
+
 - Política efectiva = unión de los bindings en el nodo y en todos sus ancestros (el nodo y sus ancestros, con un CTE recursivo).
 - Al crear una iglesia, el creador recibe **Propietario** en la iglesia.
 - Al asignar a alguien como **líder** de un grupo o ministerio (la accountability `LEADER` que ya existe), si esa persona tiene usuario se le crea un binding **Líder** sobre ese nodo; si no, se ofrece invitarla (sección 5).
@@ -81,7 +86,7 @@ Reglas:
 1. **Registro e ingreso**: Auth0 Universal Login con signup. Al entrar, `/portal` llama a `GET /v1/me` y a `GET /v1/me/organizations` (los nodos donde el usuario tiene un binding, más sus ancestros, para armar el árbol).
 2. **Sin iglesias**: asistente "Crea tu iglesia" en 2 pasos (iglesia, luego primera sede, que es obligatoria), enviado a un endpoint **atómico** `POST /v1/churches { name, ..., location: {...} }`. Si en cambio tiene una invitación pendiente, ve "Tienes invitaciones" y puede aceptarlas.
 3. **Con iglesias**: se redirige al último nodo usado (`localStorage`) o, si no hay, al primero.
-4. **Selector de contexto** como el *resource picker* de GCP, en la barra superior: breadcrumb `Iglesia › Sede › Ministerio › Subgrupo`. Un diálogo con buscador y árbol permite cambiar de iglesia o de cualquier nodo. Reemplaza `LocationsDialog`.
+4. **Selector de contexto** como el _resource picker_ de GCP, en la barra superior: breadcrumb `Iglesia › Sede › Ministerio › Subgrupo`. Un diálogo con buscador y árbol permite cambiar de iglesia o de cualquier nodo. Reemplaza `LocationsDialog`.
 5. **Rutas**: `app/portal/[locId]` pasa a `app/portal/[nodeId]`. Las secciones (personas, eventos, subgrupos, accesos) se muestran según el tipo de nodo y los permisos.
 6. **"Mi espacio"** (`/portal/me`) para cualquier usuario: mis cursos y eventos (donde estoy inscrito o asistí), mis grupos y ministerios, y el directorio de la iglesia (nodos visibles con su información básica y sus líderes).
 7. Nueva pestaña **"Accesos"** en cada nodo (como "IAM" en GCP): bindings heredados, marcados como tales, y directos; otorgar o quitar roles; invitaciones pendientes.
@@ -97,6 +102,7 @@ Reglas:
 ## 6. Visibilidad de sedes, grupos y ministerios
 
 Campo `organization.member_visibility`:
+
 - `PUBLIC` (**por defecto**): cualquiera con el enlace, sin sesión, ve la página pública del nodo.
 - `CHURCH`: cualquier usuario con un binding en la iglesia.
 - `MEMBERS`: solo los miembros de ese nodo y quienes tengan `members.read` heredado.
@@ -105,6 +111,7 @@ Campo `organization.member_visibility`:
 La **información básica** del nodo (nombre, descripción, horario, líderes) se ve siempre en el directorio de la iglesia. `member_visibility` controla la **lista de miembros**.
 
 Qué muestra la vista pública (decidido con el usuario):
+
 - **Grupo o ministerio**: información básica, **líderes destacados** y luego los miembros. De todos solo nombre y apellido, **sin edad, fecha de nacimiento, teléfono ni dirección**. Nunca lista a menores de 18 (protección de datos según la constitución del API).
 - **Iglesia o sede**: además, un **organigrama**: el árbol de sedes, ministerios y grupos con sus líderes, y los cargos ministeriales (pastor, etc.). Lo controla `organization.show_org_chart`, **activado por defecto**. Solo incluye los nodos hijos que no sean `LEADERS`. Página pública: `GET /v1/public/organizations/{slug}` (sin JWT, con slug no adivinable) y la ruta UI `/g/{slug}`.
 
@@ -120,6 +127,7 @@ Qué muestra la vista pública (decidido con el usuario):
 ## 8. Migración de datos
 
 El usuario confirmó que **no hay datos reales**, así que hay libertad para limpiar:
+
 - Nueva migración `V1.1.0__identity_iam.sql`:
   - Borra todas las filas de dominio: `LCDP`, organizaciones, personas, eventos y accountabilities de prueba.
   - Borra los cargos globales.
@@ -139,14 +147,31 @@ El usuario confirmó que **no hay datos reales**, así que hay libertad para lim
 4. **006-visibility**: `member_visibility`, directorio, páginas públicas de nodos.
 5. **007-sharing**: compartir eventos y cursos, enlaces, inscripción por enlace.
 6. **008-my-space**: la vista del miembro común.
+7. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
 
 Alcance acordado para este branch (`claude/app-flow-redesign-nq6j60`, en ambos repos):
+
 1. Guardar este diseño como `docs/redesign.md` en los dos repos, como referencia para las fases siguientes.
 2. Correr `speckit-specify`, luego `speckit-plan` y luego `speckit-tasks` para la **003**, primero en el API y después en la UI.
 3. Implementar la 003: primero el API, luego `pnpm api:sync` y la UI.
 4. Commits en Conventional Commits y push al branch. No se abre PR salvo que el usuario lo pida.
 
-Para probar el flujo completo antes de que exista la Auth0 Action, la API acepta `email` desde el endpoint `/userinfo` si el token no lo trae. Esto queda documentado como paso de despliegue.
+Sin la Auth0 Action que agrega el email al token, el usuario se registra sin email (ver el ítem 8 de la sección 10).
+
+## 10. Deuda técnica y limpieza pendiente (009)
+
+**Regla:** cada ítem se consulta con el dueño del producto antes de hacerlo; nada de aquí se borra ni se cambia por iniciativa propia. Todo lo que quede por hacer o por limpiar al cerrar una fase se agrega a esta tabla.
+
+| #   | Ítem                                      | Repo     | Por qué quedó                                                                                                                                                                                    | Qué haría falta                                                                                                                                            | Estado                |
+| --- | ----------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 1   | Secretos `auth0-client-*`                 | API      | Desde la 003 la API no llama a la Management API de Auth0, pero `infra/terraform/environments/{dev,prod}/main.tf` aún listan `existing_secret_ids = ["auth0-client-id", "auth0-client-secret"]`. | Quitarlos de Terraform y aplicar; borrar los secretos en Secret Manager; revisar o borrar la aplicación M2M de Auth0 con permisos sobre la Management API. | Pendiente (consultar) |
+| 2   | Claim y metadata `orgId` en Auth0         | Auth0    | La UI ya no lee `https://sr-tommy.com/orgId`, y la API ya no escribe `app_metadata.orgId`.                                                                                                       | Revisar en el tenant si hay una Action o Rule que agrega el claim y quitarla; opcionalmente limpiar el `app_metadata.orgId` de los usuarios.               | Pendiente (consultar) |
+| 3   | Rama `Kind.ORGANIZATION`                  | API      | `GetLocationChildrenQueryHandlerImpl` aún distingue hijos organización, pero los subgrupos se enlazan por `parent_id`, ya no por `IS_PART_OF`.                                                   | Quitar la rama y el valor del enum (y del tipo generado en la UI).                                                                                         | Pendiente (consultar) |
+| 4   | Nombres `/organizations/locations/childs` | API y UI | Ahora crean y editan grupos a cualquier profundidad, no solo hijos de una sede.                                                                                                                  | Renombrar (p. ej. `/organizations/{id}/groups`); rompe el contrato: `pnpm api:sync` y ajustar la UI y las e2e.                                             | Pendiente (consultar) |
+| 5   | Carpeta `app/portal/[nodeId]/location`    | UI       | Ahora muestra los datos de cualquier nodo (iglesia, sede o grupo).                                                                                                                               | Renombrar a `details` y actualizar enlaces y e2e.                                                                                                          | Pendiente (consultar) |
+| 6   | `app/(components)/Option.ts`              | UI       | Ya no lo importa ningún archivo desde que los cargos reemplazaron a los roles.                                                                                                                   | Borrarlo.                                                                                                                                                  | Pendiente (consultar) |
+| 7   | Columna `app_user.person_id`              | API      | Reservada para la fase 005 (vincular el usuario con su persona al aceptar una invitación). No es abandono.                                                                                       | Usarla en la 005; si la 005 cambia de diseño, borrarla.                                                                                                    | Reservada             |
+| 8   | Email del usuario sin Auth0 Action        | API      | El diseño mencionaba leer el email desde `/userinfo` si el token no lo trae; no se implementó.                                                                                                   | Crear la Auth0 Action del README del API (recomendado) o implementar el respaldo con `/userinfo`.                                                          | Pendiente (consultar) |
 
 ## Archivos clave
 
