@@ -17,9 +17,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
+import org.ouracademy.srtomy.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
+import org.ouracademy.srtomy.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
+import org.ouracademy.srtomy.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.srtomy.party.domain.PartyId;
-import org.ouracademy.srtomy.person.query.FindPersonResult;
 import org.ouracademy.srtomy.person.repository.PersonRepository;
+import org.ouracademy.srtomy.person.repository.PersonRepository.PersonInSubtree;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -30,6 +33,7 @@ class SearchPeopleQueryHandlerImplTests {
 
   @Mock PersonRepository personRepository;
   @Mock EntityManager entityManager;
+  @Mock FindOrganizationSubtreeQueryHandler subtree;
   @InjectMocks SearchPeopleQueryHandlerImpl handler;
 
   AccountabilityType isPartOf = new AccountabilityType("IS_PART_OF", null, null);
@@ -39,31 +43,46 @@ class SearchPeopleQueryHandlerImplTests {
     when(entityManager.getReference(AccountabilityType.class, IS_PART_OF)).thenReturn(isPartOf);
   }
 
+  private List<PartyId> subtreeOf(PartyId organizationId) {
+    var ids = List.of(organizationId, PartyId.generate());
+    when(subtree.handle(new FindOrganizationSubtreeQuery(organizationId)))
+        .thenReturn(new FindOrganizationSubtreeResult(ids));
+    return ids;
+  }
+
   @Test
   void handleWithoutSearchTextListsEveryPersonThatIsPartOfTheOrganization() {
     var organizationId = PartyId.generate();
     var ana = PartyId.generate();
-    when(personRepository.findByOrgId(organizationId, isPartOf, PAGE))
-        .thenReturn(new PageImpl<>(List.of(person(ana, "Ana", "Diaz"))));
+    var ids = subtreeOf(organizationId);
+    when(personRepository.findAllById(List.of(ana)))
+        .thenReturn(List.of(person(ana, "Ana", "Diaz")));
+    when(personRepository.findByOrgIds(organizationId, ids, isPartOf, PAGE))
+        .thenReturn(new PageImpl<>(List.of(new PersonInSubtree(ana, "Jóvenes", 0))));
 
     var result = handler.handle(new SearchPeopleQuery(organizationId, null, PAGE));
 
-    assertThat(result.people().getContent()).extracting(FindPersonResult::id).containsExactly(ana);
-    verify(personRepository, never()).findByNameAndOrgId(any(), any(), any(), any());
+    var item = result.people().getContent().get(0);
+    assertThat(item.person().id()).isEqualTo(ana);
+    assertThat(item.organizationName()).isEqualTo("Jóvenes");
+    assertThat(item.direct()).isFalse();
+    verify(personRepository, never()).findByNameAndOrgIds(any(), any(), any(), any(), any());
   }
 
   @Test
   void handleWithSearchTextFiltersByName() {
     var organizationId = PartyId.generate();
     var ana = PartyId.generate();
-    when(personRepository.findByNameAndOrgId("an", organizationId, isPartOf, PAGE))
-        .thenReturn(new PageImpl<>(List.of(person(ana, "Ana", "Diaz"))));
+    var ids = subtreeOf(organizationId);
+    when(personRepository.findAllById(List.of(ana)))
+        .thenReturn(List.of(person(ana, "Ana", "Diaz")));
+    when(personRepository.findByNameAndOrgIds("an", organizationId, ids, isPartOf, PAGE))
+        .thenReturn(new PageImpl<>(List.of(new PersonInSubtree(ana, "Iglesia", 1))));
 
     var result = handler.handle(new SearchPeopleQuery(organizationId, "an", PAGE));
 
-    assertThat(result.people().getContent())
-        .extracting(FindPersonResult::firstName)
-        .containsExactly("Ana");
-    verify(personRepository, never()).findByOrgId(any(), any(), any());
+    assertThat(result.people().getContent().get(0).person().firstName()).isEqualTo("Ana");
+    assertThat(result.people().getContent().get(0).direct()).isTrue();
+    verify(personRepository, never()).findByOrgIds(any(), any(), any(), any());
   }
 }

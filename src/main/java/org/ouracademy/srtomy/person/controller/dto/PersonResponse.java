@@ -19,9 +19,19 @@ public record PersonResponse(
     LocalDate birthdate,
     Boolean hasBeenBaptized,
     LocalDateTime createDate,
-    LocalDateTime lastModifiedDate) {
+    LocalDateTime lastModifiedDate,
+    String organizationName,
+    Boolean directMember) {
 
   public static PersonResponse from(FindPersonResult result) {
+    return from(result, null, null);
+  }
+
+  /**
+   * For listings that include sub-nodes: where the person comes from and if it is the node itself.
+   */
+  public static PersonResponse from(
+      FindPersonResult result, String organizationName, Boolean directMember) {
     return new PersonResponse(
         result.id().value(),
         result.name(),
@@ -35,6 +45,8 @@ public record PersonResponse(
         result.birthdate(),
         result.hasBeenBaptized(),
         result.createDate(),
-        result.lastModifiedDate());
+        result.lastModifiedDate(),
+        organizationName,
+        directMember);
   }
 }

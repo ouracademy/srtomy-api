@@ -67,7 +67,7 @@ public class PersonController {
     return searchPeopleQueryHandler
         .handle(new SearchPeopleQuery(new PartyId(organizationId), searchText, pageable))
         .people()
-        .map(PersonResponse::from);
+        .map(item -> PersonResponse.from(item.person(), item.organizationName(), item.direct()));
   }
 
   @GetMapping("{id}")

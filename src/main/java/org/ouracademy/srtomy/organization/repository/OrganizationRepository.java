@@ -26,4 +26,19 @@ public interface OrganizationRepository extends JpaRepository<Organization, Part
           """,
       nativeQuery = true)
   Optional<UUID> findChurchIdOf(UUID id);
+
+  /** {@code id} and every node below it, however deep. */
+  @Query(
+      value =
+          """
+          with recursive subtree as (
+              select o.id from organization o where o.id = :id
+              union all
+              select o.id from organization o
+              join subtree s on o.parent_id = s.id
+          )
+          select s.id from subtree s
+          """,
+      nativeQuery = true)
+  List<UUID> findSubtreeIds(UUID id);
 }

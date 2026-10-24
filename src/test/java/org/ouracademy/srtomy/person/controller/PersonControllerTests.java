@@ -98,7 +98,9 @@ class PersonControllerTests {
     var organizationId = UUID.randomUUID();
     var ana = personResult(PartyId.generate(), "Ana", "Diaz");
     given(searchPeopleQueryHandler.handle(any()))
-        .willReturn(new SearchPeopleResult(new PageImpl<>(List.of(ana))));
+        .willReturn(
+            new SearchPeopleResult(
+                new PageImpl<>(List.of(new SearchPeopleResult.Item(ana, "Jóvenes", false)))));
 
     var response =
         assertThat(
@@ -109,6 +111,8 @@ class PersonControllerTests {
             .bodyJson();
     response.extractingPath("$.content[0].firstName").isEqualTo("Ana");
     response.extractingPath("$.content[0].fullName").isEqualTo("Ana Diaz");
+    response.extractingPath("$.content[0].organizationName").isEqualTo("Jóvenes");
+    response.extractingPath("$.content[0].directMember").isEqualTo(false);
 
     var query = ArgumentCaptor.forClass(SearchPeopleQuery.class);
     verify(searchPeopleQueryHandler).handle(query.capture());
