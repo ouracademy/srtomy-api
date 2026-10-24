@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<AppUser, UserId> {
   Optional<AppUser> findBySubject(String subject);
+
+  Optional<AppUser> findFirstByEmailIgnoreCaseAndEmailVerifiedTrueOrderByCreateDate(String email);
 }

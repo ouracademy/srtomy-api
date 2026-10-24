@@ -89,6 +89,82 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
       """)
   List<BoundRole> findBoundRoles(String subject);
 
+  /**
+   * The bindings on the node and on all its ancestors (live roles only), with who holds them and
+   * where each one was made.
+   */
+  @Query(
+      value =
+          """
+          with recursive ancestors as (
+              select o.id, o.parent_id from organization o where o.id = :organizationId
+              union
+              select o.id, o.parent_id from organization o
+              join ancestors a on o.id = a.parent_id
+          )
+          select rb.id as bindingId, u.id as userId, u.email as email,
+                 r.id as roleId, r.name as roleName,
+                 rb.organization_id as organizationId, p.name as organizationName
+          from role_binding rb
+          join app_user u on u.id = rb.user_id
+          join iam_role r on r.id = rb.role_id and r.deleted_time is null
+          join party p on p.id = rb.organization_id
+          where rb.organization_id in (select id from ancestors)
+          order by lower(u.email), r.name
+          """,
+      nativeQuery = true)
+  List<AccessEntry> findAccess(UUID organizationId);
+
+  /** Whether the user holds {@code roleId} on the node or on one of its ancestors. */
+  @Query(
+      value =
+          """
+          with recursive ancestors as (
+              select o.id, o.parent_id from organization o where o.id = :organizationId
+              union
+              select o.id, o.parent_id from organization o
+              join ancestors a on o.id = a.parent_id
+          )
+          select count(*) > 0
+          from role_binding rb
+          join app_user u on u.id = rb.user_id
+          where u.auth0_sub = :subject and rb.role_id = :roleId
+          and rb.organization_id in (select id from ancestors)
+          """,
+      nativeQuery = true)
+  boolean holdsRole(String subject, UUID roleId, UUID organizationId);
+
+  /** How many bindings of {@code roleId} exist on the church and every node below it. */
+  @Query(
+      value =
+          """
+          with recursive tree as (
+              select o.id from organization o where o.id = :churchId
+              union
+              select o.id from organization o join tree t on o.parent_id = t.id
+          )
+          select count(*) from role_binding rb
+          where rb.role_id = :roleId and rb.organization_id in (select id from tree)
+          """,
+      nativeQuery = true)
+  long countByRoleInChurch(UUID roleId, UUID churchId);
+
+  interface AccessEntry {
+    UUID getBindingId();
+
+    UUID getUserId();
+
+    String getEmail();
+
+    UUID getRoleId();
+
+    String getRoleName();
+
+    UUID getOrganizationId();
+
+    String getOrganizationName();
+  }
+
   interface VisibleOrganization {
     UUID getId();
 
