@@ -36,4 +36,30 @@ public class IamRole extends DomainObject {
   protected IamRole() {
     // jpa only
   }
+
+  private IamRole(Organization church, String name, String description, List<String> permissions) {
+    this.church = church;
+    this.name = name;
+    this.description = description;
+    this.permissions = permissions;
+  }
+
+  public static IamRole custom(
+      Organization church, String name, String description, List<String> permissions) {
+    return new IamRole(church, name, description, permissions);
+  }
+
+  public boolean isPredefined() {
+    return church == null;
+  }
+
+  public void update(String name, String description, List<String> permissions) {
+    this.name = name;
+    this.description = description;
+    this.permissions = permissions;
+  }
+
+  public void delete() {
+    this.deletedTime = LocalDateTime.now();
+  }
 }
