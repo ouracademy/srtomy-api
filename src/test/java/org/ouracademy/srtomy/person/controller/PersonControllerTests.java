@@ -157,7 +157,7 @@ class PersonControllerTests {
     var expected =
         new CreatePersonCommand(
             "test-user",
-            new PersonInfo("Ana", "Diaz", "999", 30, LocalDate.of(1995, 5, 17), true),
+            new PersonInfo("Ana", "Diaz", "999", null, 30, LocalDate.of(1995, 5, 17), true),
             new PartyId(organizationId),
             Set.of(new AccountabilityTypeId(roleId)));
     given(createPersonCommandHandler.handle(expected)).willReturn(new CreatePersonResult(newId));
@@ -195,7 +195,7 @@ class PersonControllerTests {
         new UpdatePersonCommand(
             "test-user",
             id,
-            new PersonInfo("Ana", "Diaz", "999", 30, LocalDate.of(1995, 5, 17), true),
+            new PersonInfo("Ana", "Diaz", "999", null, 30, LocalDate.of(1995, 5, 17), true),
             new PartyId(organizationId),
             Set.of(new AccountabilityTypeId(roleId)));
     given(updatePersonCommandHandler.handle(expected))

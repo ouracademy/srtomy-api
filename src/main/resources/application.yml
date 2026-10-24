@@ -41,3 +41,7 @@ management:
 #     detection-strategy: ANNOTATED
 
 cors_origin: "*"
+
+# Origin of the web app: the links in emails point to it.
+app:
+  url: ${APP_URL:http://localhost:3000}

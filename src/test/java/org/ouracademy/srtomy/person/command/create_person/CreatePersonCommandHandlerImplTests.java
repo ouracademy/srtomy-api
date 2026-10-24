@@ -38,7 +38,7 @@ import org.ouracademy.srtomy.person.repository.PersonRepository;
 class CreatePersonCommandHandlerImplTests {
 
   static final PersonInfo INFO =
-      new PersonInfo("Ana", "Diaz", "999", 30, LocalDate.of(1995, 5, 17), true);
+      new PersonInfo("Ana", "Diaz", "999", null, 30, LocalDate.of(1995, 5, 17), true);
 
   @Mock PersonRepository personRepository;
   @Mock FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;

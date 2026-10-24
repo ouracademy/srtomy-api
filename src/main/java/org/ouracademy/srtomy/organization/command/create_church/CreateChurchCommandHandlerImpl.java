@@ -100,7 +100,8 @@ class CreateChurchCommandHandlerImpl implements CreateChurchCommandHandler {
         createPersonCommandHandler.handle(
             new CreatePersonCommand(
                 command.subject(),
-                new PersonInfo(creator.firstName(), creator.lastName(), null, null, null, null),
+                new PersonInfo(
+                    creator.firstName(), creator.lastName(), null, null, null, null, null),
                 location.getId(),
                 creatorPositions));
     linkUserToPersonCommandHandler.handle(

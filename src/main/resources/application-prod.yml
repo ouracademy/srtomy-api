@@ -10,3 +10,7 @@ spring:
     # than the DB's own limit can starve other clients or fail to connect
     # under load.
     hikari.maximumPoolSize: 2
+
+# Resend (https://resend.com) delivers the invitation emails. Without the key they are only logged.
+resend:
+  api-key: ${sm@resend-api-key:}

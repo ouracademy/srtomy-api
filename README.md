@@ -35,6 +35,13 @@ exports.onExecutePostLogin = async (event, api) => {
 };
 ```
 
+## Invitations and email
+
+Leaders invite people by email (`specs/005-invitations/`). Emails go through
+[Resend](https://resend.com): set `resend.api-key` (`sm@resend-api-key` in prod) and, optionally,
+`resend.from`. Without a key (local runs, tests) the email is only written to the log, where you
+can copy the link. The links point to `app.url` (env `APP_URL`, default `http://localhost:3000`).
+
 ## Google Cloud Platform
 
 ### Credentials authenticate

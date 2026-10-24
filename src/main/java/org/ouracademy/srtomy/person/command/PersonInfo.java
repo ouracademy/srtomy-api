@@ -12,6 +12,7 @@ public record PersonInfo(
     String firstName,
     String lastName,
     String phoneNumber,
+    String email,
     Integer age,
     LocalDate birthdate,
     Boolean hasBeenBaptized) {
@@ -21,6 +22,7 @@ public record PersonInfo(
     person.setLastName(lastName);
     person.setName(firstName + " " + lastName);
     person.setPhoneNumber(phoneNumber);
+    person.setEmail(email == null || email.isBlank() ? null : email.trim());
     person.setAge(age);
     person.setBirthdate(birthdate);
     person.setHasBeenBaptized(hasBeenBaptized);

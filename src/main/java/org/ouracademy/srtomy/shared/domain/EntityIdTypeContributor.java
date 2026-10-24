@@ -9,6 +9,7 @@ import org.ouracademy.srtomy.complaint.domain.ComplaintId;
 import org.ouracademy.srtomy.event.domain.EventId;
 import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.RoleBindingId;
+import org.ouracademy.srtomy.invitation.domain.InvitationId;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.user.domain.UserId;
 import org.ouracademy.srtomy.user.domain.UserPersonLinkId;
@@ -31,5 +32,6 @@ public class EntityIdTypeContributor implements TypeContributor {
         new EntityIdJavaType<>(UserPersonLinkId.class, UserPersonLinkId::new));
     javaTypeRegistry.addDescriptor(new EntityIdJavaType<>(IamRoleId.class, IamRoleId::new));
     javaTypeRegistry.addDescriptor(new EntityIdJavaType<>(RoleBindingId.class, RoleBindingId::new));
+    javaTypeRegistry.addDescriptor(new EntityIdJavaType<>(InvitationId.class, InvitationId::new));
   }
 }
