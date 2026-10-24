@@ -24,13 +24,13 @@ public class CreateChurchRequest {
   @NotNull @Valid LocationInfoRequest location;
 
   /** Positions to create with their access level; may be empty. Repeated names are created once. */
-  @NotNull @Valid List<PositionRequest> positions = new ArrayList<>();
+  @NotNull @Valid List<ChurchPositionRequest> positions = new ArrayList<>();
 
   /** The person who creates the church, as one of its people. */
   @NotNull @Valid CreatorRequest creator;
 
   @Data
-  public static class PositionRequest {
+  public static class ChurchPositionRequest {
     @NotBlank String name;
 
     /** Id of the access level (Administrator, Leader, ...); null for a plain label. */
