@@ -1,11 +1,8 @@
 package org.ouracademy.srtomy.organization.command;
 
-import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.srtomy.accountability.command.create_accountability.CreateAccountabilityCommand;
-import org.ouracademy.srtomy.accountability.command.create_accountability.CreateAccountabilityCommandHandler;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
@@ -17,23 +14,26 @@ import org.springframework.stereotype.Component;
 public class OrganizationWriter {
 
   private final OrganizationRepository organizationRepository;
-  private final CreateAccountabilityCommandHandler createAccountabilityCommandHandler;
 
   /**
-   * Saves a new organization and, when {@code parentId} is given, links it to its parent with an
-   * IS_PART_OF accountability. Callers must run inside a transaction.
+   * Saves a new organization under {@code parentId} ({@code null} for a church). Fails with {@link
+   * NoSuchElementException} when the parent does not exist and with a {@code
+   * DomainValidationException} when the type cannot hang from the parent's type. Callers must run
+   * inside a transaction.
    */
   public Organization create(OrganizationInfo info, Organization.Type type, PartyId parentId) {
-    var organization = new Organization(info.name(), type);
+    var parent =
+        parentId == null
+            ? null
+            : organizationRepository
+                .findById(parentId)
+                .orElseThrow(
+                    () ->
+                        new NoSuchElementException(
+                            "Parent organization not found: " + parentId.value()));
+    var organization = Organization.createUnder(info.name(), type, parent);
     fillInfo(info, organization);
-    organization = organizationRepository.save(organization);
-
-    if (parentId != null) {
-      createAccountabilityCommandHandler.handle(
-          new CreateAccountabilityCommand(organization.getId(), parentId, IS_PART_OF));
-    }
-
-    return organization;
+    return organizationRepository.save(organization);
   }
 
   /** Overwrites the descriptive fields of an existing organization; empty if it does not exist. */
@@ -70,5 +70,6 @@ public class OrganizationWriter {
     organization.setDescription(info.description());
     organization.setPhoneNumber(info.phoneNumber());
     organization.setAddress(info.address());
+    organization.setSocialLinks(info.socialLinks());
   }
 }

@@ -14,7 +14,7 @@ Enforced by `.githooks/commit-msg` (`git config core.hooksPath .githooks`) and b
 Java code is formatted with Spotless (`google-java-format`). It runs automatically on edit via the Claude Code hook; CI verifies it with `./mvnw spotless:check`.
 
 The project is organized into domain modules (`party`, `person`, `organization`,
-`accountability`, `event`, `attendance`, `complaint`, `auth`, plus the non-domain
+`accountability`, `event`, `attendance`, `complaint`, `user`, `iam`, plus the non-domain
 `shared`), each with its own `domain/command/query/repository|gateway/controller`
 structure, naming conventions (`Command`/`Query`/`Handler`/`handle`/`Result`), and
 cross-module communication rules (including the entity-id convention). All of this
@@ -25,6 +25,10 @@ as part of `./mvnw test`.
 ## Language policy
 
 All code must be in English: file names, classes, methods, variables, comments. The only exception is the content of customer-facing strings (validation/error messages shown to the end user), which may be in Spanish. Checked in CI with `scripts/check-language.py`.
+
+## Pending work and cleanup
+
+Anything left to do or to clean up (unused secrets, dead code, legacy names...) goes into the technical debt table of `docs/redesign.md` (section 10, "009"). Ask the product owner before doing any item from that list, especially cleanups; never remove things on your own initiative.
 
 ## Specs and plans
 

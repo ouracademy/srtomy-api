@@ -12,9 +12,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.srtomy.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
+import org.ouracademy.srtomy.accountability.query.find_organizations_of_member.OrganizationsOfMemberResult;
+import org.ouracademy.srtomy.iam.domain.Permission;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.command.PersonInfo;
 import org.ouracademy.srtomy.person.command.create_person.CreatePersonCommand;
@@ -38,6 +44,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -55,6 +62,13 @@ class PersonControllerTests {
   @MockitoBean FindPersonByIdQueryHandler findPersonByIdQueryHandler;
   @MockitoBean CreatePersonCommandHandler createPersonCommandHandler;
   @MockitoBean UpdatePersonCommandHandler updatePersonCommandHandler;
+  @MockitoBean FindOrganizationsOfMemberQueryHandler findOrganizationsOfMemberQueryHandler;
+  @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
+
+  @BeforeEach
+  void everyPersonBelongsToSomeNode() {
+    memberOf(PartyId.generate());
+  }
 
   private String bearerHeader() {
     return "Bearer " + TestSecurityConfig.validToken(jwtEncoder);
@@ -175,6 +189,7 @@ class PersonControllerTests {
     var id = PartyId.generate();
     var organizationId = UUID.randomUUID();
     var roleId = UUID.randomUUID();
+    memberOf(new PartyId(organizationId));
     var expected =
         new UpdatePersonCommand(
             id,
@@ -197,6 +212,8 @@ class PersonControllerTests {
 
   @Test
   void editOfAMissingPersonIsNotFound() {
+    var organizationId = UUID.randomUUID();
+    memberOf(new PartyId(organizationId));
     given(updatePersonCommandHandler.handle(any())).willReturn(Optional.empty());
 
     assertThat(
@@ -204,7 +221,7 @@ class PersonControllerTests {
                 .uri("/v1/people/" + UUID.randomUUID())
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body(UUID.randomUUID(), UUID.randomUUID(), "Ana")))
+                .content(body(organizationId, UUID.randomUUID(), "Ana")))
         .hasStatus(HttpStatus.NOT_FOUND);
   }
 
@@ -217,10 +234,46 @@ class PersonControllerTests {
           "age": 30,
           "birthdate": "1995-05-17",
           "hasBeenBaptized": true,
-          "roles": ["%s"],
+          "positionIds": ["%s"],
           "organizationId": "%s"
         }
         """
         .formatted(firstName, roleId, organizationId);
+  }
+
+  @Test
+  void editingSomeoneOutsideTheGivenNodeIsForbidden() {
+    memberOf(PartyId.generate());
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/people/" + UUID.randomUUID())
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(UUID.randomUUID(), UUID.randomUUID(), "Ana")))
+        .hasStatus(HttpStatus.FORBIDDEN);
+    verifyNoInteractions(updatePersonCommandHandler);
+  }
+
+  @Test
+  void readingAPersonNeedsMembersReadOnOneOfTheirNodes() {
+    var organizationId = PartyId.generate();
+    memberOf(organizationId);
+    given(
+            authorizeQueryHandler.handle(
+                new AuthorizeQuery("test-user", List.of(organizationId), Permission.MEMBERS_READ)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.get()
+                .uri("/v1/people/" + UUID.randomUUID())
+                .header("Authorization", bearerHeader()))
+        .hasStatus(HttpStatus.FORBIDDEN);
+    verifyNoInteractions(findPersonByIdQueryHandler);
+  }
+
+  private void memberOf(PartyId organizationId) {
+    given(findOrganizationsOfMemberQueryHandler.handle(any()))
+        .willReturn(new OrganizationsOfMemberResult(List.of(organizationId)));
   }
 }

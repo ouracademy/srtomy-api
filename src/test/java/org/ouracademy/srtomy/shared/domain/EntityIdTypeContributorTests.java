@@ -17,7 +17,10 @@ import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.complaint.domain.ComplaintId;
 import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.iam.domain.IamRoleId;
+import org.ouracademy.srtomy.iam.domain.RoleBindingId;
 import org.ouracademy.srtomy.party.domain.PartyId;
+import org.ouracademy.srtomy.user.domain.UserId;
 
 class EntityIdTypeContributorTests {
 
@@ -33,7 +36,7 @@ class EntityIdTypeContributorTests {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<JavaType<?>> captor = ArgumentCaptor.forClass(JavaType.class);
-    verify(javaTypeRegistry, times(5)).addDescriptor(captor.capture());
+    verify(javaTypeRegistry, times(8)).addDescriptor(captor.capture());
 
     assertThat(captor.getAllValues())
         .<Class<?>>extracting(JavaType::getJavaTypeClass)
@@ -42,6 +45,9 @@ class EntityIdTypeContributorTests {
             EventId.class,
             AccountabilityId.class,
             AccountabilityTypeId.class,
-            ComplaintId.class);
+            ComplaintId.class,
+            UserId.class,
+            IamRoleId.class,
+            RoleBindingId.class);
   }
 }

@@ -7,7 +7,7 @@ import org.ouracademy.srtomy.person.command.PersonInfo;
 
 /**
  * Creates a person as a VISITOR that IS_PART_OF {@code organizationId}, holding exactly {@code
- * roles} there.
+ * positionIds} there (ids that are not positions of the node's church are ignored).
  */
 public record CreatePersonCommand(
-    PersonInfo info, PartyId organizationId, Set<AccountabilityTypeId> roles) {}
+    PersonInfo info, PartyId organizationId, Set<AccountabilityTypeId> positionIds) {}

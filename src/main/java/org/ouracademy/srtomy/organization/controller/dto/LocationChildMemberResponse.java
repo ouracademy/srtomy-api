@@ -6,14 +6,12 @@ import org.ouracademy.srtomy.organization.query.PersonDetails;
 import org.ouracademy.srtomy.organization.query.get_location_children.GetLocationChildrenResult;
 
 /**
- * A member or leader of a group/ministry; {@code kind} tells organizations and people apart. For
- * people, the person fields sit at the top level, as when the endpoint serialized the Person
- * entity; they are null for organizations.
+ * A member or leader of a group/ministry. The person fields sit at the top level, as when the
+ * endpoint serialized the Person entity; they are null when the id does not resolve to a person.
  */
 public record LocationChildMemberResponse(
     UUID id,
     String name,
-    GetLocationChildrenResult.Kind kind,
     String fullName,
     String firstName,
     String lastName,
@@ -26,12 +24,11 @@ public record LocationChildMemberResponse(
     PersonDetails person = child.person();
     if (person == null) {
       return new LocationChildMemberResponse(
-          child.id().value(), child.name(), child.kind(), null, null, null, null, null, null, null);
+          child.id().value(), child.name(), null, null, null, null, null, null, null);
     }
     return new LocationChildMemberResponse(
         child.id().value(),
         child.name(),
-        child.kind(),
         child.name(),
         person.firstName(),
         person.lastName(),

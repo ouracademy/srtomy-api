@@ -32,7 +32,7 @@ class SecurityConfigIntegrationTests {
   void aProtectedEndpointWithoutATokenIs401() {
     restTestClient
         .get()
-        .uri("/v1/organizations/locations/predefined-roles")
+        .uri("/v1/positions/suggestions")
         .exchange()
         .expectStatus()
         .isUnauthorized();
@@ -44,7 +44,7 @@ class SecurityConfigIntegrationTests {
 
     restTestClient
         .get()
-        .uri("/v1/organizations/locations/predefined-roles")
+        .uri("/v1/positions/suggestions")
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
         .expectStatus()
@@ -57,7 +57,7 @@ class SecurityConfigIntegrationTests {
 
     restTestClient
         .get()
-        .uri("/v1/organizations/locations/predefined-roles")
+        .uri("/v1/positions/suggestions")
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
         .expectStatus()

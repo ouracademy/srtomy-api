@@ -5,8 +5,10 @@ import static org.mockito.Mockito.mock;
 
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.srtomy.shared.domain.DomainValidationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.context.request.WebRequest;
 
 /**
@@ -37,5 +39,25 @@ class GlobalExceptionHandlerTests {
     var body = (ProblemDetail) response.getBody();
     assertThat(body.getStatus()).isEqualTo(500);
     assertThat(body.getDetail()).isNull();
+  }
+
+  @Test
+  void accessDeniedBecomesA403ProblemWithItsMessage() {
+    var response = handler.handleForbidden(new AccessDeniedException("sin permiso"), request);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    var body = (ProblemDetail) response.getBody();
+    assertThat(body.getStatus()).isEqualTo(403);
+    assertThat(body.getDetail()).isEqualTo("sin permiso");
+  }
+
+  @Test
+  void domainValidationBecomesA400ProblemWithItsMessage() {
+    var response =
+        handler.handleDomainValidation(new DomainValidationException("regla rota"), request);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    var body = (ProblemDetail) response.getBody();
+    assertThat(body.getDetail()).isEqualTo("regla rota");
   }
 }

@@ -6,7 +6,11 @@ import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.command.PersonInfo;
 
 /**
- * Replaces the person's data and makes their roles in {@code organizationId} match {@code roles}.
+ * Replaces the person's data and makes their positions in {@code organizationId} match {@code
+ * positionIds}.
  */
 public record UpdatePersonCommand(
-    PartyId personId, PersonInfo info, PartyId organizationId, Set<AccountabilityTypeId> roles) {}
+    PartyId personId,
+    PersonInfo info,
+    PartyId organizationId,
+    Set<AccountabilityTypeId> positionIds) {}

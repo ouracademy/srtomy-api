@@ -3,9 +3,9 @@ package org.ouracademy.srtomy.organization.controller.dto;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.ouracademy.srtomy.organization.domain.Organization;
+import org.ouracademy.srtomy.organization.domain.SocialLinks;
 import org.ouracademy.srtomy.organization.query.FindOrganizationResult;
 
-/** Same JSON fields the endpoints returned when they serialized the Organization entity. */
 public record OrganizationResponse(
     UUID id,
     String name,
@@ -13,6 +13,8 @@ public record OrganizationResponse(
     String phoneNumber,
     String address,
     Organization.Type type,
+    UUID parentId,
+    SocialLinks socialLinks,
     LocalDateTime createDate,
     LocalDateTime lastModifiedDate) {
 
@@ -24,6 +26,8 @@ public record OrganizationResponse(
         result.phoneNumber(),
         result.address(),
         result.type(),
+        result.parentId() == null ? null : result.parentId().value(),
+        result.socialLinks(),
         result.createDate(),
         result.lastModifiedDate());
   }

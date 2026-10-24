@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.ouracademy.srtomy.event.command.create_event.CreateEventCommand;
@@ -21,12 +22,19 @@ import org.ouracademy.srtomy.event.controller.dto.EventResponse;
 import org.ouracademy.srtomy.event.domain.EventId;
 import org.ouracademy.srtomy.event.query.find_event_by_id.FindEventByIdQuery;
 import org.ouracademy.srtomy.event.query.find_event_by_id.FindEventByIdQueryHandler;
+import org.ouracademy.srtomy.event.query.find_event_organization.FindEventOrganizationQuery;
+import org.ouracademy.srtomy.event.query.find_event_organization.FindEventOrganizationQueryHandler;
 import org.ouracademy.srtomy.event.query.search_events.SearchEventsQuery;
 import org.ouracademy.srtomy.event.query.search_events.SearchEventsQueryHandler;
+import org.ouracademy.srtomy.iam.domain.Permission;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,12 +61,17 @@ public class EventController {
   CreateEventCommandHandler createEventCommandHandler;
   DeleteEventCommandHandler deleteEventCommandHandler;
   EditEventCommandHandler editEventCommandHandler;
+  FindEventOrganizationQueryHandler findEventOrganizationQueryHandler;
+  AuthorizeQueryHandler authorizeQueryHandler;
 
   @GetMapping
   public List<EventResponse> findAll(
+      @AuthenticationPrincipal Jwt jwt,
       @RequestParam(required = true) UUID organizationId,
       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
+    authorizeQueryHandler.handle(
+        new AuthorizeQuery(jwt.getSubject(), new PartyId(organizationId), Permission.EVENTS_READ));
     return searchEventsQueryHandler
         .handle(
             new SearchEventsQuery(
@@ -71,7 +84,9 @@ public class EventController {
   }
 
   @GetMapping("{id}")
-  public ResponseEntity<EventResponse> findById(@PathVariable UUID id) {
+  public ResponseEntity<EventResponse> findById(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    authorizeOnEvent(jwt, id, Permission.EVENTS_READ);
     return ResponseEntity.of(
         findEventByIdQueryHandler
             .handle(new FindEventByIdQuery(new EventId(id)))
@@ -80,7 +95,13 @@ public class EventController {
 
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
-  public UUID create(@RequestBody @Valid EventRequest eventRequest) {
+  public UUID create(
+      @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid EventRequest eventRequest) {
+    authorizeQueryHandler.handle(
+        new AuthorizeQuery(
+            jwt.getSubject(),
+            new PartyId(eventRequest.getOrganizationId()),
+            Permission.EVENTS_WRITE));
     return createEventCommandHandler
         .handle(
             new CreateEventCommand(
@@ -100,15 +121,32 @@ public class EventController {
   }
 
   @DeleteMapping("{id}")
-  public void delete(@PathVariable UUID id, @RequestBody @Valid EventDeleteRequest request) {
+  public void delete(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid EventDeleteRequest request) {
+    authorizeOnEvent(jwt, id, Permission.EVENTS_WRITE);
     deleteEventCommandHandler.handle(new DeleteEventCommand(new EventId(id), request.getOption()));
   }
 
   @PutMapping("{id}")
   public ResponseEntity<UUID> edit(
-      @PathVariable UUID id, @RequestBody @Valid EditEventRequest request) {
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid EditEventRequest request) {
+    authorizeOnEvent(jwt, id, Permission.EVENTS_WRITE);
     var result =
         editEventCommandHandler.handle(new EditEventCommand(new EventId(id), request.getOption()));
     return ResponseEntity.ok(result.id().value());
+  }
+
+  /** 404 when the event does not exist, 403 when the user lacks the permission on its node. */
+  private void authorizeOnEvent(Jwt jwt, UUID eventId, Permission permission) {
+    var organizationId =
+        findEventOrganizationQueryHandler
+            .handle(new FindEventOrganizationQuery(new EventId(eventId)))
+            .orElseThrow(() -> new NoSuchElementException("Event not found: " + eventId))
+            .organizationId();
+    authorizeQueryHandler.handle(new AuthorizeQuery(jwt.getSubject(), organizationId, permission));
   }
 }

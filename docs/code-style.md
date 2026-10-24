@@ -2,7 +2,7 @@
 
 El código vive bajo `org.ouracademy.srtomy.<modulo>`. Los módulos actuales son:
 `party`, `person`, `organization`, `accountability`, `event`, `attendance`,
-`complaint`, `auth`, y `shared` (no es un módulo de dominio, ver más abajo).
+`complaint`, `user`, `iam`, y `shared` (no es un módulo de dominio, ver más abajo).
 
 Son paquetes Java dentro del mismo proyecto Maven/JAR — no hay `module-info.java`
 ni multi-módulo Maven. La regla de aislamiento entre módulos no la impone el
@@ -57,10 +57,20 @@ package-private, así que sus tests viven en la misma subcarpeta (un test por
 acción) y una acción que usa otra depende de su `*Handler` (interfaz), nunca
 de su `*HandlerImpl`.
 
-Para módulos que llaman servicios externos (`auth` → Auth0) se usa `gateway/`
-en vez de `repository/`, con la misma idea: la llamada externa queda
-encapsulada y solo se usa dentro de su propio módulo (ver
-`auth/gateway/Auth0Gateway.java`).
+Para módulos que llaman servicios externos se usa `gateway/` en vez de
+`repository/`, con la misma idea: la llamada externa queda encapsulada y solo
+se usa dentro de su propio módulo.
+
+## Autorización
+
+Cada endpoint que toca datos de una iglesia llama primero a
+`iam.query.authorize.AuthorizeQueryHandler` con el `sub` del JWT, el nodo
+(iglesia, sede, grupo o ministerio) sobre el que actúa y el `Permission` que
+necesita. Si el endpoint recibe un evento, una persona o un cargo, primero
+resuelve su nodo con el `QueryHandler` del módulo dueño. Sin permiso, el
+handler lanza `AccessDeniedException` y la respuesta es 403. Los roles se
+heredan hacia abajo por `organization.parent_id`, como en IAM de GCP. Ver
+`specs/003-identity-iam/`.
 
 ## Naming — sin excepciones
 

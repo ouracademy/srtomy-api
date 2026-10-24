@@ -1,66 +1,87 @@
 package org.ouracademy.srtomy.organization.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.ouracademy.srtomy.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
 import static org.ouracademy.srtomy.organization.OrganizationFixtures.organization;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ouracademy.srtomy.accountability.command.create_accountability.CreateAccountabilityCommand;
-import org.ouracademy.srtomy.accountability.command.create_accountability.CreateAccountabilityCommandHandler;
 import org.ouracademy.srtomy.organization.domain.Organization;
+import org.ouracademy.srtomy.organization.domain.SocialLinks;
 import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
 import org.ouracademy.srtomy.party.domain.PartyId;
+import org.ouracademy.srtomy.shared.domain.DomainValidationException;
 
 @ExtendWith(MockitoExtension.class)
 class OrganizationWriterTests {
 
-  static final OrganizationInfo INFO = new OrganizationInfo("Name", "desc", "addr", "123");
+  static final SocialLinks LINKS =
+      new SocialLinks("https://x.org", "https://facebook.com/x", null, null, null);
+  static final OrganizationInfo INFO = new OrganizationInfo("Name", "desc", "addr", "123", LINKS);
 
   @Mock OrganizationRepository organizationRepository;
-  @Mock CreateAccountabilityCommandHandler createAccountabilityCommandHandler;
 
   OrganizationWriter writer;
 
   @BeforeEach
   void setUp() {
-    writer = new OrganizationWriter(organizationRepository, createAccountabilityCommandHandler);
+    writer = new OrganizationWriter(organizationRepository);
   }
 
   @Test
-  void createWithAParentLinksTheNewOrganizationToItAsIsPartOf() {
-    var parentId = PartyId.generate();
+  void createUnderAParentSetsTheParentAndTheInfo() {
+    var church = organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH);
+    when(organizationRepository.findById(church.getId())).thenReturn(Optional.of(church));
     when(organizationRepository.save(any(Organization.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var created = writer.create(INFO, Organization.Type.LOCATION, parentId);
+    var created = writer.create(INFO, Organization.Type.LOCATION, church.getId());
 
     assertThat(created.getName()).isEqualTo("Name");
     assertThat(created.getDescription()).isEqualTo("desc");
     assertThat(created.getAddress()).isEqualTo("addr");
     assertThat(created.getPhoneNumber()).isEqualTo("123");
+    assertThat(created.getSocialLinks()).isEqualTo(LINKS);
     assertThat(created.getType()).isEqualTo(Organization.Type.LOCATION);
-    verify(createAccountabilityCommandHandler)
-        .handle(new CreateAccountabilityCommand(created.getId(), parentId, IS_PART_OF));
+    assertThat(created.getParent()).isSameAs(church);
   }
 
   @Test
-  void createWithoutAParentCreatesNoAccountability() {
+  void createWithoutAParentCreatesARootChurch() {
     when(organizationRepository.save(any(Organization.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    writer.create(INFO, Organization.Type.CHURCH, null);
+    var created = writer.create(INFO, Organization.Type.CHURCH, null);
 
-    verifyNoInteractions(createAccountabilityCommandHandler);
+    assertThat(created.getParent()).isNull();
+  }
+
+  @Test
+  void createRejectsATypeThatCannotHangFromTheParent() {
+    var church = organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH);
+    when(organizationRepository.findById(church.getId())).thenReturn(Optional.of(church));
+
+    assertThatThrownBy(() -> writer.create(INFO, Organization.Type.GROUP, church.getId()))
+        .isInstanceOf(DomainValidationException.class);
+    verify(organizationRepository, never()).save(any(Organization.class));
+  }
+
+  @Test
+  void createFailsWhenTheParentDoesNotExist() {
+    var missing = PartyId.generate();
+    when(organizationRepository.findById(missing)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> writer.create(INFO, Organization.Type.LOCATION, missing))
+        .isInstanceOf(NoSuchElementException.class);
   }
 
   @Test

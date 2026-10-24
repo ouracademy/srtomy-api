@@ -26,7 +26,8 @@ public class CreatePersonRequest {
 
   Boolean hasBeenBaptized;
 
-  Set<UUID> roles = new HashSet<>();
+  /** Ids of positions (cargos) of the church; others are ignored. */
+  Set<UUID> positionIds = new HashSet<>();
 
   @NotNull UUID organizationId;
 }

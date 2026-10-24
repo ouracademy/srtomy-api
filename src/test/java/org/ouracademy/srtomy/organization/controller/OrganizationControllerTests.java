@@ -3,6 +3,7 @@ package org.ouracademy.srtomy.organization.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -11,11 +12,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
-import org.ouracademy.srtomy.accountability.query.AccountabilityTypeResult;
-import org.ouracademy.srtomy.accountability.query.get_predefined_roles.GetPredefinedRolesQuery;
-import org.ouracademy.srtomy.accountability.query.get_predefined_roles.GetPredefinedRolesQueryHandler;
-import org.ouracademy.srtomy.accountability.query.get_roles_of_location.GetRolesOfLocationQueryHandler;
-import org.ouracademy.srtomy.accountability.query.get_roles_of_person.GetRolesOfPersonQueryHandler;
+import org.ouracademy.srtomy.iam.domain.Permission;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.srtomy.organization.command.OrganizationInfo;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommand;
 import org.ouracademy.srtomy.organization.command.create_church.CreateChurchCommandHandler;
@@ -30,6 +29,7 @@ import org.ouracademy.srtomy.organization.command.edit_organization.EditOrganiza
 import org.ouracademy.srtomy.organization.command.update_location.UpdateLocationCommandHandler;
 import org.ouracademy.srtomy.organization.command.update_location_child.UpdateLocationChildCommandHandler;
 import org.ouracademy.srtomy.organization.domain.Organization;
+import org.ouracademy.srtomy.organization.domain.SocialLinks;
 import org.ouracademy.srtomy.organization.query.FindOrganizationResult;
 import org.ouracademy.srtomy.organization.query.PersonDetails;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
@@ -48,6 +48,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -72,9 +73,7 @@ class OrganizationControllerTests {
   @MockitoBean FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
   @MockitoBean GetLocationChildrenQueryHandler getLocationChildrenQueryHandler;
   @MockitoBean GetMemberStateQueryHandler getMemberStateQueryHandler;
-  @MockitoBean GetPredefinedRolesQueryHandler getPredefinedRolesQueryHandler;
-  @MockitoBean GetRolesOfLocationQueryHandler getRolesOfLocationQueryHandler;
-  @MockitoBean GetRolesOfPersonQueryHandler getRolesOfPersonQueryHandler;
+  @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
 
   static final PersonDetails ANA_DETAILS =
       new PersonDetails("Ana", "Diaz", "999", 30, LocalDate.of(1995, 5, 17), true);
@@ -85,36 +84,27 @@ class OrganizationControllerTests {
 
   static FindOrganizationResult church(PartyId id) {
     return new FindOrganizationResult(
-        id, "Church", "desc", "addr", "123", Organization.Type.CHURCH, null, null);
+        id, "Church", "desc", "addr", "123", Organization.Type.CHURCH, null, null, null, null);
   }
 
   @Test
-  void predefinedRolesReturnsTheSeededRoles() {
-    given(getPredefinedRolesQueryHandler.handle(new GetPredefinedRolesQuery()))
-        .willReturn(
-            List.of(
-                new AccountabilityTypeResult(AccountabilityTypeId.generate(), "PASTOR", true),
-                new AccountabilityTypeResult(
-                    AccountabilityTypeId.generate(), "WORSHIP_LEADER", true),
-                new AccountabilityTypeResult(AccountabilityTypeId.generate(), "USHER", true)));
-
-    assertThat(
-            mvc.get()
-                .uri("/v1/organizations/locations/predefined-roles")
-                .header("Authorization", bearer()))
-        .hasStatusOk()
-        .bodyText()
-        .contains("PASTOR", "WORSHIP_LEADER", "USHER");
-  }
-
-  @Test
-  void createMapsTheRequestToACreateChurchCommandAndReturnsTheChurch() {
+  void createBuildsTheChurchCommandForTheSignedInUser() {
     var id = PartyId.generate();
-    given(
-            createChurchCommandHandler.handle(
-                new CreateChurchCommand(
-                    new OrganizationInfo("Church", "desc", "addr", "123"), null, "auth0|123")))
-        .willReturn(new CreateChurchResult(church(id)));
+    var command =
+        new CreateChurchCommand(
+            new OrganizationInfo(
+                "Church",
+                "desc",
+                "addr",
+                "123",
+                new SocialLinks(null, "https://facebook.com/x", null, null, null)),
+            new OrganizationInfo("Sede", null, "Av. 1", null, SocialLinks.NONE),
+            List.of("Pastor"),
+            "test-user",
+            null,
+            false);
+    given(createChurchCommandHandler.handle(command))
+        .willReturn(new CreateChurchResult(church(id), church(PartyId.generate())));
 
     assertThat(
             mvc.post()
@@ -123,13 +113,86 @@ class OrganizationControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"name":"Church","description":"desc","address":"addr",
-                     "phoneNumber":"123","userId":"auth0|123"}
+                    {"name":"Church","description":"desc","address":"addr","phoneNumber":"123",
+                     "socialLinks":{"facebookUrl":"https://facebook.com/x","website":" "},
+                     "location":{"name":"Sede","address":"Av. 1"},
+                     "positions":["Pastor"]}
                     """))
         .hasStatus(201)
         .bodyJson()
         .extractingPath("$.id")
         .isEqualTo(id.value().toString());
+  }
+
+  @Test
+  void createWithoutALocationIsBadRequest() {
+    assertThat(
+            mvc.post()
+                .uri("/v1/organizations")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Church\"}"))
+        .hasStatus(400);
+    verifyNoInteractions(createChurchCommandHandler);
+  }
+
+  @Test
+  void createWithAnInvalidSocialLinkIsBadRequest() {
+    assertThat(
+            mvc.post()
+                .uri("/v1/organizations")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name":"Church","socialLinks":{"tiktokUrl":"tiktok.com/x"},
+                     "location":{"name":"Sede"}}
+                    """))
+        .hasStatus(400);
+  }
+
+  @Test
+  void readingANodeWithoutPermissionIsForbidden() {
+    var id = PartyId.generate();
+    given(authorizeQueryHandler.handle(new AuthorizeQuery("test-user", id, Permission.ORG_READ)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(mvc.get().uri("/v1/organizations/" + id.value()).header("Authorization", bearer()))
+        .hasStatus(403);
+    verifyNoInteractions(findOrganizationByIdQueryHandler);
+  }
+
+  @Test
+  void creatingAChildNeedsCreateChildOnTheParent() {
+    var parentId = PartyId.generate();
+    given(
+            authorizeQueryHandler.handle(
+                new AuthorizeQuery("test-user", parentId, Permission.ORG_CREATE_CHILD)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/organizations/locations/childs")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"name\":\"Coro\",\"type\":\"GROUP\",\"parentId\":\""
+                        + parentId.value()
+                        + "\"}"))
+        .hasStatus(403);
+    verifyNoInteractions(createLocationChildCommandHandler);
+  }
+
+  @Test
+  void deletingNeedsOrgDelete() {
+    var id = PartyId.generate();
+    given(authorizeQueryHandler.handle(new AuthorizeQuery("test-user", id, Permission.ORG_DELETE)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.delete().uri("/v1/organizations/" + id.value()).header("Authorization", bearer()))
+        .hasStatus(403);
+    verifyNoInteractions(deleteOrganizationCommandHandler);
   }
 
   @Test
@@ -157,21 +220,18 @@ class OrganizationControllerTests {
   }
 
   @Test
-  void createLocationWithoutRolesIsBadRequest() {
+  void createLocationWithoutAParentIsBadRequest() {
     assertThat(
             mvc.post()
                 .uri("/v1/organizations/locations")
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"name\":\"Sede\",\"parentId\":\""
-                        + PartyId.generate().value()
-                        + "\",\"roles\":[]}"))
+                .content("{\"name\":\"Sede\"}"))
         .hasStatus(400);
   }
 
   @Test
-  void updateLocationWithoutRolesReachesTheHandler() {
+  void updateOfAnUnknownLocationIsNotFound() {
     given(updateLocationCommandHandler.handle(any())).willReturn(Optional.empty());
 
     assertThat(
@@ -179,7 +239,7 @@ class OrganizationControllerTests {
                 .uri("/v1/organizations/locations/" + PartyId.generate().value())
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Sede\",\"roles\":[]}"))
+                .content("{\"name\":\"Sede\"}"))
         .hasStatus(404);
   }
 
@@ -250,16 +310,9 @@ class OrganizationControllerTests {
                 Map.of(
                     "IS_PART_OF",
                     List.of(
+                        new GetLocationChildrenResult.Child(memberId, "Ana Diaz", ANA_DETAILS),
                         new GetLocationChildrenResult.Child(
-                            memberId,
-                            "Ana Diaz",
-                            GetLocationChildrenResult.Kind.PERSON,
-                            ANA_DETAILS),
-                        new GetLocationChildrenResult.Child(
-                            PartyId.generate(),
-                            "Kids",
-                            GetLocationChildrenResult.Kind.ORGANIZATION,
-                            null)))));
+                            PartyId.generate(), "Sin ficha", null)))));
 
     var response =
         assertThat(
@@ -269,12 +322,11 @@ class OrganizationControllerTests {
             .hasStatusOk()
             .bodyJson();
     response.extractingPath("$.IS_PART_OF[0].name").isEqualTo("Ana Diaz");
-    response.extractingPath("$.IS_PART_OF[0].kind").isEqualTo("PERSON");
+    response.doesNotHavePath("$.IS_PART_OF[0].kind");
     response.extractingPath("$.IS_PART_OF[0].firstName").isEqualTo("Ana");
     response.extractingPath("$.IS_PART_OF[0].lastName").isEqualTo("Diaz");
     response.extractingPath("$.IS_PART_OF[0].age").isEqualTo(30);
     response.extractingPath("$.IS_PART_OF[0].birthdate").isEqualTo("1995-05-17");
-    response.extractingPath("$.IS_PART_OF[1].kind").isEqualTo("ORGANIZATION");
     response.extractingPath("$.IS_PART_OF[1].firstName").isNull();
   }
 

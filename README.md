@@ -14,6 +14,23 @@ Un sistema para iglesias
 
 See [AGENTS.md](./AGENTS.md) for commit message, code style and language conventions.
 
+## Users and access
+
+There is no seeded church: anyone who signs in creates their own (`POST /v1/organizations`)
+and becomes its Owner. Access is checked per request with GCP-style roles inherited down the
+church → location → group/ministry tree (`iam` module, `specs/003-identity-iam/`). The API
+no longer calls the Auth0 Management API.
+
+To store users' emails, add an Auth0 post-login Action that copies them into the access
+token under the API's namespace:
+
+```js
+exports.onExecutePostLogin = async (event, api) => {
+  api.accessToken.setCustomClaim("https://sr-tommy.com/email", event.user.email);
+  api.accessToken.setCustomClaim("https://sr-tommy.com/email_verified", event.user.email_verified);
+};
+```
+
 ## Google Cloud Platform
 
 ### Credentials authenticate

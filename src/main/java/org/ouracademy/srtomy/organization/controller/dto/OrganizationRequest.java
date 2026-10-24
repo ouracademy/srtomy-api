@@ -1,5 +1,6 @@
 package org.ouracademy.srtomy.organization.controller.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.UUID;
 import lombok.Data;
@@ -14,8 +15,7 @@ public class OrganizationRequest {
 
   String phoneNumber;
 
-  UUID parentId;
+  @Valid SocialLinksRequest socialLinks;
 
-  // TODO: remove this and use current user (principal)
-  String userId;
+  UUID parentId;
 }

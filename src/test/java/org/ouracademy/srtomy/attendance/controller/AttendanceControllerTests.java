@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.attendance.command.register_attendance.RegisterAttendanceCommand;
 import org.ouracademy.srtomy.attendance.command.register_attendance.RegisterAttendanceCommandHandler;
@@ -18,6 +19,11 @@ import org.ouracademy.srtomy.attendance.query.get_attendance.GetAttendanceQuery;
 import org.ouracademy.srtomy.attendance.query.get_attendance.GetAttendanceQueryHandler;
 import org.ouracademy.srtomy.attendance.query.get_attendance.GetAttendanceResult;
 import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.event.query.find_event_organization.EventOrganizationResult;
+import org.ouracademy.srtomy.event.query.find_event_organization.FindEventOrganizationQueryHandler;
+import org.ouracademy.srtomy.iam.domain.Permission;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQuery;
+import org.ouracademy.srtomy.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
@@ -26,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -41,6 +48,16 @@ class AttendanceControllerTests {
 
   @MockitoBean GetAttendanceQueryHandler getAttendanceQueryHandler;
   @MockitoBean RegisterAttendanceCommandHandler registerAttendanceCommandHandler;
+  @MockitoBean FindEventOrganizationQueryHandler findEventOrganizationQueryHandler;
+  @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
+
+  static final PartyId EVENT_ORGANIZATION = PartyId.generate();
+
+  @BeforeEach
+  void everyEventBelongsToTheSameNode() {
+    given(findEventOrganizationQueryHandler.handle(any()))
+        .willReturn(Optional.of(new EventOrganizationResult(EVENT_ORGANIZATION)));
+  }
 
   private String bearerHeader() {
     return "Bearer " + TestSecurityConfig.validToken(jwtEncoder);
@@ -120,5 +137,22 @@ class AttendanceControllerTests {
                 .content("{\"personIds\": []}"))
         .hasStatus(404)
         .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  @Test
+  void takingAttendanceNeedsAttendanceWriteOnTheEventsNode() {
+    given(
+            authorizeQueryHandler.handle(
+                new AuthorizeQuery("test-user", EVENT_ORGANIZATION, Permission.ATTENDANCE_WRITE)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + UUID.randomUUID() + "/attendance")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"personIds\": []}"))
+        .hasStatus(403);
+    verifyNoInteractions(registerAttendanceCommandHandler);
   }
 }

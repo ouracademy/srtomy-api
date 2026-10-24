@@ -14,7 +14,10 @@ import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.complaint.domain.ComplaintId;
 import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.iam.domain.IamRoleId;
+import org.ouracademy.srtomy.iam.domain.RoleBindingId;
 import org.ouracademy.srtomy.party.domain.PartyId;
+import org.ouracademy.srtomy.user.domain.UserId;
 
 /**
  * Every {@link EntityId} record (PartyId, EventId, ...) is expected to behave the same way; this
@@ -30,7 +33,10 @@ class EntityIdContractTests {
         idType("EventId", EventId::generate, EventId::new),
         idType("AccountabilityId", AccountabilityId::generate, AccountabilityId::new),
         idType("AccountabilityTypeId", AccountabilityTypeId::generate, AccountabilityTypeId::new),
-        idType("ComplaintId", ComplaintId::generate, ComplaintId::new));
+        idType("ComplaintId", ComplaintId::generate, ComplaintId::new),
+        idType("UserId", UserId::generate, UserId::new),
+        idType("IamRoleId", IamRoleId::generate, IamRoleId::new),
+        idType("RoleBindingId", RoleBindingId::generate, RoleBindingId::new));
   }
 
   private static Arguments idType(
