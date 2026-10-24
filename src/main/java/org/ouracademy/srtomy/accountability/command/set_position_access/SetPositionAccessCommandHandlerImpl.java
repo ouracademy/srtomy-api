@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.accountability.command.set_position_access;
 
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
 import org.ouracademy.srtomy.accountability.query.PositionResult;
@@ -28,17 +29,23 @@ class SetPositionAccessCommandHandlerImpl implements SetPositionAccessCommandHan
         .map(
             position -> {
               var churchId = position.getParty().getId();
-              requireCanGrant(command.subject(), position.getAccessRoleId(), churchId);
-              requireCanGrant(command.subject(), command.accessRoleId(), churchId);
-              position.setAccessRoleId(command.accessRoleId());
+              requireCanGrant(
+                  command.subject(),
+                  Set.copyOf(position.getRoleIds()),
+                  Set.copyOf(position.getPermissions()),
+                  churchId);
+              requireCanGrant(
+                  command.subject(), command.roleIds(), command.permissions(), churchId);
+              position.setAccess(command.roleIds(), command.permissions());
               return new SetPositionAccessResult(PositionResult.from(position));
             });
   }
 
-  private void requireCanGrant(String subject, IamRoleId roleId, PartyId churchId) {
-    if (roleId != null) {
+  private void requireCanGrant(
+      String subject, Set<IamRoleId> roleIds, Set<String> permissions, PartyId churchId) {
+    if (!roleIds.isEmpty() || !permissions.isEmpty()) {
       authorizeAccessGrantQueryHandler.handle(
-          new AuthorizeAccessGrantQuery(subject, roleId, churchId));
+          new AuthorizeAccessGrantQuery(subject, roleIds, permissions, churchId));
     }
   }
 }

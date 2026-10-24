@@ -17,19 +17,21 @@ public record AccessEntryResponse(
     String organizationName,
     boolean inherited,
     AccessEntryResult.Source source,
-    String positionName) {
+    String positionName,
+    int permissionCount) {
 
   public static AccessEntryResponse from(AccessEntryResult result) {
     return new AccessEntryResponse(
         result.bindingId() == null ? null : result.bindingId().value(),
         result.userId().value(),
         result.email(),
-        result.roleId().value(),
+        result.roleId() == null ? null : result.roleId().value(),
         result.roleName(),
         result.organizationId().value(),
         result.organizationName(),
         result.inherited(),
         result.source(),
-        result.positionName());
+        result.positionName(),
+        result.permissionCount());
   }
 }

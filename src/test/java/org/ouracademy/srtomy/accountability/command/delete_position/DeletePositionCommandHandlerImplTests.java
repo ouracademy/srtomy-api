@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import static org.ouracademy.srtomy.accountability.AccountabilityFixtures.party;
 
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -60,13 +61,18 @@ class DeletePositionCommandHandlerImplTests {
     var churchId = PartyId.generate();
     var position =
         new AccountabilityType(
-            "Pastor", party(churchId, "Iglesia"), Category.POSITION, PredefinedRoles.ADMIN);
+            "Pastor",
+            party(churchId, "Iglesia"),
+            Category.POSITION,
+            Set.of(PredefinedRoles.ADMIN),
+            Set.of());
     when(accountabilityTypeRepository.findById(position.getId())).thenReturn(Optional.of(position));
 
     handler.handle(new DeletePositionCommand("me", position.getId()));
 
     verify(authorizeAccessGrantQueryHandler)
-        .handle(new AuthorizeAccessGrantQuery("me", PredefinedRoles.ADMIN, churchId));
+        .handle(
+            new AuthorizeAccessGrantQuery("me", Set.of(PredefinedRoles.ADMIN), Set.of(), churchId));
     verify(accountabilityTypeRepository).delete(position);
   }
 
@@ -77,7 +83,8 @@ class DeletePositionCommandHandlerImplTests {
             "Pastor",
             party(PartyId.generate(), "Iglesia"),
             Category.POSITION,
-            PredefinedRoles.ADMIN);
+            Set.of(PredefinedRoles.ADMIN),
+            Set.of());
     when(accountabilityTypeRepository.findById(position.getId())).thenReturn(Optional.of(position));
     when(authorizeAccessGrantQueryHandler.handle(any())).thenThrow(new AccessDeniedException("no"));
 

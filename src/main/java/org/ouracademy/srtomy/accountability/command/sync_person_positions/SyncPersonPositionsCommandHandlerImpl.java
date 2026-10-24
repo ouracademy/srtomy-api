@@ -55,7 +55,10 @@ class SyncPersonPositionsCommandHandlerImpl implements SyncPersonPositionsComman
             type ->
                 authorizeAccessGrantQueryHandler.handle(
                     new AuthorizeAccessGrantQuery(
-                        command.subject(), type.getAccessRoleId(), command.organizationId())));
+                        command.subject(),
+                        type.getRoleIds(),
+                        type.getPermissions(),
+                        command.organizationId())));
 
     accountabilityRepository.deleteAll(toRemove);
     var person = entityManager.getReference(Party.class, command.personId());

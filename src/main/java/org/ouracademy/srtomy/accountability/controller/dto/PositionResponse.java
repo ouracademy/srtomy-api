@@ -1,15 +1,21 @@
 package org.ouracademy.srtomy.accountability.controller.dto;
 
+import java.util.List;
 import java.util.UUID;
 import org.ouracademy.srtomy.accountability.query.PositionResult;
+import org.ouracademy.srtomy.iam.domain.IamRoleId;
 
-/** A position; {@code accessRoleId} is its access level, null when it is only a label. */
-public record PositionResponse(UUID id, String name, UUID accessRoleId) {
+/**
+ * A position. {@code roleIds} and the loose {@code permissions} are what it gives; with neither it
+ * is only a label.
+ */
+public record PositionResponse(UUID id, String name, List<UUID> roleIds, List<String> permissions) {
 
   public static PositionResponse from(PositionResult result) {
     return new PositionResponse(
         result.id().value(),
         result.name(),
-        result.accessRoleId() == null ? null : result.accessRoleId().value());
+        result.roleIds().stream().map(IamRoleId::value).sorted().toList(),
+        result.permissions().stream().sorted().toList());
   }
 }

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.accountability.command.create_position.CreatePositionCommand;
 import org.ouracademy.srtomy.accountability.command.create_position.CreatePositionCommandHandler;
@@ -19,6 +20,7 @@ import org.ouracademy.srtomy.accountability.command.set_position_access.SetPosit
 import org.ouracademy.srtomy.accountability.command.set_position_access.SetPositionAccessCommandHandler;
 import org.ouracademy.srtomy.accountability.command.set_position_access.SetPositionAccessResult;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.srtomy.accountability.query.PositionHolderResult;
 import org.ouracademy.srtomy.accountability.query.PositionResult;
 import org.ouracademy.srtomy.accountability.query.PositionSummaryResult;
 import org.ouracademy.srtomy.accountability.query.find_position_by_id.FindPositionByIdQueryHandler;
@@ -80,8 +82,14 @@ class PositionControllerTests {
         .willReturn(
             List.of(
                 new PositionSummaryResult(
-                    new PositionResult(AccountabilityTypeId.generate(), "Pastor", church, null),
-                    2)));
+                    new PositionResult(
+                        AccountabilityTypeId.generate(), "Pastor", church, Set.of(), Set.of()),
+                    List.of("org.read", "members.read"),
+                    List.of(
+                        new PositionHolderResult(
+                            PartyId.generate(), "Ana Díaz", "Sede Central", "ana@x.org"),
+                        new PositionHolderResult(
+                            PartyId.generate(), "Luis Rojas", "Sede Norte", null)))));
 
     assertThat(
             mvc.get()
@@ -89,7 +97,7 @@ class PositionControllerTests {
                 .header("Authorization", bearer()))
         .hasStatusOk()
         .bodyJson()
-        .extractingPath("$[0].holders")
+        .extractingPath("$[0].holders.length()")
         .isEqualTo(2);
     verify(authorizeQueryHandler)
         .handle(new AuthorizeQuery("test-user", location, Permission.ORG_READ));
@@ -123,8 +131,10 @@ class PositionControllerTests {
         .willReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
     given(
             createPositionCommandHandler.handle(
-                new CreatePositionCommand("test-user", church, "Diácono", null)))
-        .willReturn(new CreatePositionResult(new PositionResult(id, "Diácono", church, null)));
+                new CreatePositionCommand("test-user", church, "Diácono", Set.of(), Set.of())))
+        .willReturn(
+            new CreatePositionResult(
+                new PositionResult(id, "Diácono", church, Set.of(), Set.of())));
 
     assertThat(
             mvc.post()
@@ -155,7 +165,7 @@ class PositionControllerTests {
     var church = PartyId.generate();
     var id = AccountabilityTypeId.generate();
     given(findPositionByIdQueryHandler.handle(any()))
-        .willReturn(Optional.of(new PositionResult(id, "Ujier", church, null)));
+        .willReturn(Optional.of(new PositionResult(id, "Ujier", church, Set.of(), Set.of())));
 
     assertThat(mvc.delete().uri("/v1/positions/" + id.value()).header("Authorization", bearer()))
         .hasStatus(204);
@@ -170,28 +180,34 @@ class PositionControllerTests {
         .willReturn(
             new PositionSuggestionsResult(
                 List.of(
-                    new PositionSuggestionsResult.Suggestion("Pastor", PredefinedRoles.ADMIN),
-                    new PositionSuggestionsResult.Suggestion("Intercesor", null))));
+                    new PositionSuggestionsResult.Suggestion("Pastor", List.of("org.read")),
+                    new PositionSuggestionsResult.Suggestion("Intercesor", List.of()))));
 
     assertThat(mvc.get().uri("/v1/positions/suggestions").header("Authorization", bearer()))
         .hasStatusOk()
         .bodyJson()
-        .extractingPath("$[0].suggestedRoleId")
-        .isEqualTo(PredefinedRoles.ADMIN.value().toString());
+        .extractingPath("$[0].permissions[0]")
+        .isEqualTo("org.read");
   }
 
   @Test
-  void creatingWithALevelPassesItToTheHandler() {
+  void creatingWithRolesAndPermissionsPassesThemToTheHandler() {
     var church = PartyId.generate();
     var id = AccountabilityTypeId.generate();
     given(findChurchOfOrganizationQueryHandler.handle(any()))
         .willReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
     given(
             createPositionCommandHandler.handle(
-                new CreatePositionCommand("test-user", church, "Pastor", PredefinedRoles.ADMIN)))
+                new CreatePositionCommand(
+                    "test-user",
+                    church,
+                    "Pastor",
+                    Set.of(PredefinedRoles.ADMIN),
+                    Set.of("events.write"))))
         .willReturn(
             new CreatePositionResult(
-                new PositionResult(id, "Pastor", church, PredefinedRoles.ADMIN)));
+                new PositionResult(
+                    id, "Pastor", church, Set.of(PredefinedRoles.ADMIN), Set.of("events.write"))));
 
     assertThat(
             mvc.post()
@@ -199,13 +215,13 @@ class PositionControllerTests {
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    "{\"name\":\"Pastor\",\"accessRoleId\":\""
+                    "{\"name\":\"Pastor\",\"roleIds\":[\""
                         + PredefinedRoles.ADMIN.value()
-                        + "\"}"))
+                        + "\"],\"permissions\":[\"events.write\"]}"))
         .hasStatus(201)
         .bodyJson()
-        .extractingPath("$.accessRoleId")
-        .isEqualTo(PredefinedRoles.ADMIN.value().toString());
+        .extractingPath("$.permissions[0]")
+        .isEqualTo("events.write");
   }
 
   @Test
@@ -225,29 +241,31 @@ class PositionControllerTests {
   }
 
   @Test
-  void settingTheAccessOfAPositionPassesTheSubjectAndTheLevel() {
+  void settingTheAccessOfAPositionPassesTheSubjectAndWhatItGives() {
     var church = PartyId.generate();
     var id = AccountabilityTypeId.generate();
     given(findPositionByIdQueryHandler.handle(any()))
-        .willReturn(Optional.of(new PositionResult(id, "Ujier", church, null)));
+        .willReturn(Optional.of(new PositionResult(id, "Ujier", church, Set.of(), Set.of())));
     given(
             setPositionAccessCommandHandler.handle(
-                new SetPositionAccessCommand("test-user", id, PredefinedRoles.COLLABORATOR)))
+                new SetPositionAccessCommand(
+                    "test-user", id, Set.of(), Set.of("attendance.write"))))
         .willReturn(
             Optional.of(
                 new SetPositionAccessResult(
-                    new PositionResult(id, "Ujier", church, PredefinedRoles.COLLABORATOR))));
+                    new PositionResult(
+                        id, "Ujier", church, Set.of(), Set.of("attendance.write")))));
 
     assertThat(
             mvc.put()
                 .uri("/v1/positions/" + id.value() + "/access")
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"accessRoleId\":\"" + PredefinedRoles.COLLABORATOR.value() + "\"}"))
+                .content("{\"permissions\":[\"attendance.write\"]}"))
         .hasStatusOk()
         .bodyJson()
-        .extractingPath("$.accessRoleId")
-        .isEqualTo(PredefinedRoles.COLLABORATOR.value().toString());
+        .extractingPath("$.permissions[0]")
+        .isEqualTo("attendance.write");
     verify(authorizeQueryHandler)
         .handle(new AuthorizeQuery("test-user", church, Permission.POSITIONS_MANAGE));
   }
@@ -257,13 +275,14 @@ class PositionControllerTests {
     var church = PartyId.generate();
     var id = AccountabilityTypeId.generate();
     given(findPositionByIdQueryHandler.handle(any()))
-        .willReturn(Optional.of(new PositionResult(id, "Ujier", church, null)));
+        .willReturn(Optional.of(new PositionResult(id, "Ujier", church, Set.of(), Set.of())));
     given(
             setPositionAccessCommandHandler.handle(
-                new SetPositionAccessCommand("test-user", id, null)))
+                new SetPositionAccessCommand("test-user", id, Set.of(), Set.of())))
         .willReturn(
             Optional.of(
-                new SetPositionAccessResult(new PositionResult(id, "Ujier", church, null))));
+                new SetPositionAccessResult(
+                    new PositionResult(id, "Ujier", church, Set.of(), Set.of()))));
 
     assertThat(
             mvc.put()
@@ -279,7 +298,7 @@ class PositionControllerTests {
     var church = PartyId.generate();
     var id = AccountabilityTypeId.generate();
     given(findPositionByIdQueryHandler.handle(any()))
-        .willReturn(Optional.of(new PositionResult(id, "Ujier", church, null)));
+        .willReturn(Optional.of(new PositionResult(id, "Ujier", church, Set.of(), Set.of())));
     given(
             authorizeQueryHandler.handle(
                 new AuthorizeQuery("test-user", church, Permission.POSITIONS_MANAGE)))

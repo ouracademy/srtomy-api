@@ -4,7 +4,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.ouracademy.srtomy.accountability.command.create_position.CreatePositionCommand;
 import org.ouracademy.srtomy.accountability.command.create_position.CreatePositionCommandHandler;
@@ -96,7 +98,11 @@ public class PositionController {
         createPositionCommandHandler
             .handle(
                 new CreatePositionCommand(
-                    jwt.getSubject(), churchId, request.name(), roleId(request.accessRoleId())))
+                    jwt.getSubject(),
+                    churchId,
+                    request.name(),
+                    roleIds(request.roleIds()),
+                    permissions(request.permissions())))
             .position());
   }
 
@@ -113,7 +119,7 @@ public class PositionController {
             .map(result -> PositionResponse.from(result.position())));
   }
 
-  /** Changes the access level of a position; a null level makes it a plain label. */
+  /** Changes what a position gives; no roles and no permissions make it a plain label. */
   @PutMapping("positions/{id}/access")
   public ResponseEntity<PositionResponse> setAccess(
       @AuthenticationPrincipal Jwt jwt,
@@ -125,7 +131,10 @@ public class PositionController {
         setPositionAccessCommandHandler
             .handle(
                 new SetPositionAccessCommand(
-                    jwt.getSubject(), positionId, roleId(request.accessRoleId())))
+                    jwt.getSubject(),
+                    positionId,
+                    roleIds(request.roleIds()),
+                    permissions(request.permissions())))
             .map(result -> PositionResponse.from(result.position())));
   }
 
@@ -159,8 +168,12 @@ public class PositionController {
         .toList();
   }
 
-  private static IamRoleId roleId(UUID id) {
-    return id == null ? null : new IamRoleId(id);
+  private static Set<IamRoleId> roleIds(List<UUID> ids) {
+    return ids == null ? Set.of() : ids.stream().map(IamRoleId::new).collect(Collectors.toSet());
+  }
+
+  private static Set<String> permissions(List<String> values) {
+    return values == null ? Set.of() : Set.copyOf(values);
   }
 
   private void authorize(Jwt jwt, PartyId organizationId, Permission permission) {

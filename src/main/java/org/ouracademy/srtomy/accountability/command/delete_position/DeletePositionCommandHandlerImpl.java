@@ -30,7 +30,10 @@ class DeletePositionCommandHandlerImpl implements DeletePositionCommandHandler {
             type ->
                 authorizeAccessGrantQueryHandler.handle(
                     new AuthorizeAccessGrantQuery(
-                        command.subject(), type.getAccessRoleId(), type.getParty().getId())));
+                        command.subject(),
+                        type.getRoleIds(),
+                        type.getPermissions(),
+                        type.getParty().getId())));
     position.ifPresent(
         type -> {
           accountabilityRepository.deleteAllByType(type);

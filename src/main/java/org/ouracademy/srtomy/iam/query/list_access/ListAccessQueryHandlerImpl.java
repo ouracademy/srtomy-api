@@ -26,13 +26,14 @@ class ListAccessQueryHandlerImpl implements ListAccessQueryHandler {
                     entry.getBindingId() == null ? null : new RoleBindingId(entry.getBindingId()),
                     new UserId(entry.getUserId()),
                     entry.getEmail(),
-                    new IamRoleId(entry.getRoleId()),
+                    entry.getRoleId() == null ? null : new IamRoleId(entry.getRoleId()),
                     entry.getRoleName(),
                     new PartyId(entry.getOrganizationId()),
                     entry.getOrganizationName(),
                     !entry.getOrganizationId().equals(query.organizationId().value()),
                     AccessEntryResult.Source.valueOf(entry.getSource()),
-                    entry.getPositionName()))
+                    entry.getPositionName(),
+                    entry.getPermissionCount()))
         .toList();
   }
 }

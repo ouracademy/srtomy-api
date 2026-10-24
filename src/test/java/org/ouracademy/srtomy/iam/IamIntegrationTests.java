@@ -147,10 +147,10 @@ class IamIntegrationTests {
     var positions = json(alice, "/organizations/" + church.location + "/positions");
     assertThat(values(positions, "name")).containsExactly("Pastor", "Ujier");
     // The creator holds Pastor; its level and holders come with the list.
-    assertThat(positions.get(0).get("holders").asInt()).isEqualTo(1);
-    assertThat(positions.get(0).get("accessRoleId").asText())
+    assertThat(positions.get(0).get("holders")).hasSize(1);
+    assertThat(positions.get(0).get("roleIds").get(0).asText())
         .isEqualTo(PredefinedRoles.ADMIN.value().toString());
-    assertThat(positions.get(1).get("holders").asInt()).isZero();
+    assertThat(positions.get(1).get("holders")).isEmpty();
 
     assertThat(
             status(
@@ -218,7 +218,7 @@ class IamIntegrationTests {
             {"name":"Iglesia de prueba",
              "socialLinks":{"youtubeUrl":"https://youtube.com/@iglesia"},
              "location":{"name":"Sede Centro"},
-             "positions":[{"name":"Pastor","accessRoleId":"%s"},{"name":"Ujier","accessRoleId":"%s"},
+             "positions":[{"name":"Pastor","roleIds":["%s"]},{"name":"Ujier","roleIds":["%s"]},
                           {"name":"PASTOR"}],
              "creator":{"firstName":"Ana","lastName":"Diaz","positionName":"Pastor"}}
             """

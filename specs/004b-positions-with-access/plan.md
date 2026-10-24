@@ -4,7 +4,7 @@
 
 ## Summary
 
-The position (cargo) carries an optional access level (`accountability_type.iam_role_id`). A user gets the level's permissions on the node where the person linked to them holds the position, and below it. The permission engine is untouched: its queries now read the `user_access` view, which merges direct bindings (Owner), position-derived access and group leadership. Loose role granting by email is removed; Owner has its own endpoints.
+The position (cargo) gives permissions: those of its roles (`position_role`) plus loose ones (`position_permission`). A user gets them on the node where the person linked to them holds the position, and below it. The permission engine is untouched: its queries now read the `user_access` view, which merges direct bindings (Owner), position-derived access and group leadership. Loose role granting by email is removed; Owner has its own endpoints.
 
 ## Constitution Check
 
@@ -20,9 +20,10 @@ The position (cargo) carries an optional access level (`accountability_type.iam_
 1. **One source for permissions**: view `user_access(user_id, role_id, organization_id, source, binding_id, position_name)`. `RoleBindingRepository` reads it for permissions, visible nodes, bound roles and the access list; the recursive CTE over `parent_id` is unchanged.
 2. **Who gets the access**: users are linked to persons by `user_person` (one person per user per church, one user per person). Only the church creator is linked in this phase; invitations (005) link the rest.
 3. **Owner stays direct**: `role_binding` keeps only Owner. The migration deletes the other bindings (no real data). `POST/DELETE organizations/{id}/owners` replace the old access endpoints; only an Owner adds or removes Owners and the church keeps at least one.
-4. **Escalation rule**: `AuthorizeAccessGrantQuery(subject, roleId, nodeId)` needs `iam.manage` on the node, rejects Owner and levels of another church, and then applies `GrantRules.requireCanGrant` (the caller holds the level or all of its permissions). It runs when creating, deleting, or changing the level of a position that has access, and when adding or removing such a position from a person. Positions without a level only need the permission they needed before.
-5. **Custom levels** are the 004 custom roles, now used from the positions screen. A level used by a position cannot be deleted (400 with the count).
-6. **Church creation** (`POST /organizations`): Owner is granted first, then positions are created with their level (checked like any other grant), then the creator's person is created in the first location holding the creator's position (created as a label if not listed) and linked to the user.
+4. **Escalation rule**: `AuthorizeAccessGrantQuery(subject, roleIds, permissions, nodeId)` needs `iam.manage` on the node, rejects Owner, roles of another church and unknown permissions, expands the union (`ExpandPermissionsQuery`) and applies `GrantRules.requireHoldsAll`: the caller must hold every effective permission. It runs when creating, deleting, or changing the level of a position that has access, and when adding or removing such a position from a person. Positions without a level only need the permission they needed before.
+5. **Custom roles** (004) stay in the API and the model, but the UI does not show roles for now. A role used by a position cannot be deleted (400 with the count).
+   **Suggestions** are templates (name + base roles) expanded to a copy of their permissions; finer predefined roles (Ver personas, Gestor de personas, Gestor de eventos, Asistencia, Gestor de estructura) are seeded as bricks.
+6. **Church creation** (`POST /organizations`): Owner is granted first, then positions are created with their permissions (checked like any other grant), then the creator's person is created in the first location holding the creator's position (created as a label if not listed) and linked to the user.
 7. **Group leaders**: the `LEADER` accountability gives the Leader level on that group to a linked user (third branch of the view).
 8. **Out of scope**: the "Miembro" level for any person with an account and no position (phase 008), and linking people other than the creator (phase 005).
 

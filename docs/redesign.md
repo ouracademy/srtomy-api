@@ -41,7 +41,7 @@ Cambios de esquema (Flyway, nueva migración `V1.1.0__...`):
 
 Se separan dos conceptos que hoy se mezclan:
 
-- **Cargo ministerial**: el nombre que la iglesia usa para su gente. Es un `accountability_type` categoría POSITION. Desde la **004b el cargo lleva un nivel de acceso opcional** (`iam_role_id`), así que hacia fuera hay un solo concepto: _si es pastor tiene estos accesos_. Sin nivel es solo una etiqueta (para quien no usa la app). Debe ser flexible para cualquier tradición (evangélica, católica, etc.):
+- **Cargo ministerial**: el nombre que la iglesia usa para su gente. Es un `accountability_type` categoría POSITION. Desde la **004b el cargo da permisos**: la unión de los de sus roles (`position_role`) y los sueltos (`position_permission`), así que hacia fuera hay un solo concepto: _si es pastor tiene estos accesos_. En la UI solo se marcan permisos por módulo; los roles quedan en el modelo para una UI futura. Sin permisos es solo una etiqueta (para quien no usa la app). Los cargos sugeridos nacen copiando los permisos de roles predefinidos. Debe ser flexible para cualquier tradición (evangélica, católica, etc.):
   - Los cargos pasan a pertenecer a la **iglesia** (`party_id = church_id`). Se eliminan los cargos globales con `party_id = null` (PASTOR, WORSHIP_LEADER, USHER) y su traducción fija en la UI (`Roles.tsx`, `toSpanish`, `getFixedOptions`).
   - Al crear la iglesia se **copian cargos sugeridos**: Pastor, Líder de alabanza, Servidor/Ujier y Maestro. El asistente los muestra y deja quitarlos o renombrarlos antes de guardar.
   - Después, quien tenga `org.update` en la iglesia puede **renombrar, crear o borrar** cargos en "Cargos". Borrar es un soft delete (`deleted_time`), así que las asignaciones existentes se conservan en el historial.
@@ -49,7 +49,7 @@ Se separan dos conceptos que hoy se mezclan:
   - Al asignar un cargo a una persona hay un **autocompletado** que sugiere los cargos de la iglesia más un catálogo estático de sugerencias (Pastor, Copastor, Anciano, Diácono, Sacerdote, Catequista, Asistente, Hermano/a servidor, …). Si se escribe un nombre nuevo, se crea el cargo en la iglesia (`freeSolo`).
   - `requireOwnRole` deja de exigir al menos un cargo por sede.
   - `GET /v1/organizations/locations/predefined-roles` se reemplaza por `GET /v1/churches/{id}/positions`. El catálogo de sugerencias vive en el código del API y se expone en `GET /v1/positions/suggestions`.
-- **Nivel de acceso (rol IAM)**: un conjunto de permisos. Ya no se otorga suelto por correo: lo da un cargo. Un usuario recibe el nivel del cargo que tiene la persona vinculada a él, en el nodo donde lo tiene y en todo lo que cuelga. **Propietario** es la excepción: no se asigna a un cargo, es un acceso directo (`role_binding`) de quien crea la iglesia y de quienes un Propietario agrega. Antes de la 004b: un conjunto de permisos, asignado a un usuario sobre un nodo. **Se hereda a todos los descendientes**, igual que en GCP. Los predefinidos no se editan; cada iglesia puede crear **roles personalizados** eligiendo permisos (ver abajo).
+- **Rol IAM**: un conjunto de permisos. Ya no se otorga suelto por correo: lo da un cargo. Un usuario recibe los permisos del cargo que tiene la persona vinculada a él, en el nodo donde lo tiene y en todo lo que cuelga. **Propietario** es la excepción: no se asigna a un cargo, es un acceso directo (`role_binding`) de quien crea la iglesia y de quienes un Propietario agrega. Antes de la 004b: un conjunto de permisos, asignado a un usuario sobre un nodo. **Se hereda a todos los descendientes**, igual que en GCP. Los predefinidos no se editan; cada iglesia puede crear **roles personalizados** eligiendo permisos (ver abajo).
 
 Tablas:
 
@@ -58,7 +58,7 @@ Tablas:
   - El API valida que cada permiso exista en el catálogo de permisos del código.
   - Un rol con bindings no se borra en duro: se le hace soft delete y sus bindings dejan de valer.
 - `role_binding` (`id`, `user_id`, `role_id`, `organization_id`, `granted_by`, `created_time`): desde la 004b solo guarda Propietarios.
-- `accountability_type.iam_role_id` (004b): el nivel del cargo, nullable. Nunca es Propietario.
+- `position_role` y `position_permission` (004b): lo que da un cargo (roles vinculados y permisos sueltos). Nunca incluye el rol Propietario.
 - `user_person` (004b): vincula usuario y persona por iglesia.
 - Vista `user_access` (004b): junta los bindings directos, los cargos de la persona vinculada y el liderazgo de grupos. Todas las consultas de permisos leen esta vista.
 
@@ -79,8 +79,8 @@ Reglas:
 
 - Política efectiva = unión de los bindings en el nodo y en todos sus ancestros (el nodo y sus ancestros, con un CTE recursivo).
 - Al crear una iglesia, el creador recibe **Propietario** en la iglesia.
-- Quien figura como **líder** de un grupo o ministerio (la accountability `LEADER`) y tiene usuario vinculado obtiene el nivel Líder en ese nodo (004b, sin binding: sale de la vista).
-- Escalada de privilegios: dar, quitar, crear, borrar o cambiar el nivel de un cargo que da acceso exige `iam.manage` en el nodo y tener todos los permisos de ese nivel. Los cargos sin nivel solo piden `members.write`. Se impide quitar el último Propietario, y solo un Propietario agrega o quita Propietarios.
+- Quien figura como **líder** de un grupo o ministerio (la accountability `LEADER`) y tiene usuario vinculado obtiene los permisos del rol Líder en ese nodo (004b, sin binding: sale de la vista).
+- Escalada de privilegios: dar, quitar, crear, borrar o cambiar el nivel de un cargo que da acceso exige `iam.manage` en el nodo y tener todos los permisos efectivos del cargo. Los cargos sin permisos solo piden `members.write`. Se impide quitar el último Propietario, y solo un Propietario agrega o quita Propietarios.
 - Enforcement en la API: un `AuthorizationService.check(userId, nodeId, permission)` llamado desde cada Command/QueryHandler (o un `@PreAuthorize` con un bean). Los endpoints que reciben `eventId` o `personId` resuelven primero su nodo. La consulta de bindings se cachea por request.
 - `GET /v1/me/permissions?organizationId=` devuelve los permisos efectivos. La UI solo esconde botones; la API sigue siendo la autoridad.
 

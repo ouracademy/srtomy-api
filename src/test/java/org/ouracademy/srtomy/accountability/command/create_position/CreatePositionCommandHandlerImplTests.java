@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import static org.ouracademy.srtomy.accountability.AccountabilityFixtures.party;
 
 import jakarta.persistence.EntityManager;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -41,7 +42,8 @@ class CreatePositionCommandHandlerImplTests {
     when(accountabilityTypeRepository.save(any(AccountabilityType.class)))
         .thenAnswer(call -> call.getArgument(0));
 
-    var result = handler.handle(new CreatePositionCommand("me", churchId, " Diácono ", null));
+    var result =
+        handler.handle(new CreatePositionCommand("me", churchId, " Diácono ", Set.of(), Set.of()));
 
     assertThat(result.position().name()).isEqualTo("Diácono");
     assertThat(result.position().churchId()).isEqualTo(churchId);
@@ -56,11 +58,16 @@ class CreatePositionCommandHandlerImplTests {
         .thenAnswer(call -> call.getArgument(0));
 
     var result =
-        handler.handle(new CreatePositionCommand("me", churchId, "Pastor", PredefinedRoles.ADMIN));
+        handler.handle(
+            new CreatePositionCommand(
+                "me", churchId, "Pastor", Set.of(PredefinedRoles.ADMIN), Set.of("events.write")));
 
-    assertThat(result.position().accessRoleId()).isEqualTo(PredefinedRoles.ADMIN);
+    assertThat(result.position().roleIds()).containsExactly(PredefinedRoles.ADMIN);
+    assertThat(result.position().permissions()).containsExactly("events.write");
     verify(authorizeAccessGrantQueryHandler)
-        .handle(new AuthorizeAccessGrantQuery("me", PredefinedRoles.ADMIN, churchId));
+        .handle(
+            new AuthorizeAccessGrantQuery(
+                "me", Set.of(PredefinedRoles.ADMIN), Set.of("events.write"), churchId));
   }
 
   @Test
@@ -71,7 +78,12 @@ class CreatePositionCommandHandlerImplTests {
     assertThatThrownBy(
             () ->
                 handler.handle(
-                    new CreatePositionCommand("me", churchId, "Pastor", PredefinedRoles.ADMIN)))
+                    new CreatePositionCommand(
+                        "me",
+                        churchId,
+                        "Pastor",
+                        Set.of(PredefinedRoles.ADMIN),
+                        Set.of("events.write"))))
         .isInstanceOf(AccessDeniedException.class);
     verifyNoInteractions(accountabilityTypeRepository);
   }
@@ -84,7 +96,7 @@ class CreatePositionCommandHandlerImplTests {
     when(accountabilityTypeRepository.save(any(AccountabilityType.class)))
         .thenAnswer(call -> call.getArgument(0));
 
-    handler.handle(new CreatePositionCommand("me", churchId, "Hermano", null));
+    handler.handle(new CreatePositionCommand("me", churchId, "Hermano", Set.of(), Set.of()));
 
     verifyNoInteractions(authorizeAccessGrantQueryHandler);
   }

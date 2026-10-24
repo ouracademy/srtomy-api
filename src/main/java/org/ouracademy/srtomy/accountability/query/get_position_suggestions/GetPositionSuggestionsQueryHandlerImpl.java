@@ -1,53 +1,95 @@
 package org.ouracademy.srtomy.accountability.query.get_position_suggestions;
 
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.ouracademy.srtomy.accountability.query.get_position_suggestions.PositionSuggestionsResult.Suggestion;
 import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
+import org.ouracademy.srtomy.iam.query.expand_permissions.ExpandPermissionsQuery;
+import org.ouracademy.srtomy.iam.query.expand_permissions.ExpandPermissionsQueryHandler;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 class GetPositionSuggestionsQueryHandlerImpl implements GetPositionSuggestionsQueryHandler {
+
+  private final ExpandPermissionsQueryHandler expandPermissionsQueryHandler;
+
+  /** A common name and the predefined roles whose permissions it usually gives. */
+  record Template(String name, List<IamRoleId> roles) {
+    static Template of(String name, IamRoleId... roles) {
+      return new Template(name, List.of(roles));
+    }
+  }
 
   private static final IamRoleId ADMIN = PredefinedRoles.ADMIN;
   private static final IamRoleId LEADER = PredefinedRoles.LEADER;
-  private static final IamRoleId COLLABORATOR = PredefinedRoles.COLLABORATOR;
 
   /**
-   * Names used across traditions (evangelical, catholic, ...) with the access level they usually
-   * have. Only suggestions: nothing validates a position against this list.
+   * Names used across traditions (evangelical, catholic, ...). Only suggestions: nothing validates
+   * a position against this list, and the church gets a copy of the permissions, not a link.
    */
-  static final List<Suggestion> SUGGESTIONS =
+  static final List<Template> TEMPLATES =
       List.of(
-          new Suggestion("Pastor", ADMIN),
-          new Suggestion("Pastora", ADMIN),
-          new Suggestion("Copastor", ADMIN),
-          new Suggestion("Obispo", ADMIN),
-          new Suggestion("Apóstol", ADMIN),
-          new Suggestion("Sacerdote", ADMIN),
-          new Suggestion("Párroco", ADMIN),
-          new Suggestion("Anciano", LEADER),
-          new Suggestion("Diácono", LEADER),
-          new Suggestion("Diaconisa", LEADER),
-          new Suggestion("Evangelista", LEADER),
-          new Suggestion("Misionero", LEADER),
-          new Suggestion("Catequista", LEADER),
-          new Suggestion("Líder de alabanza", LEADER),
-          new Suggestion("Maestro", LEADER),
-          new Suggestion("Maestra de escuela dominical", LEADER),
-          new Suggestion("Servidor", COLLABORATOR),
-          new Suggestion("Ujier", COLLABORATOR),
-          new Suggestion("Asistente", COLLABORATOR),
-          new Suggestion("Tesorero", COLLABORATOR),
-          new Suggestion("Secretario", COLLABORATOR),
-          new Suggestion("Ministro de la Eucaristía", COLLABORATOR),
-          new Suggestion("Músico", null),
-          new Suggestion("Intercesor", null),
-          new Suggestion("Hermano servidor", null),
-          new Suggestion("Hermana servidora", null));
+          Template.of("Pastor", ADMIN),
+          Template.of("Pastora", ADMIN),
+          Template.of("Copastor", ADMIN),
+          Template.of("Obispo", ADMIN),
+          Template.of("Apóstol", ADMIN),
+          Template.of("Sacerdote", ADMIN),
+          Template.of("Párroco", ADMIN),
+          Template.of("Anciano", LEADER),
+          Template.of("Diácono", LEADER),
+          Template.of("Diaconisa", LEADER),
+          Template.of("Evangelista", LEADER),
+          Template.of("Misionero", LEADER),
+          Template.of("Líder de alabanza", LEADER),
+          Template.of("Líder de grupo", LEADER),
+          Template.of(
+              "Maestro",
+              PredefinedRoles.EVENTS_MANAGER,
+              PredefinedRoles.ATTENDANCE,
+              PredefinedRoles.VIEW_PEOPLE),
+          Template.of(
+              "Maestra de escuela dominical",
+              PredefinedRoles.EVENTS_MANAGER,
+              PredefinedRoles.ATTENDANCE,
+              PredefinedRoles.VIEW_PEOPLE),
+          Template.of(
+              "Catequista",
+              PredefinedRoles.EVENTS_MANAGER,
+              PredefinedRoles.ATTENDANCE,
+              PredefinedRoles.VIEW_PEOPLE),
+          Template.of("Secretario", PredefinedRoles.PEOPLE_MANAGER, PredefinedRoles.MEMBER),
+          Template.of(
+              "Ujier",
+              PredefinedRoles.ATTENDANCE,
+              PredefinedRoles.VIEW_PEOPLE,
+              PredefinedRoles.MEMBER),
+          Template.of(
+              "Asistente",
+              PredefinedRoles.ATTENDANCE,
+              PredefinedRoles.VIEW_PEOPLE,
+              PredefinedRoles.MEMBER),
+          Template.of("Tesorero", PredefinedRoles.MEMBER),
+          Template.of("Servidor", PredefinedRoles.MEMBER),
+          Template.of("Ministro de la Eucaristía", PredefinedRoles.MEMBER),
+          Template.of("Músico"),
+          Template.of("Intercesor"),
+          Template.of("Hermano servidor"),
+          Template.of("Hermana servidora"));
 
   @Override
   public PositionSuggestionsResult handle(GetPositionSuggestionsQuery query) {
-    return new PositionSuggestionsResult(SUGGESTIONS);
+    return new PositionSuggestionsResult(
+        TEMPLATES.stream()
+            .map(
+                template ->
+                    new Suggestion(
+                        template.name(),
+                        expandPermissionsQueryHandler
+                            .handle(new ExpandPermissionsQuery(template.roles(), List.of()))
+                            .permissions()))
+            .toList());
   }
 }

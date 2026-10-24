@@ -14,6 +14,13 @@
 2. El creador de la iglesia declara su propio cargo en el alta y se crea su ficha de persona vinculada a su usuario. Sigue siendo Propietario por separado.
 3. Esta fase va antes de las invitaciones (005).
 
+## Revisión de diseño (mismo día, con el dueño del producto)
+
+Un solo "nivel" por cargo no alcanzaba. El modelo final, como los grupos de GCP:
+- Un cargo da la **unión** de los permisos de sus roles y de sus permisos sueltos. En la UI solo se ven y se marcan **permisos** agrupados por módulo; los roles quedan en el modelo para una UI futura.
+- Los cargos predefinidos (plantillas) nacen **copiando** los permisos de roles predefinidos; no quedan vinculados al catálogo.
+- Donde este documento dice "nivel de acceso" léase "permisos del cargo (roles y/o sueltos)".
+
 ## User Scenarios & Testing
 
 ### US1 — Un cargo da acceso según su nivel (P1)

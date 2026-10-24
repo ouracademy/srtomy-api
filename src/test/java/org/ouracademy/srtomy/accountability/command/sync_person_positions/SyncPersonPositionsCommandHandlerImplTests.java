@@ -90,7 +90,9 @@ class SyncPersonPositionsCommandHandlerImplTests {
     var church = party(churchId, "Iglesia");
     var person = party(PartyId.generate(), "Ana");
     var location = party(PartyId.generate(), "Sede");
-    var pastor = new AccountabilityType("Pastor", church, Category.POSITION, PredefinedRoles.ADMIN);
+    var pastor =
+        new AccountabilityType(
+            "Pastor", church, Category.POSITION, Set.of(PredefinedRoles.ADMIN), Set.of());
     when(accountabilityRepository.findByParentIdAndChildId(location.getId(), person.getId()))
         .thenReturn(List.of());
     when(accountabilityTypeRepository.findByIdInAndPartyIdAndCategory(
@@ -104,7 +106,9 @@ class SyncPersonPositionsCommandHandlerImplTests {
             "me", person.getId(), location.getId(), churchId, Set.of(pastor.getId())));
 
     verify(authorizeAccessGrantQueryHandler)
-        .handle(new AuthorizeAccessGrantQuery("me", PredefinedRoles.ADMIN, location.getId()));
+        .handle(
+            new AuthorizeAccessGrantQuery(
+                "me", Set.of(PredefinedRoles.ADMIN), Set.of(), location.getId()));
   }
 
   @Test
@@ -113,7 +117,9 @@ class SyncPersonPositionsCommandHandlerImplTests {
     var church = party(churchId, "Iglesia");
     var person = party(PartyId.generate(), "Ana");
     var location = party(PartyId.generate(), "Sede");
-    var pastor = new AccountabilityType("Pastor", church, Category.POSITION, PredefinedRoles.ADMIN);
+    var pastor =
+        new AccountabilityType(
+            "Pastor", church, Category.POSITION, Set.of(PredefinedRoles.ADMIN), Set.of());
     when(accountabilityRepository.findByParentIdAndChildId(location.getId(), person.getId()))
         .thenReturn(List.of());
     when(accountabilityTypeRepository.findByIdInAndPartyIdAndCategory(
@@ -137,7 +143,9 @@ class SyncPersonPositionsCommandHandlerImplTests {
     var church = party(churchId, "Iglesia");
     var person = party(PartyId.generate(), "Ana");
     var location = party(PartyId.generate(), "Sede");
-    var pastor = new AccountabilityType("Pastor", church, Category.POSITION, PredefinedRoles.ADMIN);
+    var pastor =
+        new AccountabilityType(
+            "Pastor", church, Category.POSITION, Set.of(PredefinedRoles.ADMIN), Set.of());
     when(accountabilityRepository.findByParentIdAndChildId(location.getId(), person.getId()))
         .thenReturn(List.of(new Accountability(person, location, pastor)));
     when(entityManager.getReference(Party.class, person.getId())).thenReturn(person);
@@ -147,6 +155,8 @@ class SyncPersonPositionsCommandHandlerImplTests {
         new SyncPersonPositionsCommand("me", person.getId(), location.getId(), churchId, Set.of()));
 
     verify(authorizeAccessGrantQueryHandler)
-        .handle(new AuthorizeAccessGrantQuery("me", PredefinedRoles.ADMIN, location.getId()));
+        .handle(
+            new AuthorizeAccessGrantQuery(
+                "me", Set.of(PredefinedRoles.ADMIN), Set.of(), location.getId()));
   }
 }

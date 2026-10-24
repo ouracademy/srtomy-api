@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.organization.command.create_church;
 
 import java.util.List;
+import java.util.Set;
 import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.organization.command.OrganizationInfo;
 
@@ -19,8 +20,8 @@ public record CreateChurchCommand(
     String email,
     boolean emailVerified) {
 
-  /** A position to create; {@code accessRoleId} is null for a plain label. */
-  public record PositionSeed(String name, IamRoleId accessRoleId) {}
+  /** A position to create; with no roles and no permissions it is a plain label. */
+  public record PositionSeed(String name, Set<IamRoleId> roleIds, Set<String> permissions) {}
 
   /** Who creates the church, as a person of it. */
   public record Creator(String firstName, String lastName, String positionName) {}

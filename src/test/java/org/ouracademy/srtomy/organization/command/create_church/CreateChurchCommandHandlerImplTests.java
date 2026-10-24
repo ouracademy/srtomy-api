@@ -96,7 +96,8 @@ class CreateChurchCommandHandlerImplTests {
                       AccountabilityTypeId.generate(),
                       command.name(),
                       command.churchId(),
-                      command.accessRoleId()));
+                      command.roleIds(),
+                      command.permissions()));
             });
   }
 
@@ -117,10 +118,10 @@ class CreateChurchCommandHandlerImplTests {
         handler.handle(
             command(
                 List.of(
-                    new PositionSeed("Pastor", PredefinedRoles.ADMIN),
-                    new PositionSeed(" pastor ", null),
-                    new PositionSeed("", null),
-                    new PositionSeed("Ujier", PredefinedRoles.COLLABORATOR)),
+                    new PositionSeed("Pastor", Set.of(PredefinedRoles.ADMIN), Set.of()),
+                    new PositionSeed(" pastor ", Set.of(), Set.of()),
+                    new PositionSeed("", Set.of(), Set.of()),
+                    new PositionSeed("Ujier", Set.of(), Set.of("attendance.write"))),
                 CREATOR));
 
     assertThat(result.organization().id()).isEqualTo(church.getId());
@@ -133,12 +134,13 @@ class CreateChurchCommandHandlerImplTests {
     order
         .verify(createPositionCommandHandler)
         .handle(
-            new CreatePositionCommand("auth0|1", church.getId(), "Pastor", PredefinedRoles.ADMIN));
+            new CreatePositionCommand(
+                "auth0|1", church.getId(), "Pastor", Set.of(PredefinedRoles.ADMIN), Set.of()));
     order
         .verify(createPositionCommandHandler)
         .handle(
             new CreatePositionCommand(
-                "auth0|1", church.getId(), "Ujier", PredefinedRoles.COLLABORATOR));
+                "auth0|1", church.getId(), "Ujier", Set.of(), Set.of("attendance.write")));
     verify(createPositionCommandHandler, times(2)).handle(any());
 
     var created = ArgumentCaptor.forClass(CreatePersonCommand.class);
@@ -161,11 +163,13 @@ class CreateChurchCommandHandlerImplTests {
 
     handler.handle(
         command(
-            List.of(new PositionSeed("Ujier", PredefinedRoles.COLLABORATOR)),
+            List.of(new PositionSeed("Ujier", Set.of(), Set.of("attendance.write"))),
             new Creator("Ana", "Diaz", "Hermano mayor")));
 
     verify(createPositionCommandHandler)
-        .handle(new CreatePositionCommand("auth0|1", church.getId(), "Hermano mayor", null));
+        .handle(
+            new CreatePositionCommand(
+                "auth0|1", church.getId(), "Hermano mayor", Set.of(), Set.of()));
   }
 
   @Test

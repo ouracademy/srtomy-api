@@ -33,8 +33,10 @@ public class CreateChurchRequest {
   public static class ChurchPositionRequest {
     @NotBlank String name;
 
-    /** Id of the access level (Administrator, Leader, ...); null for a plain label. */
-    UUID accessRoleId;
+    /** What the position gives: roles and/or loose permissions; both empty is a plain label. */
+    List<UUID> roleIds = new ArrayList<>();
+
+    List<String> permissions = new ArrayList<>();
   }
 
   @Data

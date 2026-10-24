@@ -57,7 +57,9 @@ class CreateChurchCommandHandlerImpl implements CreateChurchCommandHandler {
         .map(
             seed ->
                 new PositionSeed(
-                    seed.name() == null ? "" : seed.name().trim(), seed.accessRoleId()))
+                    seed.name() == null ? "" : seed.name().trim(),
+                    seed.roleIds(),
+                    seed.permissions()))
         .filter(seed -> !seed.name().isEmpty())
         .forEach(seed -> seeds.putIfAbsent(seed.name().toLowerCase(Locale.ROOT), seed));
 
@@ -67,7 +69,7 @@ class CreateChurchCommandHandlerImpl implements CreateChurchCommandHandler {
       // A position the creator names that is not in the list is still created, as a plain label.
       seeds.putIfAbsent(
           creatorPositionName.toLowerCase(Locale.ROOT),
-          new PositionSeed(creatorPositionName, null));
+          new PositionSeed(creatorPositionName, Set.of(), Set.of()));
     }
 
     var created =
@@ -85,7 +87,8 @@ class CreateChurchCommandHandlerImpl implements CreateChurchCommandHandler {
                                 command.subject(),
                                 church.getId(),
                                 seed.name(),
-                                seed.accessRoleId()))
+                                seed.roleIds(),
+                                seed.permissions()))
                         .position()
                         .id()));
 

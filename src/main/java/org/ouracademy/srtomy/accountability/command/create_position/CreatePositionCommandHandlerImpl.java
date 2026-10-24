@@ -25,10 +25,10 @@ class CreatePositionCommandHandlerImpl implements CreatePositionCommandHandler {
   @Override
   @Transactional
   public CreatePositionResult handle(CreatePositionCommand command) {
-    if (command.accessRoleId() != null) {
+    if (!command.roleIds().isEmpty() || !command.permissions().isEmpty()) {
       authorizeAccessGrantQueryHandler.handle(
           new AuthorizeAccessGrantQuery(
-              command.subject(), command.accessRoleId(), command.churchId()));
+              command.subject(), command.roleIds(), command.permissions(), command.churchId()));
     }
     var name = positionNames.requireAvailable(command.churchId(), command.name());
     var position =
@@ -37,7 +37,8 @@ class CreatePositionCommandHandlerImpl implements CreatePositionCommandHandler {
                 name,
                 entityManager.getReference(Party.class, command.churchId()),
                 Category.POSITION,
-                command.accessRoleId()));
+                command.roleIds(),
+                command.permissions()));
     return new CreatePositionResult(PositionResult.from(position));
   }
 }

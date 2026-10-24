@@ -103,7 +103,7 @@ class IamAccessIntegrationTests {
                 alice,
                 HttpMethod.PUT,
                 "/positions/" + position + "/access",
-                "{\"accessRoleId\":\"%s\"}".formatted(PredefinedRoles.MEMBER.value())))
+                "{\"roleIds\":[\"%s\"]}".formatted(PredefinedRoles.MEMBER.value())))
         .isEqualTo(200);
     assertThat(permissions(bob, church.location))
         .containsExactlyInAnyOrder("org.read", "events.read");
@@ -119,7 +119,7 @@ class IamAccessIntegrationTests {
         alice,
         HttpMethod.PUT,
         "/positions/" + position + "/access",
-        "{\"accessRoleId\":\"%s\"}".formatted(PredefinedRoles.COLLABORATOR.value()));
+        "{\"roleIds\":[\"%s\"]}".formatted(PredefinedRoles.COLLABORATOR.value()));
     assertThat(status(bob, HttpMethod.GET, "/organizations/" + church.location, null))
         .isEqualTo(200);
     updatePerson(alice, personId, "Bob", church.location, null);
@@ -139,8 +139,10 @@ class IamAccessIntegrationTests {
     var owner = find(access, "Propietario", "roleName");
     assertThat(owner.get("email").asText()).isEqualTo(email(alice));
     assertThat(owner.get("source").asText()).isEqualTo("DIRECT");
-    assertThat(find(access, "Administrador", "roleName").get("source").asText())
-        .isEqualTo("POSITION");
+    var pastor = find(access, "Pastor", "positionName");
+    assertThat(pastor.get("source").asText()).isEqualTo("POSITION");
+    assertThat(pastor.get("roleId").isNull()).isTrue();
+    assertThat(pastor.get("permissionCount").asInt()).isEqualTo(12);
     assertThat(owner.get("inherited").asBoolean()).isTrue();
     assertThat(owner.get("organizationId").asText()).isEqualTo(church.id);
     var leader = find(access, email(bob));
@@ -167,7 +169,45 @@ class IamAccessIntegrationTests {
     // Alice is the Owner (direct) and her own position (Pastor, Administrator) as well.
     assertThat(access).extracting(n -> n.get("source").asText()).contains("DIRECT", "POSITION");
     var positions = json(alice, "/organizations/" + church.id + "/positions");
-    assertThat(find(positions, "Pastor", "name").get("holders").asInt()).isEqualTo(1);
+    var pastor = find(positions, "Pastor", "name");
+    assertThat(pastor.get("holders")).hasSize(1);
+    assertThat(pastor.get("holders").get(0).get("name").asText()).isEqualTo("Ana Diaz");
+    assertThat(pastor.get("holders").get(0).get("email").asText()).isEqualTo(email(alice));
+    assertThat(pastor.get("effectivePermissions")).hasSize(12);
+  }
+
+  @Test
+  void aPositionGivesTheUnionOfItsRolesAndItsLoosePermissions() {
+    var church = createChurch(alice);
+    var position =
+        read(body(
+                alice,
+                HttpMethod.POST,
+                "/organizations/" + church.id + "/positions",
+                """
+                    {"name":"Tesorero","roleIds":["%s"],"permissions":["events.write"]}
+                    """
+                    .formatted(PredefinedRoles.VIEW_PEOPLE.value())))
+            .get("id")
+            .asText();
+    link(bob, church.id, createPerson(alice, "Bob", church.location, position));
+
+    assertThat(permissions(bob, church.location))
+        .containsExactlyInAnyOrder("org.read", "members.read", "events.write");
+    var summary =
+        find(json(alice, "/organizations/" + church.id + "/positions"), "Tesorero", "name");
+    assertThat(values(summary.get("effectivePermissions")))
+        .containsExactly("events.write", "members.read", "org.read");
+
+    // Editing the role changes the position that uses it; the loose permission stays.
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                "/positions/" + position + "/access",
+                "{\"permissions\":[\"events.write\"]}"))
+        .isEqualTo(200);
+    assertThat(permissions(bob, church.location)).containsExactly("events.write");
   }
 
   @Test
@@ -197,7 +237,7 @@ class IamAccessIntegrationTests {
                 bob,
                 HttpMethod.POST,
                 "/organizations/" + church.id + "/positions",
-                "{\"name\":\"Obispo\",\"accessRoleId\":\"%s\"}"
+                "{\"name\":\"Obispo\",\"roleIds\":[\"%s\"]}"
                     .formatted(PredefinedRoles.ADMIN.value())))
         .isEqualTo(403);
     // Nor raise the level of an existing position, or delete one that gives access.
@@ -206,7 +246,7 @@ class IamAccessIntegrationTests {
                 bob,
                 HttpMethod.PUT,
                 "/positions/" + usher + "/access",
-                "{\"accessRoleId\":\"%s\"}".formatted(PredefinedRoles.ADMIN.value())))
+                "{\"roleIds\":[\"%s\"]}".formatted(PredefinedRoles.ADMIN.value())))
         .isEqualTo(403);
     assertThat(status(bob, HttpMethod.DELETE, "/positions/" + pastor, null)).isEqualTo(403);
     // Labels are free for him to create and to hand out.
@@ -322,7 +362,7 @@ class IamAccessIntegrationTests {
                 bob,
                 HttpMethod.POST,
                 "/organizations/" + theirs.id + "/positions",
-                "{\"name\":\"X\",\"accessRoleId\":\"%s\"}".formatted(treasurer)))
+                "{\"name\":\"X\",\"roleIds\":[\"%s\"]}".formatted(treasurer)))
         .isEqualTo(400);
     assertThat(values(json(bob, "/organizations/" + theirs.id + "/roles"), "name"))
         .doesNotContain("Tesorero");
@@ -337,11 +377,20 @@ class IamAccessIntegrationTests {
                 alice,
                 HttpMethod.POST,
                 "/organizations/" + church.id + "/positions",
-                "{\"name\":\"Dueño\",\"accessRoleId\":\"%s\"}"
+                "{\"name\":\"Dueño\",\"roleIds\":[\"%s\"]}"
                     .formatted(PredefinedRoles.OWNER.value())))
         .isEqualTo(400);
     assertThat(values(json(alice, "/iam/levels"), "name"))
-        .containsExactlyInAnyOrder("Administrador", "Líder", "Colaborador", "Miembro");
+        .containsExactlyInAnyOrder(
+            "Administrador",
+            "Líder",
+            "Colaborador",
+            "Miembro",
+            "Ver personas",
+            "Gestor de personas",
+            "Gestor de eventos",
+            "Asistencia",
+            "Gestor de estructura");
   }
 
   @Test
@@ -396,7 +445,7 @@ class IamAccessIntegrationTests {
             "/organizations",
             """
             {"name":"Iglesia","location":{"name":"Sede"},
-             "positions":[{"name":"Pastor","accessRoleId":"%s"}],
+             "positions":[{"name":"Pastor","roleIds":["%s"]}],
              "creator":{"firstName":"Ana","lastName":"Diaz","positionName":"Pastor"}}
             """
                 .formatted(PredefinedRoles.ADMIN.value()));
@@ -416,12 +465,12 @@ class IamAccessIntegrationTests {
   }
 
   String createPosition(String subject, String churchId, String name, Object roleId) {
-    var level = roleId == null ? "null" : "\"" + roleId + "\"";
+    var level = roleId == null ? "[]" : "[\"" + roleId + "\"]";
     return read(body(
             subject,
             HttpMethod.POST,
             "/organizations/" + churchId + "/positions",
-            "{\"name\":\"%s\",\"accessRoleId\":%s}".formatted(name, level)))
+            "{\"name\":\"%s\",\"roleIds\":%s}".formatted(name, level)))
         .get("id")
         .asText();
   }

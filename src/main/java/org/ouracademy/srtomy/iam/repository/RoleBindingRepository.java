@@ -40,8 +40,7 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
           select distinct p.permission
           from user_access ua
           join app_user u on u.id = ua.user_id
-          join iam_role r on r.id = ua.role_id and r.deleted_time is null
-          cross join lateral unnest(r.permissions) as p(permission)
+          cross join lateral unnest(ua.permissions) as p(permission)
           where u.auth0_sub = :subject
           and ua.organization_id in (select id from ancestors)
           """,
@@ -59,7 +58,6 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
               select ua.organization_id as id
               from user_access ua
               join app_user u on u.id = ua.user_id
-              join iam_role r on r.id = ua.role_id and r.deleted_time is null
               where u.auth0_sub = :subject
           ),
           descendants as (
@@ -83,23 +81,24 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
       nativeQuery = true)
   List<VisibleOrganization> findVisibleOrganizations(String subject);
 
-  /** The access levels the user holds directly on each node. */
+  /** What gives the user access on each node: a role name, or the name of the position. */
   @Query(
       value =
           """
-          select distinct ua.organization_id as organizationId, r.name as roleName
+          select distinct ua.organization_id as organizationId,
+                 coalesce(r.name, ua.position_name) as roleName
           from user_access ua
           join app_user u on u.id = ua.user_id
-          join iam_role r on r.id = ua.role_id and r.deleted_time is null
+          left join iam_role r on r.id = ua.role_id
           where u.auth0_sub = :subject
-          order by r.name
+          order by roleName
           """,
       nativeQuery = true)
   List<BoundRole> findBoundRoles(String subject);
 
   /**
-   * The accesses on the node and on all its ancestors (live levels only), with who holds them,
-   * where each one was made and where it comes from.
+   * The accesses on the node and on all its ancestors, with who holds them, where each one was
+   * made, where it comes from and how many permissions it gives.
    */
   @Query(
       value =
@@ -111,12 +110,13 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
               join ancestors a on o.id = a.parent_id
           )
           select ua.binding_id as bindingId, u.id as userId, u.email as email,
-                 r.id as roleId, r.name as roleName,
+                 ua.role_id as roleId, r.name as roleName,
                  ua.organization_id as organizationId, p.name as organizationName,
-                 ua.source as source, ua.position_name as positionName
+                 ua.source as source, ua.position_name as positionName,
+                 cardinality(ua.permissions) as permissionCount
           from user_access ua
           join app_user u on u.id = ua.user_id
-          join iam_role r on r.id = ua.role_id and r.deleted_time is null
+          left join iam_role r on r.id = ua.role_id
           join party p on p.id = ua.organization_id
           where ua.organization_id in (select id from ancestors)
           order by lower(u.email), r.name, ua.position_name
@@ -166,8 +166,10 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
 
     String getEmail();
 
+    /** Null for an access that comes from a position, which can mix several roles. */
     UUID getRoleId();
 
+    /** Null for an access that comes from a position. */
     String getRoleName();
 
     UUID getOrganizationId();
@@ -179,6 +181,8 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
 
     /** The position the access comes from; only set for {@code POSITION}. */
     String getPositionName();
+
+    int getPermissionCount();
   }
 
   interface VisibleOrganization {

@@ -4,12 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.srtomy.accountability.AccountabilityFixtures.party;
 
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,6 +19,7 @@ import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType.Category;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.accountability.repository.AccountabilityTypeRepository;
+import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
 import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQuery;
 import org.ouracademy.srtomy.iam.query.authorize_access_grant.AuthorizeAccessGrantQueryHandler;
@@ -34,53 +35,74 @@ class SetPositionAccessCommandHandlerImplTests {
 
   PartyId churchId = PartyId.generate();
 
-  AccountabilityType position(Category category, org.ouracademy.srtomy.iam.domain.IamRoleId level) {
-    var type = new AccountabilityType("Pastor", party(churchId, "Iglesia"), category, level);
+  AccountabilityType position(Category category, Set<IamRoleId> roleIds, Set<String> permissions) {
+    var type =
+        new AccountabilityType(
+            "Pastor", party(churchId, "Iglesia"), category, roleIds, permissions);
     when(accountabilityTypeRepository.findById(type.getId())).thenReturn(Optional.of(type));
     return type;
   }
 
   @Test
-  void changesTheLevelAfterAuthorizingTheOldAndTheNewOne() {
-    var pastor = position(Category.POSITION, PredefinedRoles.LEADER);
+  void replacesWhatItGivesAfterAuthorizingTheOldAndTheNew() {
+    var pastor = position(Category.POSITION, Set.of(PredefinedRoles.LEADER), Set.of());
 
     var result =
-        handler.handle(new SetPositionAccessCommand("me", pastor.getId(), PredefinedRoles.ADMIN));
+        handler.handle(
+            new SetPositionAccessCommand(
+                "me", pastor.getId(), Set.of(PredefinedRoles.ADMIN), Set.of("events.write")));
 
     assertThat(result)
         .get()
-        .extracting(r -> r.position().accessRoleId())
-        .isEqualTo(PredefinedRoles.ADMIN);
+        .extracting(r -> r.position().roleIds())
+        .isEqualTo(Set.of(PredefinedRoles.ADMIN));
+    assertThat(pastor.getPermissions()).containsExactly("events.write");
     var order = inOrder(authorizeAccessGrantQueryHandler);
     order
         .verify(authorizeAccessGrantQueryHandler)
-        .handle(new AuthorizeAccessGrantQuery("me", PredefinedRoles.LEADER, churchId));
+        .handle(
+            new AuthorizeAccessGrantQuery(
+                "me", Set.of(PredefinedRoles.LEADER), Set.of(), churchId));
     order
         .verify(authorizeAccessGrantQueryHandler)
-        .handle(new AuthorizeAccessGrantQuery("me", PredefinedRoles.ADMIN, churchId));
+        .handle(
+            new AuthorizeAccessGrantQuery(
+                "me", Set.of(PredefinedRoles.ADMIN), Set.of("events.write"), churchId));
   }
 
   @Test
-  void aNullLevelMakesItAPlainLabel() {
-    var usher = position(Category.POSITION, PredefinedRoles.COLLABORATOR);
+  void noRolesAndNoPermissionsMakeItAPlainLabel() {
+    var usher =
+        position(Category.POSITION, Set.of(PredefinedRoles.COLLABORATOR), Set.of("members.read"));
 
-    var result = handler.handle(new SetPositionAccessCommand("me", usher.getId(), null));
+    var result =
+        handler.handle(new SetPositionAccessCommand("me", usher.getId(), Set.of(), Set.of()));
 
-    assertThat(result).get().extracting(r -> r.position().accessRoleId()).isNull();
+    assertThat(result).get().extracting(r -> r.position().permissions()).isEqualTo(Set.of());
     assertThat(usher.hasAccess()).isFalse();
   }
 
   @Test
-  void aCallerWhoCannotGrantTheNewLevelChangesNothing() {
-    var usher = position(Category.POSITION, null);
+  void aCallerWhoCannotGrantTheNewPermissionsChangesNothing() {
+    var usher = position(Category.POSITION, Set.of(), Set.of());
     when(authorizeAccessGrantQueryHandler.handle(any())).thenThrow(new AccessDeniedException("no"));
 
     assertThatThrownBy(
             () ->
                 handler.handle(
-                    new SetPositionAccessCommand("me", usher.getId(), PredefinedRoles.ADMIN)))
+                    new SetPositionAccessCommand(
+                        "me", usher.getId(), Set.of(PredefinedRoles.ADMIN), Set.of())))
         .isInstanceOf(AccessDeniedException.class);
     assertThat(usher.hasAccess()).isFalse();
+  }
+
+  @Test
+  void aPositionWithoutAccessNeedsNoAuthorizationToStayALabel() {
+    var label = position(Category.POSITION, Set.of(), Set.of());
+
+    handler.handle(new SetPositionAccessCommand("me", label.getId(), Set.of(), Set.of()));
+
+    verifyNoInteractions(authorizeAccessGrantQueryHandler);
   }
 
   @Test
@@ -88,16 +110,19 @@ class SetPositionAccessCommandHandlerImplTests {
     var id = AccountabilityTypeId.generate();
     when(accountabilityTypeRepository.findById(id)).thenReturn(Optional.empty());
 
-    assertThat(handler.handle(new SetPositionAccessCommand("me", id, PredefinedRoles.ADMIN)))
+    assertThat(
+            handler.handle(
+                new SetPositionAccessCommand("me", id, Set.of(PredefinedRoles.ADMIN), Set.of())))
         .isEmpty();
     verifyNoInteractions(authorizeAccessGrantQueryHandler);
   }
 
   @Test
   void aTypeThatIsNotAPositionIsEmpty() {
-    var other = position(Category.MEMBER_PROGRESS_STATE, null);
+    var other = position(Category.MEMBER_PROGRESS_STATE, Set.of(), Set.of());
 
-    assertThat(handler.handle(new SetPositionAccessCommand("me", other.getId(), null))).isEmpty();
-    verify(accountabilityTypeRepository).findById(other.getId());
+    assertThat(
+            handler.handle(new SetPositionAccessCommand("me", other.getId(), Set.of(), Set.of())))
+        .isEmpty();
   }
 }

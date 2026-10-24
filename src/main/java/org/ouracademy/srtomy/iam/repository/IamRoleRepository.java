@@ -23,11 +23,12 @@ public interface IamRoleRepository extends JpaRepository<IamRole, IamRoleId> {
   @Query("select r from IamRole r where r.church is null order by r.name")
   List<IamRole> findPredefined();
 
-  /** How many live positions (cargos) use the role as their access level. */
+  /** How many live positions (cargos) get permissions from the role. */
   @Query(
       value =
-          "select count(*) from accountability_type where iam_role_id = :roleId"
-              + " and deleted_time is null",
+          "select count(*) from position_role pr"
+              + " join accountability_type t on t.id = pr.position_id"
+              + " where pr.role_id = :roleId and t.deleted_time is null",
       nativeQuery = true)
   long countPositionsUsing(UUID roleId);
 

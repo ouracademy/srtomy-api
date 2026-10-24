@@ -6,7 +6,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.Permission;
@@ -132,9 +134,10 @@ public class OrganizationController {
                         position ->
                             new PositionSeed(
                                 position.getName(),
-                                position.getAccessRoleId() == null
-                                    ? null
-                                    : new IamRoleId(position.getAccessRoleId())))
+                                position.getRoleIds().stream()
+                                    .map(IamRoleId::new)
+                                    .collect(Collectors.toSet()),
+                                Set.copyOf(position.getPermissions())))
                     .toList(),
                 new Creator(
                     request.getCreator().getFirstName(),

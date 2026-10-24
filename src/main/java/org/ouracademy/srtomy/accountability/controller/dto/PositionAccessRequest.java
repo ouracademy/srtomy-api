@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.accountability.controller.dto;
 
+import java.util.List;
 import java.util.UUID;
 
-/** The new access level of a position; null makes it a plain label. */
-public record PositionAccessRequest(UUID accessRoleId) {}
+/** What the position gives from now on; both empty or missing makes it a plain label. */
+public record PositionAccessRequest(List<UUID> roleIds, List<String> permissions) {}

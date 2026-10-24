@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
@@ -102,7 +103,8 @@ class OrganizationControllerTests {
                 "123",
                 new SocialLinks(null, "https://facebook.com/x", null, null, null)),
             new OrganizationInfo("Sede", null, "Av. 1", null, SocialLinks.NONE),
-            List.of(new PositionSeed("Pastor", PredefinedRoles.ADMIN)),
+            List.of(
+                new PositionSeed("Pastor", Set.of(PredefinedRoles.ADMIN), Set.of("events.write"))),
             new Creator("Ana", "Diaz", "Pastor"),
             "test-user",
             null,
@@ -120,7 +122,7 @@ class OrganizationControllerTests {
                     {"name":"Church","description":"desc","address":"addr","phoneNumber":"123",
                      "socialLinks":{"facebookUrl":"https://facebook.com/x","website":" "},
                      "location":{"name":"Sede","address":"Av. 1"},
-                     "positions":[{"name":"Pastor","accessRoleId":"%s"}],
+                     "positions":[{"name":"Pastor","roleIds":["%s"],"permissions":["events.write"]}],
                      "creator":{"firstName":"Ana","lastName":"Diaz","positionName":"Pastor"}}
                     """
                         .formatted(PredefinedRoles.ADMIN.value())))
