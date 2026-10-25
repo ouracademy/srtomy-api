@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.ouracademy.srtomy.event.command.create_event.CreateEventCommand;
@@ -19,11 +18,12 @@ import org.ouracademy.srtomy.event.controller.dto.EditEventRequest;
 import org.ouracademy.srtomy.event.controller.dto.EventDeleteRequest;
 import org.ouracademy.srtomy.event.controller.dto.EventRequest;
 import org.ouracademy.srtomy.event.controller.dto.EventResponse;
+import org.ouracademy.srtomy.event.domain.AccessLevel;
 import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.event.query.authorize_event.AuthorizeEventQuery;
+import org.ouracademy.srtomy.event.query.authorize_event.AuthorizeEventQueryHandler;
 import org.ouracademy.srtomy.event.query.find_event_by_id.FindEventByIdQuery;
 import org.ouracademy.srtomy.event.query.find_event_by_id.FindEventByIdQueryHandler;
-import org.ouracademy.srtomy.event.query.find_event_organization.FindEventOrganizationQuery;
-import org.ouracademy.srtomy.event.query.find_event_organization.FindEventOrganizationQueryHandler;
 import org.ouracademy.srtomy.event.query.search_events.SearchEventsQuery;
 import org.ouracademy.srtomy.event.query.search_events.SearchEventsQueryHandler;
 import org.ouracademy.srtomy.iam.domain.Permission;
@@ -61,7 +61,7 @@ public class EventController {
   CreateEventCommandHandler createEventCommandHandler;
   DeleteEventCommandHandler deleteEventCommandHandler;
   EditEventCommandHandler editEventCommandHandler;
-  FindEventOrganizationQueryHandler findEventOrganizationQueryHandler;
+  AuthorizeEventQueryHandler authorizeEventQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
   @GetMapping
@@ -86,7 +86,7 @@ public class EventController {
   @GetMapping("{id}")
   public ResponseEntity<EventResponse> findById(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-    authorizeOnEvent(jwt, id, Permission.EVENTS_READ);
+    authorizeOnEvent(jwt, id, AccessLevel.VIEWER);
     return ResponseEntity.of(
         findEventByIdQueryHandler
             .handle(new FindEventByIdQuery(new EventId(id)))
@@ -125,7 +125,7 @@ public class EventController {
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable UUID id,
       @RequestBody @Valid EventDeleteRequest request) {
-    authorizeOnEvent(jwt, id, Permission.EVENTS_WRITE);
+    authorizeOnEvent(jwt, id, AccessLevel.MANAGER);
     deleteEventCommandHandler.handle(new DeleteEventCommand(new EventId(id), request.getOption()));
   }
 
@@ -134,19 +134,18 @@ public class EventController {
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable UUID id,
       @RequestBody @Valid EditEventRequest request) {
-    authorizeOnEvent(jwt, id, Permission.EVENTS_WRITE);
+    authorizeOnEvent(jwt, id, AccessLevel.EDITOR);
     var result =
         editEventCommandHandler.handle(new EditEventCommand(new EventId(id), request.getOption()));
     return ResponseEntity.ok(result.id().value());
   }
 
-  /** 404 when the event does not exist, 403 when the user lacks the permission on its node. */
-  private void authorizeOnEvent(Jwt jwt, UUID eventId, Permission permission) {
-    var organizationId =
-        findEventOrganizationQueryHandler
-            .handle(new FindEventOrganizationQuery(new EventId(eventId)))
-            .orElseThrow(() -> new NoSuchElementException("Event not found: " + eventId))
-            .organizationId();
-    authorizeQueryHandler.handle(new AuthorizeQuery(jwt.getSubject(), organizationId, permission));
+  /**
+   * 404 when the event does not exist, 403 when the user cannot do at least {@code required} with
+   * it: the church tree, a share or the general access of the event can give it.
+   */
+  private void authorizeOnEvent(Jwt jwt, UUID eventId, AccessLevel required) {
+    authorizeEventQueryHandler.handle(
+        new AuthorizeEventQuery(jwt.getSubject(), new EventId(eventId), required));
   }
 }

@@ -142,7 +142,7 @@ class IamAccessIntegrationTests {
     var pastor = find(access, "Pastor", "positionName");
     assertThat(pastor.get("source").asText()).isEqualTo("POSITION");
     assertThat(pastor.get("roleId").isNull()).isTrue();
-    assertThat(pastor.get("permissionCount").asInt()).isEqualTo(12);
+    assertThat(pastor.get("permissionCount").asInt()).isEqualTo(13);
     assertThat(owner.get("inherited").asBoolean()).isTrue();
     assertThat(owner.get("organizationId").asText()).isEqualTo(church.id);
     var leader = find(access, email(bob));
@@ -173,7 +173,7 @@ class IamAccessIntegrationTests {
     assertThat(pastor.get("holders")).hasSize(1);
     assertThat(pastor.get("holders").get(0).get("name").asText()).isEqualTo("Ana Diaz");
     assertThat(pastor.get("holders").get(0).get("email").asText()).isEqualTo(email(alice));
-    assertThat(pastor.get("effectivePermissions")).hasSize(12);
+    assertThat(pastor.get("effectivePermissions")).hasSize(13);
   }
 
   @Test
@@ -398,7 +398,7 @@ class IamAccessIntegrationTests {
     var catalog = json(alice, "/iam/permissions");
 
     assertThat(values(catalog, "resource"))
-        .contains("org", "members", "events", "attendance", "positions", "iam");
+        .contains("org", "members", "events", "attendance", "positions", "iam", "invitations");
     assertThat(find(catalog, "iam", "resource").get("permissions").toString())
         .contains("iam.read", "iam.manage");
   }

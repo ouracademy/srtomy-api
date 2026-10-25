@@ -14,6 +14,8 @@ public class Person extends Party {
   String firstName;
   String lastName;
 
+  String email;
+
   Integer age;
   LocalDate birthdate;
   Boolean hasBeenBaptized;

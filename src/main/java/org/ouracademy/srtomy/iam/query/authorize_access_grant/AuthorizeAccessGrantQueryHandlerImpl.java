@@ -31,7 +31,7 @@ class AuthorizeAccessGrantQueryHandlerImpl implements AuthorizeAccessGrantQueryH
   @Transactional(readOnly = true)
   public AuthorizeAccessGrantResult handle(AuthorizeAccessGrantQuery query) {
     authorizeQueryHandler.handle(
-        new AuthorizeQuery(query.subject(), query.organizationId(), Permission.IAM_MANAGE));
+        new AuthorizeQuery(query.subject(), query.organizationId(), query.required()));
     for (var permission : query.permissions()) {
       if (Permission.fromValue(permission).isEmpty()) {
         throw new DomainValidationException("Permiso desconocido: " + permission);

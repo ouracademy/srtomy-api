@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -20,8 +21,8 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Every endpoint requires a valid Auth0 JWT, except the actuator health probes (public, so
- * Kubernetes liveness/readiness checks work without credentials). Flat "authenticated = full
- * access" for now — no per-role authorization yet.
+ * Kubernetes liveness/readiness checks work without credentials) and the {@code GET /v1/public/**}
+ * pages. Flat "authenticated = full access" for now — no per-role authorization yet.
  */
 @Configuration
 @EnableWebSecurity
@@ -39,6 +40,13 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             authorize -> {
               authorize.requestMatchers("/actuator/health/**").permitAll();
+              // Pages that anyone with the link can open without signing in (an invitation
+              // preview, public node pages, shared events). Reads only.
+              authorize.requestMatchers(HttpMethod.GET, "/v1/public/**").permitAll();
+              // Signing up for a course through its shared link needs no account.
+              authorize
+                  .requestMatchers(HttpMethod.POST, "/v1/public/events/*/registrations")
+                  .permitAll();
               // Swagger UI is only ever exposed locally — Cloud Run (dev and prod)
               // always runs with the "prod" profile, so this never opens it up there.
               if (local) {

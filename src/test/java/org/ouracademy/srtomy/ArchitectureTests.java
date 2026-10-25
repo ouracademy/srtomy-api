@@ -47,7 +47,10 @@ class ArchitectureTests {
           "attendance",
           "complaint",
           "user",
-          "iam");
+          "iam",
+          "notification",
+          "invitation",
+          "directory");
 
   /** Packages of a module that no other module may depend on. */
   private static final List<String> RESTRICTED_SUB_PACKAGES =

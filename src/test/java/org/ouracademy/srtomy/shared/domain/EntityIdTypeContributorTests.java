@@ -17,8 +17,11 @@ import org.ouracademy.srtomy.accountability.domain.AccountabilityId;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.srtomy.complaint.domain.ComplaintId;
 import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.event.domain.EventRegistrationId;
+import org.ouracademy.srtomy.event.domain.EventShareId;
 import org.ouracademy.srtomy.iam.domain.IamRoleId;
 import org.ouracademy.srtomy.iam.domain.RoleBindingId;
+import org.ouracademy.srtomy.invitation.domain.InvitationId;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.user.domain.UserId;
 import org.ouracademy.srtomy.user.domain.UserPersonLinkId;
@@ -37,12 +40,15 @@ class EntityIdTypeContributorTests {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<JavaType<?>> captor = ArgumentCaptor.forClass(JavaType.class);
-    verify(javaTypeRegistry, times(9)).addDescriptor(captor.capture());
+    verify(javaTypeRegistry, times(12)).addDescriptor(captor.capture());
 
     assertThat(captor.getAllValues())
         .<Class<?>>extracting(JavaType::getJavaTypeClass)
         .containsExactlyInAnyOrder(
             PartyId.class,
+            InvitationId.class,
+            EventShareId.class,
+            EventRegistrationId.class,
             EventId.class,
             AccountabilityId.class,
             AccountabilityTypeId.class,

@@ -84,6 +84,17 @@ class AuthorizeAccessGrantQueryHandlerImplTests {
   }
 
   @Test
+  void anInvitationOnlyNeedsTheInvitationPermissionButStillHoldsEverything() {
+    handler.handle(
+        new AuthorizeAccessGrantQuery(
+            "me", Set.of(), Set.of("events.write"), node, Permission.INVITATIONS_SEND));
+
+    verify(authorizeQueryHandler)
+        .handle(new AuthorizeQuery("me", node, Permission.INVITATIONS_SEND));
+    verify(grantRules).requireHoldsAll("me", List.of("events.write", "org.read"), node);
+  }
+
+  @Test
   void loosePermissionsAloneAreEnough() {
     handler.handle(query(Set.of(), Set.of("events.write")));
 

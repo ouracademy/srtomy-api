@@ -71,5 +71,12 @@ public class OrganizationWriter {
     organization.setPhoneNumber(info.phoneNumber());
     organization.setAddress(info.address());
     organization.setSocialLinks(info.socialLinks());
+    organization.setSchedule(info.schedule());
+    if (info.memberVisibility() != null) {
+      organization.setMemberVisibility(info.memberVisibility());
+    }
+    if (info.showOrgChart() != null) {
+      organization.setShowOrgChart(info.showOrgChart());
+    }
   }
 }

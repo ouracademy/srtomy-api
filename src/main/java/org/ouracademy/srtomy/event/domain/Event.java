@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.DiscriminatorType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
@@ -20,6 +22,8 @@ import org.hibernate.annotations.SQLRestriction;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.person.domain.Person;
 import org.ouracademy.srtomy.shared.domain.DomainObject;
+import org.ouracademy.srtomy.shared.domain.DomainValidationException;
+import org.ouracademy.srtomy.shared.domain.RandomSlugs;
 
 @Entity
 @Getter
@@ -54,6 +58,18 @@ public class Event extends DomainObject {
   LocalDateTime deletedTime;
 
   @Setter
+  @Enumerated(EnumType.STRING)
+  GeneralAccess generalAccess = GeneralAccess.RESTRICTED;
+
+  @Setter
+  @Enumerated(EnumType.STRING)
+  LinkRole linkRole = LinkRole.VIEWER;
+
+  /** Address of the shared page ({@code /e/{slug}}); a new one revokes the old link. */
+  @Column(nullable = false)
+  String shareSlug = RandomSlugs.next();
+
+  @Setter
   @Column(name = "is_a_course")
   Boolean isACourse = false;
 
@@ -79,6 +95,23 @@ public class Event extends DomainObject {
    */
   public void delete() {
     this.deletedTime = LocalDateTime.now();
+  }
+
+  /**
+   * Changes who can open the event through its link. Signing up through the link is only for
+   * courses.
+   */
+  public void shareVia(GeneralAccess generalAccess, LinkRole linkRole) {
+    if (linkRole == LinkRole.REGISTRANT && !Boolean.TRUE.equals(isACourse)) {
+      throw new DomainValidationException("Solo se puede abrir la inscripción de un curso");
+    }
+    this.generalAccess = generalAccess;
+    this.linkRole = linkRole;
+  }
+
+  /** Revokes the current link: the old address stops working. */
+  public void renewShareLink() {
+    this.shareSlug = RandomSlugs.next();
   }
 
   public Duration duration() {

@@ -28,7 +28,7 @@ import org.ouracademy.srtomy.person.repository.PersonRepository;
 class UpdatePersonCommandHandlerImplTests {
 
   static final PersonInfo INFO =
-      new PersonInfo("Luis", "Rojas", "111", 41, LocalDate.of(1984, 1, 2), false);
+      new PersonInfo("Luis", "Rojas", "111", null, 41, LocalDate.of(1984, 1, 2), false);
 
   @Mock PersonRepository personRepository;
   @Mock SyncPersonPositionsCommandHandler syncPersonPositionsCommandHandler;

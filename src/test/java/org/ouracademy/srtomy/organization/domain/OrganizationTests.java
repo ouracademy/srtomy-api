@@ -17,6 +17,16 @@ class OrganizationTests {
   }
 
   @Test
+  void aNewNodeIsPublicWithItsOrgChartAndAnUnguessableSlug() {
+    var first = new Organization("Youth", Organization.Type.GROUP);
+    var second = new Organization("Youth", Organization.Type.GROUP);
+
+    assertThat(first.getMemberVisibility()).isEqualTo(MemberVisibility.PUBLIC);
+    assertThat(first.isShowOrgChart()).isTrue();
+    assertThat(first.getSlug()).matches("[A-Za-z0-9_-]{16}").isNotEqualTo(second.getSlug());
+  }
+
+  @Test
   void isDeletableMatchesGroupOrMinistry() {
     assertThat(new Organization("Youth", Organization.Type.GROUP).isDeletable()).isTrue();
     assertThat(new Organization("Church", Organization.Type.CHURCH).isDeletable()).isFalse();

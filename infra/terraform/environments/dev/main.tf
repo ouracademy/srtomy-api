@@ -26,6 +26,12 @@ provider "google" {
 # (an org-scoped project needs an org-scoped key).
 provider "neon" {}
 
+# Export it as TF_VAR_resend_api_key (never commit it).
+variable "resend_api_key" {
+  type      = string
+  sensitive = true
+}
+
 module "cicd" {
   source = "../../modules/cicd"
 
@@ -46,6 +52,7 @@ module "db_secrets" {
   jdbc_url            = module.neon.jdbc_url
   database_user       = module.neon.database_user
   database_password   = module.neon.database_password
+  resend_api_key      = var.resend_api_key
   existing_secret_ids = ["auth0-client-id", "auth0-client-secret"]
 }
 

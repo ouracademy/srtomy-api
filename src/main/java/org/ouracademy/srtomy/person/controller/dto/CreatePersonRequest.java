@@ -1,5 +1,6 @@
 package org.ouracademy.srtomy.person.controller.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -20,6 +21,8 @@ public class CreatePersonRequest {
 
   // TODO: validate
   String phoneNumber;
+
+  @Email String email;
 
   @PositiveOrZero Integer age;
   @PastOrPresent LocalDate birthdate;

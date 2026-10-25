@@ -1,5 +1,6 @@
 package org.ouracademy.srtomy.organization.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -7,8 +8,10 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
 import lombok.Getter;
+import lombok.Setter;
 import org.ouracademy.srtomy.party.domain.Party;
 import org.ouracademy.srtomy.shared.domain.DomainValidationException;
+import org.ouracademy.srtomy.shared.domain.RandomSlugs;
 
 /**
  * A node of a church's tree: the church itself (root), its locations, and nested groups and
@@ -25,6 +28,20 @@ public class Organization extends Party {
   Organization parent;
 
   @Embedded SocialLinks socialLinks;
+
+  @Enumerated(EnumType.STRING)
+  @Setter
+  MemberVisibility memberVisibility = MemberVisibility.PUBLIC;
+
+  @Setter boolean showOrgChart = true;
+
+  /** When the node meets, in the words of its leaders. */
+  @Setter
+  @Column(columnDefinition = "text")
+  String schedule;
+
+  @Column(nullable = false, updatable = false)
+  String slug = RandomSlugs.next();
 
   public enum Type {
     CHURCH,

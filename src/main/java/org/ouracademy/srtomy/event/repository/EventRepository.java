@@ -2,6 +2,7 @@ package org.ouracademy.srtomy.event.repository;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.ouracademy.srtomy.event.domain.Event;
 import org.ouracademy.srtomy.event.domain.EventId;
 import org.ouracademy.srtomy.event.domain.SingleEvent;
@@ -10,6 +11,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface EventRepository extends JpaRepository<Event, EventId> {
+
+  Optional<Event> findByShareSlug(String shareSlug);
 
   // t: -----|----|----
   // e: --|-|--------- X

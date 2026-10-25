@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ouracademy.srtomy.organization.domain.MemberVisibility;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.organization.domain.SocialLinks;
 import org.ouracademy.srtomy.organization.repository.OrganizationRepository;
@@ -53,6 +54,51 @@ class OrganizationWriterTests {
     assertThat(created.getSocialLinks()).isEqualTo(LINKS);
     assertThat(created.getType()).isEqualTo(Organization.Type.LOCATION);
     assertThat(created.getParent()).isSameAs(church);
+  }
+
+  @Test
+  void aNewNodeIsPublicWithItsOrgChartUnlessToldOtherwise() {
+    when(organizationRepository.save(any(Organization.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    var plain = writer.create(INFO, Organization.Type.CHURCH, null);
+    var configured =
+        writer.create(
+            new OrganizationInfo(
+                "Name",
+                null,
+                null,
+                null,
+                SocialLinks.NONE,
+                "Sábados 5 pm",
+                MemberVisibility.LEADERS,
+                false),
+            Organization.Type.CHURCH,
+            null);
+
+    assertThat(plain.getMemberVisibility()).isEqualTo(MemberVisibility.PUBLIC);
+    assertThat(plain.isShowOrgChart()).isTrue();
+    assertThat(plain.getSchedule()).isNull();
+    assertThat(configured.getMemberVisibility()).isEqualTo(MemberVisibility.LEADERS);
+    assertThat(configured.isShowOrgChart()).isFalse();
+    assertThat(configured.getSchedule()).isEqualTo("Sábados 5 pm");
+  }
+
+  @Test
+  void editingWithoutVisibilityKeepsItButOverwritesTheSchedule() {
+    var group = organization(PartyId.generate(), "Jóvenes", Organization.Type.GROUP);
+    group.setMemberVisibility(MemberVisibility.MEMBERS);
+    group.setShowOrgChart(false);
+    group.setSchedule("Viernes");
+    when(organizationRepository.findById(group.getId())).thenReturn(Optional.of(group));
+    when(organizationRepository.save(any(Organization.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    writer.editInfo(group.getId(), INFO);
+
+    assertThat(group.getMemberVisibility()).isEqualTo(MemberVisibility.MEMBERS);
+    assertThat(group.isShowOrgChart()).isFalse();
+    assertThat(group.getSchedule()).isNull();
   }
 
   @Test

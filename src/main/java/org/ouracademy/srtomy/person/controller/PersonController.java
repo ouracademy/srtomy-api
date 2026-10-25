@@ -127,6 +127,7 @@ public class PersonController {
         request.getFirstName(),
         request.getLastName(),
         request.getPhoneNumber(),
+        request.getEmail(),
         request.getAge(),
         request.getBirthdate(),
         request.getHasBeenBaptized());

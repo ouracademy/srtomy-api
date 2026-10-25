@@ -26,6 +26,8 @@ public interface AccountabilityRepository extends JpaRepository<Accountability, 
 
   void deleteAllByChildId(PartyId childId);
 
+  List<Accountability> findByChildId(PartyId childId);
+
   List<Accountability> findByChildIdAndTypeId(PartyId childId, AccountabilityTypeId typeId);
 
   /** How many different people hold each of the positions. */
