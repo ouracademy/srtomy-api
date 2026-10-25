@@ -2,12 +2,19 @@ package org.ouracademy.srtomy.invitation.controller.dto;
 
 import org.ouracademy.srtomy.invitation.query.InvitationResult;
 
-/** What the invitee sees before signing in: where they are invited, as what, and to which email. */
+/**
+ * What the invitee sees before signing in: where they are invited, as what, and to which email.
+ * {@code needsName} says the invitee will be asked for their name when accepting.
+ */
 public record InvitationPreviewResponse(
-    String email, String organizationName, String positionName, String status) {
+    String email, String organizationName, String positionName, String status, boolean needsName) {
 
   public static InvitationPreviewResponse from(InvitationResult result) {
     return new InvitationPreviewResponse(
-        result.email(), result.organizationName(), result.positionName(), result.status().name());
+        result.email(),
+        result.organizationName(),
+        result.positionName(),
+        result.status().name(),
+        result.needsName());
   }
 }

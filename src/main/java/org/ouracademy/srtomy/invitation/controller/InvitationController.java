@@ -16,6 +16,7 @@ import org.ouracademy.srtomy.invitation.command.create_invitation.CreateInvitati
 import org.ouracademy.srtomy.invitation.command.create_invitation.CreateInvitationCommandHandler;
 import org.ouracademy.srtomy.invitation.command.revoke_invitation.RevokeInvitationCommand;
 import org.ouracademy.srtomy.invitation.command.revoke_invitation.RevokeInvitationCommandHandler;
+import org.ouracademy.srtomy.invitation.controller.dto.AcceptInvitationRequest;
 import org.ouracademy.srtomy.invitation.controller.dto.AcceptInvitationResponse;
 import org.ouracademy.srtomy.invitation.controller.dto.CreateInvitationRequest;
 import org.ouracademy.srtomy.invitation.controller.dto.CreateInvitationResponse;
@@ -117,17 +118,19 @@ public class InvitationController {
     return findInvitationByTokenQueryHandler
         .handle(new FindInvitationByTokenQuery(token))
         .map(InvitationPreviewResponse::from)
-        .orElseThrow(() -> new NoSuchElementException("Invitation not found"));
+        .orElseThrow(InvitationController::notFound);
   }
 
   @PostMapping("invitations/{token}/accept")
   public AcceptInvitationResponse accept(
-      @AuthenticationPrincipal Jwt jwt, @PathVariable String token) {
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String token,
+      @RequestBody(required = false) @Valid AcceptInvitationRequest request) {
     var invitation =
         findInvitationByTokenQueryHandler
             .handle(new FindInvitationByTokenQuery(token))
-            .orElseThrow(() -> new NoSuchElementException("Invitation not found"));
-    return accept(jwt, invitation.id());
+            .orElseThrow(InvitationController::notFound);
+    return accept(jwt, invitation.id(), request);
   }
 
   /** The invitations waiting for the signed-in user's verified email. */
@@ -148,19 +151,31 @@ public class InvitationController {
 
   @PostMapping("me/invitations/{id}/accept")
   public AcceptInvitationResponse acceptMine(
-      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-    return accept(jwt, new InvitationId(id));
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody(required = false) @Valid AcceptInvitationRequest request) {
+    return accept(jwt, new InvitationId(id), request);
   }
 
-  private AcceptInvitationResponse accept(Jwt jwt, InvitationId id) {
+  private AcceptInvitationResponse accept(
+      Jwt jwt, InvitationId id, AcceptInvitationRequest request) {
     return AcceptInvitationResponse.from(
-        acceptInvitationCommandHandler.handle(new AcceptInvitationCommand(jwt.getSubject(), id)));
+        acceptInvitationCommandHandler.handle(
+            new AcceptInvitationCommand(
+                jwt.getSubject(),
+                id,
+                request == null ? null : request.firstName(),
+                request == null ? null : request.lastName())));
+  }
+
+  private static NoSuchElementException notFound() {
+    return new NoSuchElementException("Invitation not found");
   }
 
   private InvitationResult find(InvitationId id) {
     return findInvitationByIdQueryHandler
         .handle(new FindInvitationByIdQuery(id))
-        .orElseThrow(() -> new NoSuchElementException("Invitation not found"));
+        .orElseThrow(InvitationController::notFound);
   }
 
   private void authorize(Jwt jwt, PartyId organizationId) {

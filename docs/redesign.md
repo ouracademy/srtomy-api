@@ -190,6 +190,21 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 19  | Extender series sin fin en Cloud Run                 | API      | `ExtendEventSeriesJob` usa `@Scheduled` dentro de la app; Cloud Run puede escalar a cero y no correrlo. Hoy cada serie recibe un año de ocurrencias al crearse.        | Disparar `ExtendEventSeriesCommand` desde Cloud Scheduler (endpoint interno) o dejar una instancia mínima con CPU siempre asignada.                          | Pendiente (consultar) |
 | 20  | Zona horaria de la organización                      | API y UI | La zona de una serie se toma del navegador de quien la crea; no existe una zona por iglesia.                                                                              | Guardar la zona en la organización y usarla como valor por defecto al crear eventos.                                                                         | Pendiente (consultar) |
 
+## 11. Trabajo futuro: centro de notificaciones (campana)
+
+No se construye en 005-009; queda documentado para no perder la idea. Una campana en la cabecera de la app, **genérica**: no pensada solo para invitaciones, sino para cualquier aviso dirigido a un usuario.
+
+- **Modelo**: tabla `app_notification` (`id`, `user_id`, `type`, `payload` JSON, `created_at`, `read_at`), con tipo y datos mínimos para armar el texto y el enlace en la UI. El módulo `notification` (hoy solo el `EmailGateway`) crece con un `NotificationGateway` por canal: campana, correo y, más adelante, push.
+- **API**: `GET /v1/me/notifications` (paginado, con contador de no leídas), `POST /v1/me/notifications/{id}/read` y `POST /v1/me/notifications/read-all`. La UI consulta el contador con SWR (polling suave) y abre un menú con la lista.
+- **Tipos iniciales**:
+  - Invitación aceptada: avisa a quien invitó ("Ana aceptó tu invitación a la sede X").
+  - Invitación recibida: avisa al invitado que ya tiene cuenta ("Te invitaron a unirte a la iglesia XYZ"), con acceso directo a aceptar. Sustituye al aviso solo por correo y alimenta «Mi espacio» (008).
+  - Cumpleaños cercanos: se calculan desde `person.birthdate` con un job diario por nodo, solo para quienes tienen permiso de ver a las personas (y sin exponer menores a quien no deba verlos, según la regla de §6). Cada usuario puede silenciarlos.
+  - Avisos del sistema: mantenimiento, novedades y cambios de términos, enviados por el equipo a todos o a un grupo de usuarios.
+  - Otros candidatos: evento compartido contigo (007), inscripción nueva a un curso, cargo asignado o retirado.
+- **Preferencias**: pantalla para elegir qué tipos recibir y por qué canal; los avisos del sistema no se pueden silenciar.
+- **Decisiones abiertas**: retención (p. ej. 90 días), si el cumpleaños se genera al vuelo (sin guardar filas) y si hace falta tiempo real (SSE) o basta el polling.
+
 ## Archivos clave
 
 - API: `src/main/resources/db/migration/` (nueva `V1.1.0__…`), `J/shared/SecurityConfig.java`, `J/organization/command/OrganizationWriter.java`, `J/organization/command/create_church/CreateChurchCommandHandlerImpl.java`, `J/auth/gateway/Auth0Gateway.java` (se elimina el uso de app_metadata), `J/organization/controller/OrganizationController.java`. Módulos nuevos: `user/`, `iam/`, `invitation/`, `notification/`, siguiendo `docs/code-style.md` y `ArchitectureTests`.

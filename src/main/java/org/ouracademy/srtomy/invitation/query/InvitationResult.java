@@ -17,6 +17,7 @@ public record InvitationResult(
     String positionName,
     PartyId personId,
     String personName,
+    boolean needsName,
     InvitationStatus status,
     LocalDateTime expiresAt,
     String invitedByEmail,
@@ -28,7 +29,12 @@ public record InvitationResult(
     var personName =
         person != null
             ? person.getName()
-            : invitation.getFirstName() + " " + invitation.getLastName();
+            : java.util.stream.Stream.of(invitation.getFirstName(), invitation.getLastName())
+                .filter(part -> part != null && !part.isBlank())
+                .collect(java.util.stream.Collectors.joining(" "));
+    // Whoever accepts must say their name when there is no person yet to take it from.
+    var needsName =
+        person == null && (isBlank(invitation.getFirstName()) || isBlank(invitation.getLastName()));
     return new InvitationResult(
         invitation.getId(),
         invitation.getEmail(),
@@ -37,10 +43,15 @@ public record InvitationResult(
         position == null ? null : position.getId(),
         position == null ? null : position.getName(),
         person == null ? null : person.getId(),
-        personName,
+        personName == null || personName.isEmpty() ? null : personName,
+        needsName,
         invitation.effectiveStatus(now),
         invitation.getExpiresAt(),
         invitation.getInvitedBy().getEmail(),
         invitation.getCreateDate());
+  }
+
+  private static boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 }
