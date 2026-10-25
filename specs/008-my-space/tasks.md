@@ -6,4 +6,4 @@
 - [x] T004 Pruebas unitarias de los dos handlers y de integración (`MySpaceIntegrationTests`); ajustar las pruebas de IAM e invitaciones al piso Miembro.
 - [x] T005 Docs: `docs/redesign.md` (deuda 9 resuelta), README y nota en `specs/006-visibility`.
 - [x] T006 `mvn test`, `spotless:check` y `scripts/check-language.py`.
-- [ ] T007 UI (repo `srtomy-ui`): `specs/008-my-space`, ruta `/portal/me`, landing, API generada y pruebas.
+- [x] T007 UI (repo `srtomy-ui`): `specs/008-my-space`, ruta `/portal/me`, landing, API generada y pruebas.

@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-25
 
-**Status**: Implemented (API); la UI va en el repo `srtomy-ui`
+**Status**: Implemented (API y UI, esta última en el repo `srtomy-ui`)
 
 **Input**: Desde la 004b el acceso nace de los cargos: una persona con cuenta y **sin cargo** no tiene ningún acceso (deuda técnica 9). Esta fase le da el nivel **Miembro** y una vista propia, «Mi espacio» (`/portal/me`). Diseño: [`docs/redesign.md`](../../docs/redesign.md) §4.6 y §9.
 
