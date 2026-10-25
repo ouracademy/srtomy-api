@@ -24,7 +24,11 @@ import org.ouracademy.srtomy.organization.query.find_church_of_organization.Find
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
 import org.ouracademy.srtomy.party.domain.PartyId;
+import org.ouracademy.srtomy.person.command.fill_person_email.FillPersonEmailCommand;
+import org.ouracademy.srtomy.person.command.fill_person_email.FillPersonEmailCommandHandler;
 import org.ouracademy.srtomy.person.domain.Person;
+import org.ouracademy.srtomy.person.query.find_people_by_email.FindPeopleByEmailQuery;
+import org.ouracademy.srtomy.person.query.find_people_by_email.FindPeopleByEmailQueryHandler;
 import org.ouracademy.srtomy.shared.domain.DomainValidationException;
 import org.ouracademy.srtomy.user.domain.AppUser;
 import org.ouracademy.srtomy.user.query.find_user_by_subject.FindUserBySubjectQuery;
@@ -50,6 +54,8 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
   private final FindPositionByIdQueryHandler findPositionByIdQueryHandler;
   private final InvitationRules invitationRules;
   private final IsPersonLinkedQueryHandler isPersonLinkedQueryHandler;
+  private final FindPeopleByEmailQueryHandler findPeopleByEmailQueryHandler;
+  private final FillPersonEmailCommandHandler fillPersonEmailCommandHandler;
   private final SendEmailCommandHandler sendEmailCommandHandler;
   private final EntityManager entityManager;
 
@@ -68,7 +74,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
     var email = normalizedEmail(command.email());
 
     var position = command.positionId() == null ? null : positionOf(command, churchId);
-    requireValidPerson(command);
+    var personId = resolvePerson(command, email);
 
     // Inviting again replaces the pending invitation, so the old link stops working.
     var tokenOfOld =
@@ -85,11 +91,9 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
                 position == null
                     ? null
                     : entityManager.getReference(AccountabilityType.class, position.id()),
-                command.personId() == null
-                    ? null
-                    : entityManager.getReference(Person.class, command.personId()),
-                command.personId() == null ? command.firstName().trim() : null,
-                command.personId() == null ? command.lastName().trim() : null,
+                personId == null ? null : entityManager.getReference(Person.class, personId),
+                personId == null ? blankToNull(command.firstName()) : null,
+                personId == null ? blankToNull(command.lastName()) : null,
                 InvitationTokens.hash(token),
                 LocalDateTime.now().plusDays(VALID_DAYS),
                 entityManager.getReference(AppUser.class, inviter.id())));
@@ -178,26 +182,43 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
     return position;
   }
 
-  private void requireValidPerson(CreateInvitationCommand command) {
-    if (command.personId() == null) {
-      if (isBlank(command.firstName()) || isBlank(command.lastName())) {
-        throw new DomainValidationException("Indica el nombre y el apellido de la persona");
+  /**
+   * The person the invitation links: the one named, or else the only one of the node with that
+   * email, or none (the person is then created when the invitation is accepted). Linking an account
+   * to a person hands over the access the person already has, so the caller must be able to give
+   * all of it. A person named without an email gets the invited one.
+   */
+  private PartyId resolvePerson(CreateInvitationCommand command, String email) {
+    var node = command.organizationId();
+    var named = command.personId() != null;
+    PartyId personId = command.personId();
+    if (!named) {
+      var matches = findPeopleByEmailQueryHandler.handle(new FindPeopleByEmailQuery(email, node));
+      if (matches.personIds().size() > 1) {
+        throw new DomainValidationException(
+            "Hay varias personas con ese correo; elige a quién invitar");
       }
-      return;
+      personId = matches.personIds().isEmpty() ? null : matches.personIds().get(0);
     }
-    var accountabilities = invitationRules.accountabilitiesOf(command.personId());
-    if (accountabilities.stream()
-        .noneMatch(a -> a.organizationId().equals(command.organizationId()))) {
+    if (personId == null) {
+      return null;
+    }
+    var accountabilities = invitationRules.accountabilitiesOf(personId);
+    if (accountabilities.stream().noneMatch(a -> a.organizationId().equals(node))) {
       throw new DomainValidationException("La persona no pertenece a este grupo");
     }
-    if (isPersonLinkedQueryHandler.handle(new IsPersonLinkedQuery(command.personId())).linked()) {
+    if (isPersonLinkedQueryHandler.handle(new IsPersonLinkedQuery(personId)).linked()) {
       throw new DomainValidationException("Esa persona ya usa la aplicación");
     }
     // Linking an account to the person hands over the access the person already has.
     invitationRules.requireMayLink(command.subject(), accountabilities);
+    if (named) {
+      fillPersonEmailCommandHandler.handle(new FillPersonEmailCommand(personId, email));
+    }
+    return personId;
   }
 
-  private static boolean isBlank(String value) {
-    return value == null || value.isBlank();
+  private static String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value.trim();
   }
 }

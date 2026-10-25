@@ -312,21 +312,121 @@ class InvitationIntegrationTests {
   }
 
   @Test
-  void anInvitationNeedsAValidEmailAndAName() {
+  void anInvitationNeedsAValidEmail() {
     assertThat(
             status(
                 alice,
                 HttpMethod.POST,
                 "/organizations/" + church.location + "/invitations",
-                "{\"email\":\"not-an-email\",\"firstName\":\"A\",\"lastName\":\"B\"}"))
+                "{\"email\":\"not-an-email\"}"))
         .isEqualTo(400);
+  }
+
+  @Test
+  void invitingByEmailAloneLetsWhoAcceptsSayTheirName() {
+    var created =
+        read(
+            body(
+                alice,
+                HttpMethod.POST,
+                "/organizations/" + church.location + "/invitations",
+                "{\"email\":\"%s\"}".formatted(email(bob))));
+    var token = lastToken();
+    assertThat(created.get("invitation").get("needsName").asBoolean()).isTrue();
+    assertThat(preview(token).get("needsName").asBoolean()).isTrue();
+
+    // Without a name the invitation cannot be accepted.
+    assertThat(status(bob, HttpMethod.POST, "/invitations/" + token + "/accept")).isEqualTo(400);
+    var accepted =
+        read(
+            body(
+                bob,
+                HttpMethod.POST,
+                "/invitations/" + token + "/accept",
+                "{\"firstName\":\"Beto\",\"lastName\":\"Pérez\"}"));
+
+    var person = json(alice, "/people/" + accepted.get("personId").asText());
+    assertThat(person.get("firstName").asText()).isEqualTo("Beto");
+    assertThat(person.get("email").asText()).isEqualTo(email(bob));
+  }
+
+  @Test
+  void theEmailOfAnExistingPersonLinksThatPersonInsteadOfCreatingAnother() {
+    var group = createGroup(alice, church.location);
+    var personId =
+        read(body(
+                alice,
+                HttpMethod.POST,
+                "/people",
+                ("{\"firstName\":\"Lucía\",\"lastName\":\"Prueba\","
+                        + "\"email\":\"%s\",\"organizationId\":\"%s\"}")
+                    .formatted(email(bob), group)))
+            .asText();
+
+    var created =
+        read(
+            body(
+                alice,
+                HttpMethod.POST,
+                "/organizations/" + group + "/invitations",
+                "{\"email\":\"%s\"}".formatted(email(bob).toUpperCase())));
+
+    assertThat(created.get("invitation").get("personId").asText()).isEqualTo(personId);
+    assertThat(created.get("invitation").get("needsName").asBoolean()).isFalse();
+    var accepted =
+        read(body(bob, HttpMethod.POST, "/invitations/" + lastToken() + "/accept", null));
+    assertThat(accepted.get("personId").asText()).isEqualTo(personId);
+  }
+
+  @Test
+  void twoPeopleWithTheSameEmailAskToChoose() {
+    var group = createGroup(alice, church.location);
+    for (var name : new String[] {"Ana", "Eva"}) {
+      body(
+          alice,
+          HttpMethod.POST,
+          "/people",
+          ("{\"firstName\":\"%s\",\"lastName\":\"Prueba\",\"email\":\"%s\","
+                  + "\"organizationId\":\"%s\"}")
+              .formatted(name, email(bob), group));
+    }
+
     assertThat(
             status(
                 alice,
                 HttpMethod.POST,
-                "/organizations/" + church.location + "/invitations",
+                "/organizations/" + group + "/invitations",
                 "{\"email\":\"%s\"}".formatted(email(bob))))
         .isEqualTo(400);
+  }
+
+  @Test
+  void invitingAPersonWithoutEmailGivesThemTheInvitedOne() {
+    var group = createGroup(alice, church.location);
+    var personId = createPerson(alice, "Lucía", group);
+
+    invite(alice, group, email(carol), null, personId);
+
+    assertThat(json(alice, "/people/" + personId).get("email").asText()).isEqualTo(email(carol));
+  }
+
+  @Test
+  void aPersonWithAnotherEmailKeepsIt() {
+    var group = createGroup(alice, church.location);
+    var personId =
+        read(body(
+                alice,
+                HttpMethod.POST,
+                "/people",
+                ("{\"firstName\":\"Lucía\",\"lastName\":\"Prueba\","
+                        + "\"email\":\"personal@example.org\",\"organizationId\":\"%s\"}")
+                    .formatted(group)))
+            .asText();
+
+    invite(alice, group, email(carol), null, personId);
+
+    assertThat(json(alice, "/people/" + personId).get("email").asText())
+        .isEqualTo("personal@example.org");
   }
 
   @Test

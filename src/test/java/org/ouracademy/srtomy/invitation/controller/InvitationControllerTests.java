@@ -83,6 +83,7 @@ class InvitationControllerTests {
         null,
         null,
         "Beto Pérez",
+        false,
         status,
         LocalDateTime.now().plusDays(3),
         "pastor@example.org",

@@ -49,4 +49,14 @@ public interface PersonRepository extends JpaRepository<Person, PartyId> {
             """)
   Page<Person> findByOrgIds(
       List<PartyId> organizationIds, AccountabilityType accountabilityType, Pageable pageable);
+
+  /** The people with that email (ignoring case) who have any accountability in the node. */
+  @Query(
+      """
+            select p
+            from Person p
+            where lower(p.email) = lower(:email)
+            and p.id in (select a.child.id from Accountability a where a.parent.id = :organizationId)
+            """)
+  List<Person> findByEmailAndOrganization(String email, PartyId organizationId);
 }
