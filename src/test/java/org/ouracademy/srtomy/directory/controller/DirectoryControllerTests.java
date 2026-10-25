@@ -15,6 +15,7 @@ import org.ouracademy.srtomy.directory.query.get_church_directory.GetChurchDirec
 import org.ouracademy.srtomy.directory.query.get_directory_entry.GetDirectoryEntryQuery;
 import org.ouracademy.srtomy.directory.query.get_directory_entry.GetDirectoryEntryQueryHandler;
 import org.ouracademy.srtomy.directory.query.get_directory_entry.GetDirectoryEntryResult;
+import org.ouracademy.srtomy.directory.query.get_my_nodes.GetMyNodesQueryHandler;
 import org.ouracademy.srtomy.directory.query.get_public_page.GetPublicPageQuery;
 import org.ouracademy.srtomy.directory.query.get_public_page.GetPublicPageQueryHandler;
 import org.ouracademy.srtomy.directory.query.get_public_page.GetPublicPageResult;
@@ -45,6 +46,7 @@ class DirectoryControllerTests {
   @MockitoBean GetChurchDirectoryQueryHandler getChurchDirectoryQueryHandler;
   @MockitoBean GetDirectoryEntryQueryHandler getDirectoryEntryQueryHandler;
   @MockitoBean GetPublicPageQueryHandler getPublicPageQueryHandler;
+  @MockitoBean GetMyNodesQueryHandler getMyNodesQueryHandler;
 
   PartyId church = PartyId.generate();
 
