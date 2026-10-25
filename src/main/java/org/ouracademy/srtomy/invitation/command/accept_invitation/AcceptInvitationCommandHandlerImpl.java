@@ -85,7 +85,7 @@ class AcceptInvitationCommandHandlerImpl implements AcceptInvitationCommandHandl
             .orElseThrow(() -> new NoSuchElementException("Organization not found"))
             .churchId();
 
-    var personId = linkPerson(invitation, user, organizationId, churchId);
+    var personId = linkPerson(invitation, user, command, organizationId, churchId);
     joinNode(personId, organizationId);
     givePosition(invitation, personId, organizationId);
 
@@ -115,7 +115,11 @@ class AcceptInvitationCommandHandlerImpl implements AcceptInvitationCommandHandl
   }
 
   private PartyId linkPerson(
-      Invitation invitation, UserResult user, PartyId organizationId, PartyId churchId) {
+      Invitation invitation,
+      UserResult user,
+      AcceptInvitationCommand command,
+      PartyId organizationId,
+      PartyId churchId) {
     var linked =
         findLinkedPersonQueryHandler
             .handle(new FindLinkedPersonQuery(user.id(), churchId))
@@ -128,27 +132,35 @@ class AcceptInvitationCommandHandlerImpl implements AcceptInvitationCommandHandl
       }
       return linked.get();
     }
-    var personId =
-        invited != null
-            ? invited
-            : createPersonCommandHandler
-                .handle(
-                    new CreatePersonCommand(
-                        invitation.getInvitedBy().getSubject(),
-                        new PersonInfo(
-                            invitation.getFirstName(),
-                            invitation.getLastName(),
-                            null,
-                            invitation.getEmail(),
-                            null,
-                            null,
-                            null),
-                        organizationId,
-                        Set.of()))
-                .id();
+    var personId = invited != null ? invited : createPerson(invitation, command, organizationId);
     linkUserToPersonCommandHandler.handle(
         new LinkUserToPersonCommand(user.id(), personId, churchId));
     return personId;
+  }
+
+  /** The name comes from the invitation if it has one, else from whoever accepts. */
+  private PartyId createPerson(
+      Invitation invitation, AcceptInvitationCommand command, PartyId organizationId) {
+    var firstName = firstNonBlank(invitation.getFirstName(), command.firstName());
+    var lastName = firstNonBlank(invitation.getLastName(), command.lastName());
+    if (firstName == null || lastName == null) {
+      throw new DomainValidationException("Indica tu nombre y tu apellido para aceptar");
+    }
+    return createPersonCommandHandler
+        .handle(
+            new CreatePersonCommand(
+                invitation.getInvitedBy().getSubject(),
+                new PersonInfo(firstName, lastName, null, invitation.getEmail(), null, null, null),
+                organizationId,
+                Set.of()))
+        .id();
+  }
+
+  private static String firstNonBlank(String preferred, String fallback) {
+    if (preferred != null && !preferred.isBlank()) {
+      return preferred.trim();
+    }
+    return fallback == null || fallback.isBlank() ? null : fallback.trim();
   }
 
   /** A person who already had a record elsewhere in the church also belongs to the node. */

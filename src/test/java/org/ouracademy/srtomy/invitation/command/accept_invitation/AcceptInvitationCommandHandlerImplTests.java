@@ -270,6 +270,51 @@ class AcceptInvitationCommandHandlerImplTests {
   }
 
   @Test
+  void aNamelessInvitationTakesTheNameOfWhoAccepts() {
+    var invitation =
+        InvitationFixtures.invitation(
+            "bob@example.org", nodeEntity, null, null, inviter, LocalDateTime.now().plusDays(3));
+    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "firstName", null);
+    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "lastName", null);
+    when(invitationRepository.findById(invitationId)).thenReturn(Optional.of(invitation));
+    when(createPerson.handle(any())).thenReturn(new CreatePersonResult(PartyId.generate()));
+
+    handler.handle(new AcceptInvitationCommand("auth0|bob", invitationId, " Beto ", "Pérez"));
+
+    var created = ArgumentCaptor.forClass(CreatePersonCommand.class);
+    verify(createPerson).handle(created.capture());
+    assertThat(created.getValue().info().firstName()).isEqualTo("Beto");
+    assertThat(created.getValue().info().lastName()).isEqualTo("Pérez");
+  }
+
+  @Test
+  void aNamelessInvitationNeedsTheNameToBeAccepted() {
+    var invitation =
+        InvitationFixtures.invitation(
+            "bob@example.org", nodeEntity, null, null, inviter, LocalDateTime.now().plusDays(3));
+    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "firstName", null);
+    org.springframework.test.util.ReflectionTestUtils.setField(invitation, "lastName", null);
+    when(invitationRepository.findById(invitationId)).thenReturn(Optional.of(invitation));
+
+    assertThatThrownBy(() -> handler.handle(command()))
+        .isInstanceOf(DomainValidationException.class)
+        .hasMessageContaining("nombre");
+    verify(linkUser, never()).handle(any());
+  }
+
+  @Test
+  void theNameOfTheInvitationWinsOverTheOneTyped() {
+    pending();
+    when(createPerson.handle(any())).thenReturn(new CreatePersonResult(PartyId.generate()));
+
+    handler.handle(new AcceptInvitationCommand("auth0|bob", invitationId, "Otro", "Nombre"));
+
+    var created = ArgumentCaptor.forClass(CreatePersonCommand.class);
+    verify(createPerson).handle(created.capture());
+    assertThat(created.getValue().info().firstName()).isEqualTo("Beto");
+  }
+
+  @Test
   void anotherEmailIsDenied() {
     pending();
     when(findUser.handle(any()))

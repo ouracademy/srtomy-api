@@ -46,7 +46,12 @@ import org.ouracademy.srtomy.organization.query.find_church_of_organization.Find
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
 import org.ouracademy.srtomy.party.domain.PartyId;
+import org.ouracademy.srtomy.person.command.fill_person_email.FillPersonEmailCommand;
+import org.ouracademy.srtomy.person.command.fill_person_email.FillPersonEmailCommandHandler;
 import org.ouracademy.srtomy.person.domain.Person;
+import org.ouracademy.srtomy.person.query.find_people_by_email.FindPeopleByEmailQuery;
+import org.ouracademy.srtomy.person.query.find_people_by_email.FindPeopleByEmailQueryHandler;
+import org.ouracademy.srtomy.person.query.find_people_by_email.FindPeopleByEmailResult;
 import org.ouracademy.srtomy.shared.domain.DomainValidationException;
 import org.ouracademy.srtomy.user.domain.UserId;
 import org.ouracademy.srtomy.user.query.UserResult;
@@ -69,6 +74,8 @@ class CreateInvitationCommandHandlerImplTests {
   AuthorizeAccessGrantQueryHandler authorizeAccessGrant =
       mock(AuthorizeAccessGrantQueryHandler.class);
   IsPersonLinkedQueryHandler isPersonLinked = mock(IsPersonLinkedQueryHandler.class);
+  FindPeopleByEmailQueryHandler findPeopleByEmail = mock(FindPeopleByEmailQueryHandler.class);
+  FillPersonEmailCommandHandler fillPersonEmail = mock(FillPersonEmailCommandHandler.class);
   SendEmailCommandHandler sendEmail = mock(SendEmailCommandHandler.class);
   EntityManager entityManager = mock(EntityManager.class);
   CreateInvitationCommandHandlerImpl handler =
@@ -80,6 +87,8 @@ class CreateInvitationCommandHandlerImplTests {
           findPosition,
           new InvitationRules(authorizeAccessGrant, getPersonAccountabilities),
           isPersonLinked,
+          findPeopleByEmail,
+          fillPersonEmail,
           sendEmail,
           entityManager);
 
@@ -106,6 +115,7 @@ class CreateInvitationCommandHandlerImplTests {
     when(invitationRepository.findByOrganizationIdAndStatusOrderByCreateDateDesc(any(), any()))
         .thenReturn(List.of());
     when(sendEmail.handle(any())).thenReturn(new SendEmailResult(true));
+    when(findPeopleByEmail.handle(any())).thenReturn(new FindPeopleByEmailResult(List.of()));
   }
 
   static FindOrganizationResult organization(PartyId id, String name) {
@@ -240,13 +250,73 @@ class CreateInvitationCommandHandlerImplTests {
   }
 
   @Test
-  void aNewPersonNeedsAName() {
+  void theNameIsOptionalBecauseWhoAcceptsCanSayIt() {
     var command =
-        new CreateInvitationCommand("auth0|me", "beto@example.org", node, null, null, " ", "Pérez");
+        new CreateInvitationCommand("auth0|me", "beto@example.org", node, null, null, null, " ");
 
-    assertThatThrownBy(() -> handler.handle(command))
+    var result = handler.handle(command);
+
+    assertThat(result.invitation().needsName()).isTrue();
+    assertThat(result.invitation().personName()).isNull();
+  }
+
+  @Test
+  void theOnlyPersonOfTheNodeWithThatEmailIsLinked() {
+    var personId = PartyId.generate();
+    when(findPeopleByEmail.handle(new FindPeopleByEmailQuery("beto@example.org", node)))
+        .thenReturn(new FindPeopleByEmailResult(List.of(personId)));
+    when(getPersonAccountabilities.handle(any())).thenReturn(List.of(held(node, null)));
+    when(isPersonLinked.handle(any())).thenReturn(new IsPersonLinkedResult(false));
+    when(entityManager.getReference(eq(Person.class), eq(personId))).thenReturn(new Person());
+
+    handler.handle(
+        new CreateInvitationCommand("auth0|me", " Beto@Example.org", node, null, null, null, null));
+
+    var saved = ArgumentCaptor.forClass(Invitation.class);
+    verify(invitationRepository).save(saved.capture());
+    assertThat(saved.getValue().getPerson()).isNotNull();
+    assertThat(saved.getValue().getFirstName()).isNull();
+    // That person already has the email, so nothing is filled in.
+    verify(fillPersonEmail, never()).handle(any());
+  }
+
+  @Test
+  void severalPeopleWithThatEmailAskToChooseOne() {
+    when(findPeopleByEmail.handle(any()))
+        .thenReturn(new FindPeopleByEmailResult(List.of(PartyId.generate(), PartyId.generate())));
+
+    assertThatThrownBy(() -> handler.handle(newPerson("beto@example.org", null)))
         .isInstanceOf(DomainValidationException.class)
-        .hasMessageContaining("nombre");
+        .hasMessageContaining("varias personas");
+    verify(invitationRepository, never()).save(any());
+  }
+
+  @Test
+  void aMatchedPersonWhoAlreadyHasAnAccountIsRefused() {
+    var personId = PartyId.generate();
+    when(findPeopleByEmail.handle(any()))
+        .thenReturn(new FindPeopleByEmailResult(List.of(personId)));
+    when(getPersonAccountabilities.handle(any())).thenReturn(List.of(held(node, null)));
+    when(isPersonLinked.handle(any())).thenReturn(new IsPersonLinkedResult(true));
+
+    assertThatThrownBy(() -> handler.handle(newPerson("beto@example.org", null)))
+        .isInstanceOf(DomainValidationException.class)
+        .hasMessageContaining("ya usa");
+  }
+
+  @Test
+  void aNamedPersonWithoutEmailGetsTheInvitedOne() {
+    var personId = PartyId.generate();
+    var command =
+        new CreateInvitationCommand(
+            "auth0|me", "beto@example.org", node, null, personId, null, null);
+    when(getPersonAccountabilities.handle(any())).thenReturn(List.of(held(node, null)));
+    when(isPersonLinked.handle(any())).thenReturn(new IsPersonLinkedResult(false));
+    when(entityManager.getReference(eq(Person.class), eq(personId))).thenReturn(new Person());
+
+    handler.handle(command);
+
+    verify(fillPersonEmail).handle(new FillPersonEmailCommand(personId, "beto@example.org"));
   }
 
   @Test
