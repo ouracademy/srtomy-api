@@ -118,7 +118,7 @@ public class InvitationController {
     return findInvitationByTokenQueryHandler
         .handle(new FindInvitationByTokenQuery(token))
         .map(InvitationPreviewResponse::from)
-        .orElseThrow(() -> new NoSuchElementException("Invitation not found"));
+        .orElseThrow(InvitationController::notFound);
   }
 
   @PostMapping("invitations/{token}/accept")
@@ -129,7 +129,7 @@ public class InvitationController {
     var invitation =
         findInvitationByTokenQueryHandler
             .handle(new FindInvitationByTokenQuery(token))
-            .orElseThrow(() -> new NoSuchElementException("Invitation not found"));
+            .orElseThrow(InvitationController::notFound);
     return accept(jwt, invitation.id(), request);
   }
 
@@ -168,10 +168,14 @@ public class InvitationController {
                 request == null ? null : request.lastName())));
   }
 
+  private static NoSuchElementException notFound() {
+    return new NoSuchElementException("Invitation not found");
+  }
+
   private InvitationResult find(InvitationId id) {
     return findInvitationByIdQueryHandler
         .handle(new FindInvitationByIdQuery(id))
-        .orElseThrow(() -> new NoSuchElementException("Invitation not found"));
+        .orElseThrow(InvitationController::notFound);
   }
 
   private void authorize(Jwt jwt, PartyId organizationId) {

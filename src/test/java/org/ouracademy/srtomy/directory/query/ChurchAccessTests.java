@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.directory.query;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -51,7 +52,7 @@ class ChurchAccessTests {
   void anyNodeOfTheChurchInTheUsersTreeMakesThemAMember() {
     when(accessible.handle(any())).thenReturn(List.of(node(church, false), node(group, true)));
 
-    access.requireMember("me", church);
+    assertThatCode(() -> access.requireMember("me", church)).doesNotThrowAnyException();
   }
 
   @Test
