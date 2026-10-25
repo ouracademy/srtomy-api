@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.ouracademy.srtomy.event.domain.Event;
 import org.ouracademy.srtomy.event.domain.EventId;
-import org.ouracademy.srtomy.event.domain.SingleEvent;
+import org.ouracademy.srtomy.event.domain.EventSeries;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +15,10 @@ import org.springframework.data.jpa.repository.Query;
 public interface EventRepository extends JpaRepository<Event, EventId> {
 
   Optional<Event> findByShareSlug(String shareSlug);
+
+  List<Event> findBySeries(EventSeries series);
+
+  List<Event> findBySeriesAndStartGreaterThanEqual(EventSeries series, ZonedDateTime start);
 
   // t: -----|----|----
   // e: --|-|--------- X
@@ -32,11 +36,38 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
   // e: -----------|-|-
   @Query(
       """
-            select e from SingleEvent e
+            select e from Event e
             where e.start <= :end and e.end>=:start
             and e.organization.id in :organizationIds""")
-  List<SingleEvent> searchEventsOfOrgIdsAndBetweenDates(
+  List<Event> searchEventsOfOrgIdsAndBetweenDates(
       List<PartyId> organizationIds, ZonedDateTime start, ZonedDateTime end);
+
+  /**
+   * The events of the nodes where {@code userId} holds {@code events.read}, and of everything below
+   * them, that overlap the range. Read-only SQL over the access view, which the module rules allow.
+   */
+  @Query(
+      value =
+          """
+          with recursive bound as (
+              select ua.organization_id as id
+              from user_access ua
+              where ua.user_id = :userId and 'events.read' = any(ua.permissions)
+          ),
+          subtree as (
+              select o.id from organization o where o.id in (select id from bound)
+              union
+              select o.id from organization o join subtree s on o.parent_id = s.id
+          )
+          select e.* from event e
+          where e.organization_id in (select id from subtree)
+            and e.deleted_time is null
+            and e.end_time >= :from and e.start_time <= :to
+          order by e.start_time
+          limit :max
+          """,
+      nativeQuery = true)
+  List<Event> findReadableByUser(UUID userId, Instant from, Instant to, int max);
 
   /**
    * The events {@code userId} signed up for (by account or by verified {@code email}) or whose

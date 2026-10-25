@@ -6,8 +6,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
-import java.time.LocalDate;
-import java.util.List;
+import java.time.ZoneId;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
@@ -40,33 +39,34 @@ class EventRequestTests {
   }
 
   @Test
-  void singleEventWithoutDaysOfWeekIsValid() {
-    var request = validRequest();
-
-    Set<ConstraintViolation<EventRequest>> violations = validator.validate(request);
+  void aOneOffEventIsValid() {
+    Set<ConstraintViolation<EventRequest>> violations = validator.validate(validRequest());
 
     assertThat(violations).isEmpty();
   }
 
   @Test
-  void recurrentEventWithoutDaysOfWeekIsInvalid() {
+  void aKnownTimeZoneIsValid() {
     var request = validRequest();
-    request.setEndRecur(LocalDate.of(2026, 12, 31));
+    request.setTimeZone("America/Lima");
+
+    assertThat(validator.validate(request)).isEmpty();
+    assertThat(request.zone()).isEqualTo(ZoneId.of("America/Lima"));
+  }
+
+  @Test
+  void anUnknownTimeZoneIsInvalid() {
+    var request = validRequest();
+    request.setTimeZone("Mars/Olympus");
 
     Set<ConstraintViolation<EventRequest>> violations = validator.validate(request);
 
     assertThat(violations).hasSize(1);
-    assertThat(violations.iterator().next().getPropertyPath()).hasToString("validDaysOfWeek");
+    assertThat(violations.iterator().next().getPropertyPath()).hasToString("validTimeZone");
   }
 
   @Test
-  void recurrentEventWithDaysOfWeekIsValid() {
-    var request = validRequest();
-    request.setEndRecur(LocalDate.of(2026, 12, 31));
-    request.setDaysOfWeek(List.of(1, 3));
-
-    Set<ConstraintViolation<EventRequest>> violations = validator.validate(request);
-
-    assertThat(violations).isEmpty();
+  void theTimeZoneDefaultsToUtc() {
+    assertThat(validRequest().zone()).isEqualTo(ZoneId.of("UTC"));
   }
 }
