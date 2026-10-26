@@ -18,7 +18,7 @@ class ResendEmailGateway implements EmailGateway {
 
   ResendEmailGateway(
       @Value("${resend.api-key}") String apiKey,
-      @Value("${resend.from:Sr. Tommy <onboarding@resend.dev>}") String from,
+      @Value("${resend.from:Sr. Tommy <invitaciones@ovejafiel.com>}") String from,
       @Value("${resend.url:https://api.resend.com}") String url) {
     this.from = from;
     this.restClient =
