@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import org.ouracademy.srtomy.accountability.domain.AccountabilityType;
 import org.ouracademy.srtomy.organization.domain.Organization;
+import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 import org.ouracademy.srtomy.person.domain.Person;
 import org.ouracademy.srtomy.shared.domain.DomainObject;
 import org.ouracademy.srtomy.shared.domain.DomainValidationException;
@@ -58,6 +59,9 @@ public class Invitation extends DomainObject {
   @ManyToOne
   @JoinColumn(name = "accepted_by")
   AppUser acceptedBy;
+
+  /** The queued email with the link; null for invitations from before the outbox. */
+  OutboxMessageId emailMessageId;
 
   protected Invitation() {
     // jpa only
@@ -113,5 +117,9 @@ public class Invitation extends DomainObject {
     if (status == InvitationStatus.PENDING) {
       status = InvitationStatus.REVOKED;
     }
+  }
+
+  public void emailQueued(OutboxMessageId messageId) {
+    this.emailMessageId = messageId;
   }
 }

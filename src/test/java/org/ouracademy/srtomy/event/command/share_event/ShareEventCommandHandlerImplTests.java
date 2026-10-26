@@ -28,6 +28,7 @@ import org.ouracademy.srtomy.notification.command.send_email.SendEmailCommand;
 import org.ouracademy.srtomy.notification.command.send_email.SendEmailCommandHandler;
 import org.ouracademy.srtomy.notification.command.send_email.SendEmailResult;
 import org.ouracademy.srtomy.organization.domain.Organization;
+import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.shared.domain.DomainValidationException;
 import org.ouracademy.srtomy.user.domain.AppUser;
@@ -55,6 +56,8 @@ class ShareEventCommandHandlerImplTests {
           organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH),
           List.of());
 
+  OutboxMessageId queued = OutboxMessageId.generate();
+
   @BeforeEach
   void setUp() {
     ReflectionTestUtils.setField(handler, "appUrl", "https://app.example.org/");
@@ -65,7 +68,7 @@ class ShareEventCommandHandlerImplTests {
         .thenReturn(Optional.empty());
     when(shareRepository.save(any(EventShare.class))).thenAnswer(call -> call.getArgument(0));
     when(entityManager.getReference(eq(AppUser.class), any())).thenReturn(new AppUser("me"));
-    when(sendEmail.handle(any())).thenReturn(new SendEmailResult(true));
+    when(sendEmail.handle(any())).thenReturn(new SendEmailResult(queued));
   }
 
   @Test
@@ -76,7 +79,7 @@ class ShareEventCommandHandlerImplTests {
     verify(shareRepository).save(saved.capture());
     assertThat(saved.getValue().getEmail()).isEqualTo("ana@x.org");
     assertThat(saved.getValue().getRole()).isEqualTo(ShareRole.VIEWER);
-    assertThat(result.emailSent()).isTrue();
+    assertThat(result.emailMessageId()).isEqualTo(queued);
     assertThat(result.share().email()).isEqualTo("ana@x.org");
 
     var email = ArgumentCaptor.forClass(SendEmailCommand.class);
@@ -97,16 +100,6 @@ class ShareEventCommandHandlerImplTests {
 
     assertThat(existing.getRole()).isEqualTo(ShareRole.EDITOR);
     verify(sendEmail).handle(any());
-  }
-
-  @Test
-  void aFailedEmailKeepsTheShare() {
-    when(sendEmail.handle(any())).thenReturn(new SendEmailResult(false));
-
-    var result = handler.handle(new ShareEventCommand("me", id, "ana@x.org", ShareRole.VIEWER));
-
-    assertThat(result.emailSent()).isFalse();
-    verify(shareRepository).save(any(EventShare.class));
   }
 
   @Test

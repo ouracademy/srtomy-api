@@ -103,7 +103,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
             .handle(new FindOrganizationByIdQuery(churchId))
             .map(FindOrganizationResult::name)
             .orElse("");
-    var sent =
+    var queued =
         sendEmailCommandHandler
             .handle(
                 new SendEmailCommand(
@@ -116,8 +116,10 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
                         position,
                         invitation,
                         token)))
-            .delivered();
-    return new CreateInvitationResult(InvitationResult.from(invitation, LocalDateTime.now()), sent);
+            .messageId();
+    invitation.emailQueued(queued);
+    return new CreateInvitationResult(
+        InvitationResult.from(invitation, LocalDateTime.now()), queued);
   }
 
   private String body(

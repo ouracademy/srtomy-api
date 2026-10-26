@@ -1,9 +1,6 @@
 package org.ouracademy.srtomy.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,8 +8,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
-import org.ouracademy.srtomy.notification.command.send_email.SendEmailCommandHandler;
-import org.ouracademy.srtomy.notification.command.send_email.SendEmailResult;
+import org.ouracademy.srtomy.notification.SentEmails;
+import org.ouracademy.srtomy.notification.TestEmailConfig;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
 import org.ouracademy.srtomy.shared.TestSecurityConfig;
@@ -28,7 +25,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
@@ -36,7 +32,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
  * church or the link, and the sign-ups through the link of a course.
  */
 @SpringBootTest(classes = SrtomyApplication.class, webEnvironment = WebEnvironment.RANDOM_PORT)
-@Import(TestSecurityConfig.class)
+@Import({TestSecurityConfig.class, TestEmailConfig.class})
 class SharingIntegrationTests {
 
   static final ObjectMapper JSON = new ObjectMapper();
@@ -45,7 +41,7 @@ class SharingIntegrationTests {
   @Autowired JwtEncoder jwtEncoder;
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
   @Autowired LinkUserToPersonCommandHandler linkUserToPersonCommandHandler;
-  @MockitoBean SendEmailCommandHandler sendEmailCommandHandler;
+  @Autowired SentEmails sentEmails;
 
   RestTestClient client;
   String alice;
@@ -61,8 +57,7 @@ class SharingIntegrationTests {
   @BeforeEach
   void setUp() {
     client = RestTestClient.bindToServer().baseUrl("http://localhost:" + port + "/v1").build();
-    reset(sendEmailCommandHandler);
-    when(sendEmailCommandHandler.handle(any())).thenReturn(new SendEmailResult(true));
+    sentEmails.reset();
     alice = signUp("alice", true);
     bob = signUp("bob", true);
     carol = signUp("carol", true);
