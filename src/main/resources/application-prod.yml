@@ -15,7 +15,7 @@ spring:
 resend:
   api-key: ${sm@resend-api-key:}
   # Must belong to a domain verified in Resend, or it only delivers to the account owner.
-  from: ${RESEND_FROM:Sr. Tommy <onboarding@resend.dev>}
+  from: ${RESEND_FROM:Sr. Tommy <invitaciones@ovejafiel.com>}
   reply-to: ${RESEND_REPLY_TO:}
 
 # Cloud Scheduler calls /v1/internal/** with a Google ID token of this service account (Terraform:

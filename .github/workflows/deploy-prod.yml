@@ -65,6 +65,6 @@ jobs:
           # APP_URL (the web app's origin) still has to be set here once prod has a domain.
           env_vars: |
             INTERNAL_SCHEDULER_EMAIL=outbox-scheduler@sr-tommy-prod.iam.gserviceaccount.com
-            RESEND_FROM=Sr. Tommy <invitaciones@mail.ovejafiel.com>
+            RESEND_FROM=Sr. Tommy <invitaciones@ovejafiel.com>
             RESEND_REPLY_TO=soporte@ovejafiel.com
           flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost
