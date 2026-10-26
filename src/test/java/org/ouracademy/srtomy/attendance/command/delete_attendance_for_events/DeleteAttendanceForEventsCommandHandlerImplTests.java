@@ -2,8 +2,8 @@ package org.ouracademy.srtomy.attendance.command.delete_attendance_for_events;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.srtomy.event.EventFixtures.eventSeries;
 import static org.ouracademy.srtomy.event.EventFixtures.occurrenceOf;
-import static org.ouracademy.srtomy.event.EventFixtures.recurrentEvent;
 import static org.ouracademy.srtomy.organization.OrganizationFixtures.organization;
 
 import java.util.List;
@@ -26,8 +26,8 @@ class DeleteAttendanceForEventsCommandHandlerImplTests {
   @Test
   void softDeletesTheAttendanceOfEachEvent() {
     var church = organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH);
-    var recurrent = recurrentEvent(EventId.generate(), church);
-    var event = occurrenceOf(recurrent, EventId.generate());
+    var series = eventSeries(church);
+    var event = occurrenceOf(series, EventId.generate());
     var attendance = new EventAttendance(event);
     // @MapsId fills the id on persist; a unit test has to set it.
     ReflectionTestUtils.setField(attendance, "id", event.getId());

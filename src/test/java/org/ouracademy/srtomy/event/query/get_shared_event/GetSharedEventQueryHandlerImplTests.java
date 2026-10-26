@@ -4,7 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.ouracademy.srtomy.event.EventFixtures.recurrentEvent;
+import static org.ouracademy.srtomy.event.EventFixtures.eventSeries;
+import static org.ouracademy.srtomy.event.EventFixtures.occurrenceOf;
 import static org.ouracademy.srtomy.event.EventFixtures.singleEvent;
 import static org.ouracademy.srtomy.organization.OrganizationFixtures.organization;
 
@@ -65,7 +66,7 @@ class GetSharedEventQueryHandlerImplTests {
     assertThat(page.organizationName()).isEqualTo("Jóvenes");
     assertThat(page.address()).isEqualTo("Av. Siempre Viva 123");
     assertThat(page.isACourse()).isFalse();
-    assertThat(page.daysOfWeek()).isNull();
+    assertThat(page.recurrence()).isNull();
     assertThat(page.canRegister()).isFalse();
     assertThat(page.registered()).isFalse();
   }
@@ -97,14 +98,14 @@ class GetSharedEventQueryHandlerImplTests {
   }
 
   @Test
-  void aRecurringEventShowsItsDays() {
-    var series = recurrentEvent(EventId.generate(), group);
+  void aRepeatingEventShowsHowItRepeats() {
+    var series = occurrenceOf(eventSeries(group), EventId.generate());
     series.shareVia(GeneralAccess.ANYONE_WITH_LINK, LinkRole.VIEWER);
     when(events.findByShareSlug("series")).thenReturn(Optional.of(series));
 
     var page = handler.handle(new GetSharedEventQuery("series", null)).orElseThrow();
 
-    assertThat(page.daysOfWeek()).containsExactly(1, 3);
-    assertThat(page.endRecur()).hasToString("2026-01-14");
+    assertThat(page.recurrence().daysOfWeek()).containsExactly(1, 3);
+    assertThat(page.recurrence().until()).hasToString("2026-01-14");
   }
 }

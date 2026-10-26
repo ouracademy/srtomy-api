@@ -108,7 +108,6 @@ class EventSharingControllerTests {
         true,
         "Jóvenes",
         null,
-        null,
         canRegister,
         false);
   }
