@@ -3,7 +3,7 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Region of the Cloud Run service and of the scheduler job."
+  description = "Region of the Cloud Run service and of the scheduler jobs."
   type        = string
   default     = "southamerica-west1"
 }
@@ -20,8 +20,23 @@ variable "audience" {
   default     = "https://api.srtommy.com/internal"
 }
 
-variable "outbox_schedule" {
-  description = "How often the outbox is drained (cron). Every minute is also the delay of the first retry."
-  type        = string
-  default     = "* * * * *"
+variable "jobs" {
+  description = "One Cloud Scheduler job per internal endpoint of the API (POST /v1/internal/...). The key is the job's name."
+  type = map(object({
+    description = string
+    schedule    = string
+    path        = string
+  }))
+  default = {
+    "drain-outbox" = {
+      description = "Sends the emails that are due (and retries the ones that failed). Every minute is also the delay of the first retry."
+      schedule    = "* * * * *"
+      path        = "/v1/internal/outbox/drain"
+    }
+    "extend-event-series" = {
+      description = "Adds upcoming occurrences to the event series that never end (or end far away)."
+      schedule    = "30 3 * * *"
+      path        = "/v1/internal/events/extend-series"
+    }
+  }
 }

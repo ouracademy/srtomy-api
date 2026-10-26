@@ -54,7 +54,7 @@ public class TestSecurityConfig {
 
   /** What Cloud Scheduler's token is checked against: its service account and this audience. */
   public static final String SCHEDULER_EMAIL =
-      "outbox-scheduler@sr-tommy-test.iam.gserviceaccount.com";
+      "api-scheduler@sr-tommy-test.iam.gserviceaccount.com";
 
   public static final String INTERNAL_AUDIENCE = "https://api.srtommy.com/internal";
 

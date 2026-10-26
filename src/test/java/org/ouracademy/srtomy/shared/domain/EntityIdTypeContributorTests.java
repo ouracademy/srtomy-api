@@ -42,7 +42,7 @@ class EntityIdTypeContributorTests {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<JavaType<?>> captor = ArgumentCaptor.forClass(JavaType.class);
-    verify(javaTypeRegistry, times(13)).addDescriptor(captor.capture());
+    verify(javaTypeRegistry, times(14)).addDescriptor(captor.capture());
 
     assertThat(captor.getAllValues())
         .<Class<?>>extracting(JavaType::getJavaTypeClass)
