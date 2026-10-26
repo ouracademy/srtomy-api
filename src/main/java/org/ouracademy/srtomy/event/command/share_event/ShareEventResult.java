@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.event.command.share_event;
 
 import org.ouracademy.srtomy.event.query.EventSharingResult;
+import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 
-/** {@code emailSent} is false when the provider failed; the share exists and applies anyway. */
-public record ShareEventResult(EventSharingResult.Share share, boolean emailSent) {}
+/** The email is queued with the share; ask the outbox with {@code emailMessageId} how it went. */
+public record ShareEventResult(EventSharingResult.Share share, OutboxMessageId emailMessageId) {}

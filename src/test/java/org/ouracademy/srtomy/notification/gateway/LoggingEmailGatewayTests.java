@@ -8,7 +8,7 @@ class LoggingEmailGatewayTests {
 
   @Test
   void sendingOnlyLogs() {
-    assertThatCode(() -> new LoggingEmailGateway().send("a@x.org", "S", "T"))
+    assertThatCode(() -> new LoggingEmailGateway().send("msg-1", "a@x.org", "S", "T"))
         .doesNotThrowAnyException();
   }
 }

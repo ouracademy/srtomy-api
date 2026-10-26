@@ -72,6 +72,23 @@ handler lanza `AccessDeniedException` y la respuesta es 403. Los roles se
 heredan hacia abajo por `organization.parent_id`, como en IAM de GCP. Ver
 `specs/003-identity-iam/`.
 
+## Trabajo programado y sistemas externos
+
+**Dentro de la base de datos**, un comando es una transacción (`@Transactional` en el handler): todo o nada.
+
+**Fuera de ella** (correo, webhooks, otro servicio) no existe esa garantía, así que nunca se llama a un sistema externo dentro de la transacción: si el proveedor falla se pierde el trabajo, y si el commit falla después de enviar queda un correo de algo que no existe. Se usa el **outbox transaccional** (módulo `outbox`):
+
+1. El handler guarda su cambio **y** encola un mensaje (`EnqueueMessageCommandHandler`, obligatoriamente dentro de la misma transacción). Para correo basta `SendEmailCommandHandler`, que encola un mensaje `EMAIL` y devuelve su id.
+2. Al confirmarse la transacción se intenta enviar de inmediato (`DrainOnCommit`, mejor esfuerzo, sin afectar la respuesta).
+3. Lo que falle se reintenta con espera creciente (1 min, 5 min, 30 min, 2 h, 12 h; luego `FAILED`) cuando **Cloud Scheduler** llama cada minuto a `POST /v1/internal/outbox/drain`.
+4. Quien necesite mostrar el estado guarda el id del mensaje y lo consulta con `FindOutboxStatusesQueryHandler` (`PENDING`, `SENT`, `FAILED`). La invitación lo muestra y permite reenviar.
+
+Para otro tipo de trabajo, un módulo implementa `OutboxMessageHandler` (su `type()` y un `handle(id, payload)`), que debe poder repetirse sin efecto doble: se entrega **al menos una vez**, y el id del mensaje sirve de clave de idempotencia con el proveedor (Resend la recibe como `Idempotency-Key`).
+
+**Nunca `@Scheduled` ni `@EnableScheduling`** (lo verifica `ArchitectureTests`): Cloud Run puede no tener ninguna instancia encendida y, con varias, cada una dispararía el trabajo. Un trabajo programado es un endpoint interno bajo `/v1/internal/**`, protegido con el token OIDC de la cuenta de servicio del scheduler (`InternalSecurityConfig`), más un `google_cloud_scheduler_job` en `infra/terraform/modules/scheduler`.
+
+Si algún día crecen los flujos (varios pasos externos con compensaciones) o aparecen servicios en otros lenguajes, el contrato (la tabla `outbox_message` y el drenado con `FOR UPDATE SKIP LOCKED`) no depende de Java: se puede mover a Debezium o a un orquestador como Temporal sin cambiar quien encola.
+
 ## Naming — sin excepciones
 
 - Nada de `UseCase` ni `Interactor` en ningún nombre de clase.

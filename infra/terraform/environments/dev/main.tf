@@ -56,6 +56,14 @@ module "db_secrets" {
   existing_secret_ids = ["auth0-client-id", "auth0-client-secret"]
 }
 
+# Cloud Scheduler calls the API's internal endpoints (the outbox that sends emails). The account's
+# email is set as INTERNAL_SCHEDULER_EMAIL in the deploy workflow.
+module "scheduler" {
+  source = "../../modules/scheduler"
+
+  project_id = "sr-tommy-dev"
+}
+
 output "workload_identity_provider" {
   value = module.cicd.workload_identity_provider
 }
@@ -70,4 +78,8 @@ output "artifact_registry_repository_url" {
 
 output "neon_database_host" {
   value = module.neon.database_host
+}
+
+output "scheduler_service_account_email" {
+  value = module.scheduler.scheduler_service_account_email
 }

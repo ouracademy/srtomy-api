@@ -14,3 +14,11 @@ spring:
 # Resend (https://resend.com) delivers the invitation emails. Without the key they are only logged.
 resend:
   api-key: ${sm@resend-api-key:}
+  # Must belong to a domain verified in Resend, or it only delivers to the account owner.
+  from: ${RESEND_FROM:Sr. Tommy <invitaciones@ovejafiel.com>}
+  reply-to: ${RESEND_REPLY_TO:}
+
+# Cloud Scheduler calls /v1/internal/** with a Google ID token of this service account (Terraform:
+# modules/scheduler). With no account set, every call is refused.
+internal:
+  scheduler-email: ${INTERNAL_SCHEDULER_EMAIL:}

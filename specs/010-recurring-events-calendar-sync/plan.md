@@ -11,7 +11,7 @@ Ver las decisiones en [`spec.md`](./spec.md).
 ## Código (módulo `event`)
 
 - `domain`: `Recurrence` (valor embebido y expansión), `EventSeries`, `EventSeriesId`, `CalendarFeed`; `Event` pasa a una sola clase.
-- `command`: `create_event` (serie), `delete_event` (por opción), `extend_event_series`, `ensure_calendar_feed`, `renew_calendar_feed`; `job.ExtendEventSeriesJob`.
+- `command`: `create_event` (serie), `delete_event` (por opción), `extend_event_series`, `ensure_calendar_feed`, `renew_calendar_feed`; `controller.EventJobsController` (`POST /v1/internal/events/extend-series`, llamado a diario por Cloud Scheduler; nunca `@Scheduled`).
 - `query`: `get_calendar_feed` (`IcsCalendar`), `RecurrenceResult` en `FindEventResult` y `GetSharedEventResult`.
 - `controller`: `CalendarFeedController`, `RecurrenceRequest`/`RecurrenceResponse`.
 

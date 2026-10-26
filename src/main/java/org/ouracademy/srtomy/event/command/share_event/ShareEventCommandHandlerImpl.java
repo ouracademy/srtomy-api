@@ -61,7 +61,7 @@ class ShareEventCommandHandlerImpl implements ShareEventCommandHandler {
     share = eventShareRepository.save(share);
 
     var who = sharer.map(user -> user.email()).orElse("Alguien");
-    var sent =
+    var queued =
         sendEmailCommandHandler
             .handle(
                 new SendEmailCommand(
@@ -76,8 +76,8 @@ class ShareEventCommandHandlerImpl implements ShareEventCommandHandler {
                         + "/e/"
                         + event.getShareSlug()
                         + "\n"))
-            .delivered();
-    return new ShareEventResult(EventSharingResult.Share.from(share), sent);
+            .messageId();
+    return new ShareEventResult(EventSharingResult.Share.from(share), queued);
   }
 
   private static String normalized(String email) {

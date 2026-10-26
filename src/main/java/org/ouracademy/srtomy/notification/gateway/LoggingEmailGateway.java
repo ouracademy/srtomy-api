@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 class LoggingEmailGateway implements EmailGateway {
 
   @Override
-  public void send(String to, String subject, String text) {
+  public void send(String idempotencyKey, String to, String subject, String text) {
     log.info("Email to {} (not sent, no provider configured): {}\n{}", to, subject, text);
   }
 }

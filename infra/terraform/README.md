@@ -14,6 +14,9 @@ image tag is more trouble than it's worth for a service this size.
 
 - `modules/cicd/` — WIF, Artifact Registry, the GitHub Actions deploy service account.
 - `modules/neon/` — one Neon project (database + branch + role) per environment.
+- `modules/scheduler/` — Cloud Scheduler jobs that call the API's internal endpoints (`POST /v1/internal/...`) with an ID
+  token of the `api-scheduler` service account: drain the outbox every minute and extend the event
+  series daily. Add a job in `var.jobs` for any new scheduled work.
 - `modules/db-secrets/` — wires the Neon module's outputs straight into Secret Manager,
   so the actual DB password never has to pass through a person's hands or a chat.
 - `environments/dev/` — `sr-tommy-dev`.
@@ -50,6 +53,13 @@ your shell before running Terraform:
 export NEON_API_KEY="..."
 export TF_VAR_resend_api_key="re_..."   # Resend API key (invitation and sharing emails)
 ```
+
+## Cloud Scheduler
+
+`modules/scheduler/` creates the `api-scheduler` service account and one job per entry of `var.jobs` (`drain-outbox`, `extend-event-series`). After
+the first `terraform apply`, redeploy the API so Cloud Run gets `INTERNAL_SCHEDULER_EMAIL` (set in the
+deploy workflows): the API only accepts ID tokens of that account. The job calls the service's
+default `run.app` URL, built from the project number, so no URL has to be passed in.
 
 ## Day to day
 
