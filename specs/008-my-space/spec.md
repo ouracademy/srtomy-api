@@ -15,7 +15,7 @@
 3. **No es un acceso concedido**: la lista «Personas con acceso» de un nodo (`GET /organizations/{id}/access`) **no** muestra la rama `MEMBER`; nadie la otorgó ni se puede quitar salvo dejando de ser miembro.
 4. **Coherencia con la 006**: `ChurchAccess.requireMember` ya considera miembro de la iglesia a quien tiene algún nodo en `GET /me/organizations`; como ahora ser miembro de un nodo lo pone en ese árbol, un miembro sin cargo ve el directorio de su iglesia y Mi espacio, y quien no es miembro de nada sigue recibiendo 403.
 5. **Menores**: el nivel Miembro solo da información básica; los datos de menores siguen sin salir en listas (`AgeRules` en el directorio) y los endpoints de Mi espacio devuelven **solo datos propios** (nodos y eventos de la persona vinculada al usuario), nunca de otras personas.
-6. **Mi espacio reutiliza lo existente**: el directorio es `GET /organizations/{churchId}/directory` (módulo `directory`), «compartidos conmigo» es `GET /me/shared-events` y las invitaciones pendientes son `GET /me/invitations`. Solo se agregan `GET /me/nodes` y `GET /me/events`.
+6. **Mi espacio reutiliza lo existente**: «compartidos conmigo» es `GET /me/shared-events` y las invitaciones pendientes son `GET /me/invitations`. El directorio de la iglesia (`GET /organizations/{churchId}/directory`) no se muestra en Mi espacio: queda en la pantalla Directorio de cada nodo. Solo se agregan `GET /me/nodes` y `GET /me/events`.
 7. «Mis eventos y cursos» son aquellos donde el usuario se **inscribió** (por su cuenta o por su correo **verificado**) o **asistió** (la persona vinculada figura en la asistencia). Un correo sin verificar no prueba de quién es y no cuenta.
 
 ## User Scenarios & Testing
