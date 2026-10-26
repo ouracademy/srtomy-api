@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,10 @@ import org.ouracademy.srtomy.invitation.query.find_invitation_by_token.FindInvit
 import org.ouracademy.srtomy.invitation.query.find_invitation_by_token.FindInvitationByTokenQueryHandler;
 import org.ouracademy.srtomy.invitation.query.list_invitations_for_email.ListInvitationsForEmailQueryHandler;
 import org.ouracademy.srtomy.invitation.query.list_invitations_of_organization.ListInvitationsOfOrganizationQueryHandler;
+import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
+import org.ouracademy.srtomy.outbox.domain.OutboxStatus;
+import org.ouracademy.srtomy.outbox.query.find_outbox_statuses.FindOutboxStatusesQueryHandler;
+import org.ouracademy.srtomy.outbox.query.find_outbox_statuses.FindOutboxStatusesResult;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
@@ -66,6 +71,7 @@ class InvitationControllerTests {
   @MockitoBean ListInvitationsForEmailQueryHandler listInvitationsForEmailQueryHandler;
   @MockitoBean FindUserBySubjectQueryHandler findUserBySubjectQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
+  @MockitoBean FindOutboxStatusesQueryHandler findOutboxStatusesQueryHandler;
 
   PartyId node = PartyId.generate();
 
@@ -87,26 +93,31 @@ class InvitationControllerTests {
         status,
         LocalDateTime.now().plusDays(3),
         "pastor@example.org",
-        LocalDateTime.now());
+        LocalDateTime.now(),
+        null);
   }
 
   @Test
   void invitingNeedsThePermissionOnTheNodeAndReportsTheEmail() {
     var result = invitation(InvitationStatus.PENDING);
+    var messageId = OutboxMessageId.generate();
     given(createInvitationCommandHandler.handle(any()))
-        .willReturn(new CreateInvitationResult(result, true));
+        .willReturn(new CreateInvitationResult(result, messageId));
+    given(findOutboxStatusesQueryHandler.handle(any()))
+        .willReturn(new FindOutboxStatusesResult(Map.of(messageId, OutboxStatus.SENT)));
 
-    assertThat(
-            mvc.post()
-                .uri("/v1/organizations/" + node.value() + "/invitations")
-                .header("Authorization", bearer())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"email\":\"beto@example.org\",\"firstName\":\"Beto\",\"lastName\":\"Pérez\"}"))
-        .hasStatus(201)
-        .bodyJson()
-        .extractingPath("$.emailSent")
-        .isEqualTo(true);
+    var body =
+        assertThat(
+                mvc.post()
+                    .uri("/v1/organizations/" + node.value() + "/invitations")
+                    .header("Authorization", bearer())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        "{\"email\":\"beto@example.org\",\"firstName\":\"Beto\",\"lastName\":\"Pérez\"}"))
+            .hasStatus(201)
+            .bodyJson();
+    body.extractingPath("$.emailSent").isEqualTo(true);
+    body.extractingPath("$.invitation.emailStatus").isEqualTo("SENT");
 
     verify(authorizeQueryHandler)
         .handle(new AuthorizeQuery("test-user", node, Permission.INVITATIONS_SEND));

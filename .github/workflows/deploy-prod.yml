@@ -62,4 +62,9 @@ jobs:
           image: ${{ vars.PROD_ARTIFACT_REGISTRY_URL }}:${{ github.sha }}
           # --memory/--cpu-boost: see deploy-dev.yml — the 512Mi default was
           # too tight for this app's startup and tripped the startup probe.
+          # APP_URL (the web app's origin) still has to be set here once prod has a domain.
+          env_vars: |
+            INTERNAL_SCHEDULER_EMAIL=outbox-scheduler@sr-tommy-prod.iam.gserviceaccount.com
+            RESEND_FROM=Sr. Tommy <invitaciones@ovejafiel.com>
+            RESEND_REPLY_TO=soporte@ovejafiel.com
           flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost

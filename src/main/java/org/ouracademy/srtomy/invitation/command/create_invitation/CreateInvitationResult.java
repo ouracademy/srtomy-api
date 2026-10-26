@@ -1,6 +1,9 @@
 package org.ouracademy.srtomy.invitation.command.create_invitation;
 
 import org.ouracademy.srtomy.invitation.query.InvitationResult;
+import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 
-/** {@code emailSent} is false when the provider failed; the invitation exists and can be resent. */
-public record CreateInvitationResult(InvitationResult invitation, boolean emailSent) {}
+/**
+ * The email is queued with the invitation; ask the outbox with {@code emailMessageId} how it went.
+ */
+public record CreateInvitationResult(InvitationResult invitation, OutboxMessageId emailMessageId) {}
