@@ -1,14 +1,10 @@
 package org.ouracademy.srtomy.event.domain;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.DiscriminatorColumn;
-import jakarta.persistence.DiscriminatorType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.Inheritance;
-import jakarta.persistence.InheritanceType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.time.Duration;
@@ -29,8 +25,6 @@ import org.ouracademy.srtomy.shared.domain.RandomSlugs;
 @Getter
 // Hides deleted rows from every query, subclasses included. Rows are never removed: see delete().
 @SQLRestriction("deleted_time is null")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@DiscriminatorColumn(discriminatorType = DiscriminatorType.INTEGER, name = "event_type_id")
 public class Event extends DomainObject {
 
   @Id EventId id = EventId.generate();
@@ -72,6 +66,19 @@ public class Event extends DomainObject {
   @Setter
   @Column(name = "is_a_course")
   Boolean isACourse = false;
+
+  /** The series this event is an occurrence of; null for a one-off event. */
+  @ManyToOne EventSeries series;
+
+  protected Event() {
+    // jpa only
+  }
+
+  public Event(String title, ZonedDateTime start, ZonedDateTime end) {
+    this.title = title;
+    this.start = start;
+    this.end = end;
+  }
 
   // 1 { name: "Viernes con Jesús" }, 24 de noviembre, 7:30pm, jose mena
   // 2 { name: "Reunión de hombres" }, 28 de octubre, 7:30pm

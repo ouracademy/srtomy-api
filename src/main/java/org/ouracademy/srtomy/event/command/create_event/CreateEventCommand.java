@@ -1,13 +1,14 @@
 package org.ouracademy.srtomy.event.command.create_event;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
+import org.ouracademy.srtomy.event.domain.Recurrence;
 import org.ouracademy.srtomy.party.domain.PartyId;
 
 /**
- * Creates a single event, or a recurrent one (when {@code recurrent}) together with its expanded
- * single events between {@code startTime} and {@code endRecur}.
+ * Creates a one-off event, or a series (when {@code recurrence} is set) with its first occurrences.
+ * {@code timeZone} is the zone the series repeats in; it is ignored for a one-off event.
  */
 public record CreateEventCommand(
     String name,
@@ -18,6 +19,5 @@ public record CreateEventCommand(
     Boolean isACourse,
     PartyId organizationId,
     List<PartyId> speakerIds,
-    List<Integer> daysOfWeek,
-    LocalDate endRecur,
-    boolean recurrent) {}
+    Recurrence recurrence,
+    ZoneId timeZone) {}

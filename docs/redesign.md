@@ -151,7 +151,8 @@ El usuario confirmó que **no hay datos reales**, así que hay libertad para lim
 5. **006-visibility**: `member_visibility`, directorio, páginas públicas de nodos.
 6. **007-sharing**: compartir eventos y cursos, enlaces, inscripción por enlace.
 7. **008-my-space**: la vista del miembro común y el nivel Miembro (cuenta sin cargo).
-8. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
+8. **010-recurring-events-calendar-sync**: eventos recurrentes estilo Google Calendar (cada N, días, fin nunca/fecha/cantidad) y calendario privado `.ics` para suscribirse desde Google Calendar o Apple Calendar.
+9. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
 
 Alcance acordado para este branch (`claude/app-flow-redesign-nq6j60`, en ambos repos):
 
@@ -185,7 +186,9 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 15  | Correo de los líderes ya guardados                   | API y UI | La lista de miembros de un grupo no trae el correo; al editar un grupo solo se invita a los líderes elegidos en esa sesión.                              | Agregar `email` a la respuesta de miembros del grupo y ofrecer «Invitar» también a los líderes guardados.                                                    | Pendiente (consultar) |
 | 16  | Rol Editor de un evento compartido                   | API      | `PUT /events/{id}` aún no edita nada (`EditEventCommandHandler` es un TODO), así que compartir como Editor ya se guarda y se exige, pero todavía no permite cambiar nada. | Implementar la edición de eventos (la 007 solo deja listo el control de acceso).                                                                             | Pendiente (consultar) |
 | 17  | Inscritos de un curso que no son personas            | API y UI | La inscripción por enlace guarda nombre, correo y teléfono, pero no crea la persona de la iglesia ni toma asistencia con ellos.                                          | Un botón «Agregar a la iglesia» que cree la persona desde la inscripción y la una al nodo del curso.                                                         | Pendiente (consultar) |
-| 18  | Compartir una ocurrencia de una serie                | API y UI | Las ocurrencias de un evento recurrente se calculan al vuelo y no tienen identidad: el compartido aplica a la serie completa.                                             | Decidir si hace falta compartir una sola fecha; implicaría persistir la ocurrencia.                                                                         | Pendiente (consultar) |
+| 18  | Compartir una ocurrencia de una serie                | API y UI | Cada ocurrencia de una serie es un evento con identidad propia (desde la 010), pero el compartido todavía se hace evento por evento: no se comparte la serie completa de una vez. | Decidir si compartir una ocurrencia debe poder extenderse a toda la serie.                                                                                   | Pendiente (consultar) |
+| 19  | Extender series sin fin en Cloud Run                 | API      | `ExtendEventSeriesJob` usa `@Scheduled` dentro de la app; Cloud Run puede escalar a cero y no correrlo. Hoy cada serie recibe un año de ocurrencias al crearse.        | Disparar `ExtendEventSeriesCommand` desde Cloud Scheduler (endpoint interno) o dejar una instancia mínima con CPU siempre asignada.                          | Pendiente (consultar) |
+| 20  | Zona horaria de la organización                      | API y UI | La zona de una serie se toma del navegador de quien la crea; no existe una zona por iglesia.                                                                              | Guardar la zona en la organización y usarla como valor por defecto al crear eventos.                                                                         | Pendiente (consultar) |
 
 ## 11. Trabajo futuro: centro de notificaciones (campana)
 
