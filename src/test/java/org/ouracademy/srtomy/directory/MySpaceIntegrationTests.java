@@ -120,7 +120,8 @@ class MySpaceIntegrationTests {
   void theAccessListLeavesOutTheImplicitMemberLevel() {
     var emails = json(alice, "/organizations/" + group + "/access").findValuesAsText("email");
 
-    assertThat(emails).doesNotContain(email(bob));
+    // The list is not empty (Alice is the Owner), and Bob's implicit level is not in it.
+    assertThat(emails).isNotEmpty().contains(email(alice)).doesNotContain(email(bob));
   }
 
   @Test
