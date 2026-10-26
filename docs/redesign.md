@@ -4,10 +4,10 @@
 
 Hoy:
 
-- **API** (`srtomy-api`): `V1.0.0__initial_schema.sql` siembra una iglesia falsa `LCDP` (`bb8d09a1-…`). No hay usuarios en BD: la única unión Auth0↔iglesia es `app_metadata.orgId` escrito por `Auth0Gateway` al crear la iglesia (y el `userId` llega en el body, con un TODO). **No hay autorización**: cualquier token válido puede hacer todo (`SecurityConfig`: "authenticated = full access").
+- **API** (`ovejafiel-api`): `V1.0.0__initial_schema.sql` siembra una iglesia falsa `LCDP` (`bb8d09a1-…`). No hay usuarios en BD: la única unión Auth0↔iglesia es `app_metadata.orgId` escrito por `Auth0Gateway` al crear la iglesia (y el `userId` llega en el body, con un TODO). **No hay autorización**: cualquier token válido puede hacer todo (`SecurityConfig`: "authenticated = full access").
 - La jerarquía ya es genérica: `organization.type ∈ {CHURCH, LOCATION, GROUP, MINISTRY}` unida por filas `accountability` de tipo `IS_PART_OF`. Los niveles no se validan, y un grafo de accountabilities no sirve bien para heredar permisos.
 - Los "roles" que existen (PASTOR, WORSHIP_LEADER, USHER y personalizados por sede) son **cargos ministeriales**, no permisos.
-- **UI** (`srtomy-ui`): un usuario tiene una sola iglesia (claim `https://sr-tommy.com/orgId`). El claim queda viejo tras crear la iglesia, así que la sede nueva puede recibir `parentId` undefined. La sede se elige a mano y no se recuerda. No hay controles por permiso, ni ministerios, ni invitaciones, ni visibilidad, ni compartir.
+- **UI** (`ovejafiel-ui`): un usuario tiene una sola iglesia (claim `https://sr-tommy.com/orgId`). El claim queda viejo tras crear la iglesia, así que la sede nueva puede recibir `parentId` undefined. La sede se elige a mano y no se recuerda. No hay controles por permiso, ni ministerios, ni invitaciones, ni visibilidad, ni compartir.
 
 Objetivo: cualquiera se registra y crea una o varias iglesias (cada una con al menos una sede). Puede cambiar de iglesia, sede, grupo o ministerio. Hay accesos por roles heredables, como IAM de GCP, y los líderes pueden invitar por correo. El miembro común tiene su propia vista. Grupos, ministerios y sedes tienen visibilidad configurable. Eventos y cursos se comparten por enlace, como en Drive.
 
@@ -205,7 +205,7 @@ No se construye en 005-009; queda documentado para no perder la idea. Una campan
 ## Archivos clave
 
 - API: `src/main/resources/db/migration/` (nueva `V1.1.0__…`), `J/shared/SecurityConfig.java`, `J/organization/command/OrganizationWriter.java`, `J/organization/command/create_church/CreateChurchCommandHandlerImpl.java`, `J/auth/gateway/Auth0Gateway.java` (se elimina el uso de app_metadata), `J/organization/controller/OrganizationController.java`. Módulos nuevos: `user/`, `iam/`, `invitation/`, `notification/`, siguiendo `docs/code-style.md` y `ArchitectureTests`.
-- UI: `app/portal/page.tsx` (onboarding), `app/portal/MenuDrawer.tsx` y `LocationsDialog.tsx` (pasan a ser el selector de contexto), `app/portal/[locId]/**` (pasa a `[nodeId]`), `app/portal/location/create/page.tsx`, `app/(api)/openapi/srtomy-api.json` (con `pnpm api:sync`).
+- UI: `app/portal/page.tsx` (onboarding), `app/portal/MenuDrawer.tsx` y `LocationsDialog.tsx` (pasan a ser el selector de contexto), `app/portal/[locId]/**` (pasa a `[nodeId]`), `app/portal/location/create/page.tsx`, `app/(api)/openapi/ovejafiel-api.json` (con `pnpm api:sync`).
 
 ## Verificación
 

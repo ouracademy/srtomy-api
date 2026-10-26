@@ -95,7 +95,7 @@ resource "google_project_iam_member" "deploy_artifact_writer" {
 }
 
 # Deploying to Cloud Run requires permission to act as the service's own
-# runtime identity (the default compute SA, unless/until srtomy-api gets a
+# runtime identity (the default compute SA, unless/until ovejafiel-api gets a
 # dedicated runtime SA).
 resource "google_project_iam_member" "deploy_service_account_user" {
   project = var.project_id

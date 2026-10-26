@@ -60,7 +60,7 @@ jobs:
           project_id: sr-tommy-dev
           image: ${{ vars.DEV_ARTIFACT_REGISTRY_URL }}:${{ github.sha }}
           # Cloud Run's own IAM layer must allow unauthenticated invocation —
-          # srtomy-ui calls this from end users' browsers, not as a
+          # ovejafiel-ui calls this from end users' browsers, not as a
           # GCP-authenticated caller. The app's own JWT check
           # (SecurityConfig) is a separate, additional layer on top; this
           # flag does not weaken it.

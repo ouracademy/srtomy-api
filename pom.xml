@@ -10,9 +10,9 @@
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>org.ouracademy</groupId>
-	<artifactId>srtomy</artifactId>
+	<artifactId>ovejafiel</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>srtomy</name>
+	<name>ovejafiel</name>
 	<description>Demo project for Spring Boot</description>
 	<properties>
 		<java.version>21</java.version>
@@ -21,7 +21,7 @@
 		<!-- SonarCloud; adjust org/projectKey if they differ in your SonarCloud
 		account -->
 		<sonar.organization>ouracademy</sonar.organization>
-		<sonar.projectKey>ouracademy_srtomy-api</sonar.projectKey>
+		<sonar.projectKey>ouracademy_ovejafiel-api</sonar.projectKey>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 	</properties>
 	<dependencies>

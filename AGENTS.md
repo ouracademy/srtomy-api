@@ -19,7 +19,7 @@ The project is organized into domain modules (`party`, `person`, `organization`,
 structure, naming conventions (`Command`/`Query`/`Handler`/`handle`/`Result`), and
 cross-module communication rules (including the entity-id convention). All of this
 is documented in [docs/code-style.md](./docs/code-style.md) and enforced by
-`src/test/java/org/ouracademy/srtomy/ArchitectureTests.java` (ArchUnit), which runs
+`src/test/java/org/ouracademy/ovejafiel/ArchitectureTests.java` (ArchUnit), which runs
 as part of `./mvnw test`.
 
 ## Language policy

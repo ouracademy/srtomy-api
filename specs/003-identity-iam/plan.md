@@ -111,7 +111,7 @@ specs/003-identity-iam/
 
 ```text
 src/main/resources/db/migration/V1.1.0__identity_iam.sql
-src/main/java/org/ouracademy/srtomy/
+src/main/java/org/ouracademy/ovejafiel/
 ├── user/        domain (AppUser, UserId), command/sync_current_user, query/find_user_by_subject, repository, controller (MeController)
 ├── iam/         domain (Permission, IamRole, RoleBinding, PredefinedRoles, ids), command/grant_role,
 │                query/{authorize, get_effective_permissions, find_accessible_organizations}, repository
