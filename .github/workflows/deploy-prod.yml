@@ -66,5 +66,4 @@ jobs:
           env_vars: |
             INTERNAL_SCHEDULER_EMAIL=api-scheduler@sr-tommy-prod.iam.gserviceaccount.com
             RESEND_FROM=Sr. Tommy <invitaciones@ovejafiel.com>
-            RESEND_REPLY_TO=soporte@ovejafiel.com
           flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost

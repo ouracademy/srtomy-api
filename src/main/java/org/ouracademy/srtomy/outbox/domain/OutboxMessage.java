@@ -19,12 +19,15 @@ import org.ouracademy.srtomy.shared.domain.DomainObject;
 @Getter
 public class OutboxMessage extends DomainObject {
 
-  /** After the n-th failed attempt, wait this long; the last failure gives up. */
+  /**
+   * After the n-th failed attempt, wait this long; the last failure gives up. The scheduler drains
+   * every 10 minutes, so a shorter wait would not retry any sooner.
+   */
   private static final Duration[] BACKOFF = {
-    Duration.ofMinutes(1),
-    Duration.ofMinutes(5),
+    Duration.ofMinutes(10),
     Duration.ofMinutes(30),
     Duration.ofHours(2),
+    Duration.ofHours(6),
     Duration.ofHours(12)
   };
 

@@ -29,8 +29,8 @@ variable "jobs" {
   }))
   default = {
     "drain-outbox" = {
-      description = "Sends the emails that are due (and retries the ones that failed). Every minute is also the delay of the first retry."
-      schedule    = "* * * * *"
+      description = "Retries the emails that did not leave right after their commit (the first attempt is immediate, so this is only the safety net)."
+      schedule    = "*/10 * * * *"
       path        = "/v1/internal/outbox/drain"
     }
     "extend-event-series" = {

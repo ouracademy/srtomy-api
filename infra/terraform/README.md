@@ -15,7 +15,7 @@ image tag is more trouble than it's worth for a service this size.
 - `modules/cicd/` — WIF, Artifact Registry, the GitHub Actions deploy service account.
 - `modules/neon/` — one Neon project (database + branch + role) per environment.
 - `modules/scheduler/` — Cloud Scheduler jobs that call the API's internal endpoints (`POST /v1/internal/...`) with an ID
-  token of the `api-scheduler` service account: drain the outbox every minute and extend the event
+  token of the `api-scheduler` service account: drain the outbox every 10 minutes and extend the event
   series daily. Add a job in `var.jobs` for any new scheduled work.
 - `modules/db-secrets/` — wires the Neon module's outputs straight into Secret Manager,
   so the actual DB password never has to pass through a person's hands or a chat.

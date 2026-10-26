@@ -75,5 +75,4 @@ jobs:
             APP_URL=https://srtommy-ui-test.vercel.app
             INTERNAL_SCHEDULER_EMAIL=api-scheduler@sr-tommy-dev.iam.gserviceaccount.com
             RESEND_FROM=Sr. Tommy <invitaciones@ovejafiel.com>
-            RESEND_REPLY_TO=soporte@ovejafiel.com
           flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost
