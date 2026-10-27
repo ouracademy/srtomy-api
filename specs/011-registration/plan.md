@@ -13,11 +13,11 @@
 
 ## Asistencia por QR
 
-7. **Dominio** (`attendance`): `AttendanceSource`, `ChurchStatus` (en `person`); `EventAttendance` gana `guestCount`; `PersonEventAttendance` gana `source` y `markedBy`. En `event`: `EventRegistration` gana `ticketCode`, `checkedInAt`, `checkInSource`.
-8. **Token del QR**: `AttendanceQrToken` (HMAC-SHA256 de `eventId` y la ventana de 5 minutos; comparación en tiempo constante). El secreto se lee de `attendance.qr-secret` (Secret Manager en prod; valor fijo en pruebas).
-9. Comandos: `generate_attendance_qr` (consulta con ventana), `mark_self_attendance`, `check_in_with_ticket`, `set_registration_check_in`, `set_attendance_guests`. La unión inscripción↔persona usa `FindPersonLinkedToUser` del módulo `person`/`user` (sin tocar sus repositorios).
-10. **Estado de la persona**: `Person.churchStatus`; el comando que asigna un cargo (`accountability`) sube a `MEMBER` llamando al `person` por su handler. Se revisa la vista `user_access` (V1.7.0) para que la rama `MEMBER` excluya a `VISITOR` y se prueba.
-11. `SecurityConfig` abre `GET`/`POST /v1/public/attendance/*`. Límite de peticiones por IP en el endpoint público (si no existe, deuda técnica).
+7. **Dominio**: `CheckInSource` (en `event`); `EventAttendance` gana `guestCount` y `markPresent`; `PersonEventAttendance` gana `source` y `markedBy`; `setPeople` conserva el origen de quienes siguen. En `event`: `EventRegistration` gana `ticketCode`, `checkedInAt`, `checkInSource`.
+8. **Token del QR**: `AttendanceQrToken` (HMAC-SHA256 de `eventId` y la ventana de 5 minutos, comparación en tiempo constante, cuenta la ventana vigente y la anterior). El secreto es `attendance.qr-secret` (Secret Manager en prod, generado por Terraform; valor fijo en local y pruebas). Sin secreto no se puede emitir ni verificar.
+9. **Comandos** (`attendance`): `mark_person_present`, `mark_user_present` (la persona vinculada a una cuenta en la iglesia del evento), `set_attendance_guests`, `add_visitor` (crea la persona `VISITOR` con `create_person` y la marca), `mark_self_attendance` (el escaneo del QR). **Consultas**: `get_attendance_qr`, `get_attendance_welcome`. En `event`: `check_in_registration_by_ticket`, `set_registration_check_in`, `check_in_user_registration`. Los módulos se hablan solo por handlers.
+10. **Estado de la persona**: `set_member_state` (en `accountability`) deja un único estado por persona y nodo; `create_person` y `update_person` aceptan `memberState` y fuerzan `MEMBER` con cargos.
+11. `AttendanceCheckInController` (rutas públicas del QR y de marcado) y `SecurityConfig` abre `POST /v1/public/attendance/*`. El contador de visitantes sin nombre suma con un `UPDATE` atómico, no leyendo y escribiendo.
 
 ## Constitution Check
 

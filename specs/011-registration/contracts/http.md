@@ -29,8 +29,12 @@ Asistencia por QR (`ATTENDANCE_WRITE` salvo donde se indica):
 | `GET /public/attendance/{token}` | cualquiera | `{title, start, canMarkSelf}` para mostrar la pantalla de bienvenida; 404 si el token no es válido. |
 | `POST /public/attendance/{token}` | con o sin sesión | Body `{name?}`; con sesión marca a la persona vinculada (y su inscripción). Sin sesión, con nombre crea una persona `VISITOR`; sin nombre suma al contador. 200 `{kind: PERSON \| VISITOR \| ANONYMOUS, alreadyMarked}`; 400 si venció o el evento no está en curso. |
 | `POST /events/{id}/attendance/check-in` | `ATTENDANCE_WRITE` | Body `{ticketCode}`; 200 `{registrationId, name, ticketName, alreadyCheckedIn, checkedInAt}`; 400 si no está confirmada. |
-| `PUT /events/{id}/registrations/{registrationId}/check-in` | `ATTENDANCE_WRITE` | Body `{checkedIn}`: marca o desmarca a mano. |
+| `PUT /events/{id}/registrations/{registrationId}/check-in` | `ATTENDANCE_WRITE` | Body `{checkedIn}`: marca o desmarca a mano; devuelve lo mismo que el ingreso por ticket. |
 | `POST /events/{id}/attendance/visitors` | `ATTENDANCE_WRITE` | Body `{name, phone?, email?}`: crea una persona `VISITOR` en el nodo del evento y la marca presente. |
 | `PUT /events/{id}/attendance/guests` | `ATTENDANCE_WRITE` | Body `{guestCount}`: visitantes sin nombre de ese evento. |
-| `PUT /people/{id}/church-status` | `people.write` | Body `{status}`; 400 si baja de `MEMBER` a alguien con cargo. |
+
 | `GET /me/events` | sesión | Agrega por evento `ticketCode` (para dibujar su QR) y `checkedIn`; `attended` une asistencia de persona e ingreso. |
+
+Estado de la persona: `POST /people` y `PUT /people/{id}` aceptan `memberState` (`VISITOR`, `MEMBERSHIP_IN_PROGRESS`, `MEMBER`; opcional, por defecto visitante al crear y sin cambios al editar). Con cargos el estado es siempre `MEMBER`. Se lee en `GET /organizations/{id}/member-state`.
+
+`GET /events/{id}/attendance` agrega `guestCount` y `marks[{personId, source, markedAt}]`. Los booleanos de los cuerpos (`open`, `requiresAccount`, `waitlistEnabled`) deben enviarse siempre.
