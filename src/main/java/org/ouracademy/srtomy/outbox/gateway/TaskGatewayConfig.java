@@ -29,7 +29,7 @@ class TaskGatewayConfig {
       @Value("${tasks.api-url:https://cloudtasks.googleapis.com}") String apiUrl,
       @Value("${internal.scheduler-email:}") String serviceAccountEmail,
       @Value("${internal.audience:https://api.srtommy.com/internal}") String audience,
-      @Value("${tasks.delay-seconds:5}") long delaySeconds) {
+      @Value("${tasks.delay-seconds:1}") long delaySeconds) {
     if (project.isBlank() || targetUrl.isBlank() || serviceAccountEmail.isBlank()) {
       log.warn(
           "Cloud Tasks is not configured: messages are delivered once, right after the commit,"

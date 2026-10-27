@@ -70,8 +70,8 @@ class CloudTasksGateway implements TaskGateway {
         Map.of(
             "name",
             taskName,
-            // A few seconds ahead, so the transaction that enqueues the message has committed
-            // when the task arrives.
+            // A moment ahead, so the transaction that enqueues the message has normally committed
+            // when the task arrives (if not, the attempt answers 503 and the queue calls again).
             "scheduleTime",
             Instant.now().plus(delay).toString(),
             "httpRequest",

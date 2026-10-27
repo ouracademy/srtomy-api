@@ -24,6 +24,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -42,6 +43,7 @@ class InvitationIntegrationTests {
   @Autowired JwtEncoder jwtEncoder;
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
   @Autowired SentEmails sentEmails;
+  @Autowired JdbcTemplate jdbc;
 
   RestTestClient client;
   String alice;
@@ -224,6 +226,38 @@ class InvitationIntegrationTests {
     var foreign = createPosition(carol, other.id, "Ajeno", null);
 
     assertThat(inviteStatus(alice, church.location, email(bob), foreign)).isEqualTo(400);
+  }
+
+  @Test
+  void cancellingAnInvitationWhoseEmailHasNotLeftWithdrawsTheEmail() {
+    sentEmails.failWith(new IllegalStateException("503 from the provider"));
+    var created = invite(alice, church.location, email(bob), null, "Beto", "Pérez");
+    assertThat(emailStatusOf(email(bob))).isEqualTo("PENDING");
+
+    assertThat(
+            status(
+                alice,
+                HttpMethod.DELETE,
+                "/invitations/" + created.get("invitation").get("id").asText()))
+        .isEqualTo(204);
+
+    assertThat(emailStatusOf(email(bob))).isEqualTo("CANCELLED");
+  }
+
+  @Test
+  void invitingAgainWithdrawsTheEmailOfTheReplacedInvitation() {
+    sentEmails.failWith(new IllegalStateException("503 from the provider"));
+    invite(alice, church.location, email(bob), null, "Beto", "Pérez");
+    sentEmails.reset();
+
+    invite(alice, church.location, email(bob), null, "Beto", "Pérez");
+
+    assertThat(
+            jdbc.queryForList(
+                "select status from outbox_message where recipient = ? order by create_date",
+                String.class,
+                email(bob)))
+        .containsExactly("CANCELLED", "SENT");
   }
 
   @Test
@@ -476,6 +510,14 @@ class InvitationIntegrationTests {
   }
 
   /** The token of the link in the last email sent. */
+  /** The outbox lives in another module: read its table, as an operator would. */
+  String emailStatusOf(String recipient) {
+    return jdbc.queryForObject(
+        "select status from outbox_message where recipient = ? order by create_date desc limit 1",
+        String.class,
+        recipient);
+  }
+
   String lastToken() {
     var matcher = LINK.matcher(sentEmails.last().text());
     assertThat(matcher.find()).as("a link in the email").isTrue();

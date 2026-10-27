@@ -67,6 +67,17 @@ class AttemptDeliveryCommandHandlerImplTests {
   }
 
   @Test
+  void aCancelledMessageSendsNothing() {
+    message.cancel();
+
+    var result = attempt();
+
+    assertThat(result.outcome()).isEqualTo(Outcome.ALREADY_DONE);
+    assertThat(result.shouldRetry()).isFalse();
+    verify(email, never()).deliver(any(), any(), any());
+  }
+
+  @Test
   void aTransientFailureAsksTheQueueToCallAgain() {
     when(email.deliver(any(), any(), any())).thenThrow(new IllegalStateException("503"));
 

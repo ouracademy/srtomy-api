@@ -56,7 +56,7 @@ class CloudTasksGatewayTests {
         "https://api.example.run.app/",
         "api-scheduler@sr-tommy-dev.iam.gserviceaccount.com",
         "https://api.srtommy.com/internal",
-        Duration.ofSeconds(5));
+        Duration.ofSeconds(1));
   }
 
   @Test
@@ -80,14 +80,14 @@ class CloudTasksGatewayTests {
   }
 
   @Test
-  void theTaskIsScheduledAFewSecondsAheadSoTheCommitIsDoneWhenItArrives() {
+  void theTaskIsScheduledAMomentAheadSoTheCommitIsUsuallyDoneWhenItArrives() {
     var before = Instant.now();
 
     gateway().schedule(id, OutboxChannel.EMAIL);
 
     var scheduled =
         Instant.parse(body.get().replaceAll("(?s).*\"scheduleTime\":\"([^\"]+)\".*", "$1"));
-    assertThat(scheduled).isBetween(before.plusSeconds(4), Instant.now().plusSeconds(6));
+    assertThat(scheduled).isBetween(before.plusMillis(900), Instant.now().plusSeconds(2));
   }
 
   @Test

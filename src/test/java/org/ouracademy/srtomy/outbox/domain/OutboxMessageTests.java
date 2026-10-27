@@ -60,6 +60,30 @@ class OutboxMessageTests {
   }
 
   @Test
+  void aWaitingMessageCanBeCancelledAndItsPayloadIsErased() {
+    assertThat(message.cancel()).isTrue();
+
+    assertThat(message.getStatus()).isEqualTo(OutboxStatus.CANCELLED);
+    assertThat(message.getPayload()).isNull();
+  }
+
+  @Test
+  void aMessageThatAlreadyLeftCannotBeCancelled() {
+    message.markSent("re_1", now);
+
+    assertThat(message.cancel()).isFalse();
+    assertThat(message.getStatus()).isEqualTo(OutboxStatus.SENT);
+  }
+
+  @Test
+  void aMessageGivenUpStaysFailed() {
+    message.markFailed("403");
+
+    assertThat(message.cancel()).isFalse();
+    assertThat(message.getStatus()).isEqualTo(OutboxStatus.FAILED);
+  }
+
+  @Test
   void aLongErrorIsTruncated() {
     message.recordFailedAttempt("x".repeat(5000));
 

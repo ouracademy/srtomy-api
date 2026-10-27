@@ -23,6 +23,8 @@ import org.ouracademy.srtomy.organization.query.find_church_of_organization.Find
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
+import org.ouracademy.srtomy.outbox.command.cancel_message.CancelMessageCommand;
+import org.ouracademy.srtomy.outbox.command.cancel_message.CancelMessageCommandHandler;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.command.fill_person_email.FillPersonEmailCommand;
 import org.ouracademy.srtomy.person.command.fill_person_email.FillPersonEmailCommandHandler;
@@ -57,6 +59,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
   private final FindPeopleByEmailQueryHandler findPeopleByEmailQueryHandler;
   private final FillPersonEmailCommandHandler fillPersonEmailCommandHandler;
   private final SendEmailCommandHandler sendEmailCommandHandler;
+  private final CancelMessageCommandHandler cancelMessageCommandHandler;
   private final EntityManager entityManager;
 
   @Value("${app.url:http://localhost:3000}")
@@ -80,7 +83,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
     var tokenOfOld =
         invitationRepository.findByOrganizationIdAndStatusOrderByCreateDateDesc(
             command.organizationId(), InvitationStatus.PENDING);
-    tokenOfOld.stream().filter(old -> old.isFor(email)).forEach(Invitation::revoke);
+    tokenOfOld.stream().filter(old -> old.isFor(email)).forEach(this::replace);
 
     var token = InvitationTokens.newToken();
     var invitation =
@@ -121,6 +124,14 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
     invitation.emailQueued(queued);
     return new CreateInvitationResult(
         InvitationResult.from(invitation, LocalDateTime.now()), queued);
+  }
+
+  /** Revokes the invitation and withdraws its email if it has not left: its link is dead now. */
+  private void replace(Invitation old) {
+    old.revoke();
+    if (old.getEmailMessageId() != null) {
+      cancelMessageCommandHandler.handle(new CancelMessageCommand(old.getEmailMessageId()));
+    }
   }
 
   private String body(

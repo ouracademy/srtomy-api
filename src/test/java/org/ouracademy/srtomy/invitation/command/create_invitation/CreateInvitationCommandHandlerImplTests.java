@@ -45,6 +45,8 @@ import org.ouracademy.srtomy.organization.query.find_church_of_organization.Find
 import org.ouracademy.srtomy.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.srtomy.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
+import org.ouracademy.srtomy.outbox.command.cancel_message.CancelMessageCommand;
+import org.ouracademy.srtomy.outbox.command.cancel_message.CancelMessageCommandHandler;
 import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 import org.ouracademy.srtomy.party.domain.PartyId;
 import org.ouracademy.srtomy.person.command.fill_person_email.FillPersonEmailCommand;
@@ -78,6 +80,7 @@ class CreateInvitationCommandHandlerImplTests {
   FindPeopleByEmailQueryHandler findPeopleByEmail = mock(FindPeopleByEmailQueryHandler.class);
   FillPersonEmailCommandHandler fillPersonEmail = mock(FillPersonEmailCommandHandler.class);
   SendEmailCommandHandler sendEmail = mock(SendEmailCommandHandler.class);
+  CancelMessageCommandHandler cancelMessage = mock(CancelMessageCommandHandler.class);
   EntityManager entityManager = mock(EntityManager.class);
   CreateInvitationCommandHandlerImpl handler =
       new CreateInvitationCommandHandlerImpl(
@@ -91,6 +94,7 @@ class CreateInvitationCommandHandlerImplTests {
           findPeopleByEmail,
           fillPersonEmail,
           sendEmail,
+          cancelMessage,
           entityManager);
 
   PartyId church = PartyId.generate();
@@ -192,6 +196,22 @@ class CreateInvitationCommandHandlerImplTests {
 
     verify(same).revoke();
     verify(other, never()).revoke();
+  }
+
+  @Test
+  void theEmailOfTheReplacedInvitationIsWithdrawnSoItsDeadLinkNeverGoesOut() {
+    var old = mock(Invitation.class);
+    var oldMessage = OutboxMessageId.generate();
+    when(old.isFor("beto@example.org")).thenReturn(true);
+    when(old.getEmailMessageId()).thenReturn(oldMessage);
+    when(invitationRepository.findByOrganizationIdAndStatusOrderByCreateDateDesc(
+            node, InvitationStatus.PENDING))
+        .thenReturn(List.of(old));
+
+    handler.handle(newPerson("beto@example.org", null));
+
+    verify(cancelMessage).handle(new CancelMessageCommand(oldMessage));
+    verify(cancelMessage, never()).handle(new CancelMessageCommand(queued));
   }
 
   @Test
