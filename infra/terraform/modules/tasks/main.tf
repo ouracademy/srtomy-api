@@ -31,7 +31,7 @@ resource "google_cloud_tasks_queue" "outbox" {
   for_each = var.channels
 
   project  = var.project_id
-  location = var.region
+  location = var.queue_region
   name     = "outbox-${each.value}"
 
   rate_limits {

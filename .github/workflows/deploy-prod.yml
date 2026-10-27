@@ -67,6 +67,6 @@ jobs:
             INTERNAL_SCHEDULER_EMAIL=api-scheduler@sr-tommy-prod.iam.gserviceaccount.com
             RESEND_FROM=Sr. Tommy <invitaciones@ovejafiel.com>
             TASKS_PROJECT=sr-tommy-prod
-            TASKS_LOCATION=southamerica-west1
+            TASKS_LOCATION=southamerica-east1
             TASKS_TARGET_URL=${{ vars.PROD_API_URL }}
           flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost

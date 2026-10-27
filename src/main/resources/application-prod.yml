@@ -23,7 +23,7 @@ resend:
 # are delivered once, right after the commit, and never retried (local runs).
 tasks:
   project: ${TASKS_PROJECT:}
-  location: ${TASKS_LOCATION:southamerica-west1}
+  location: ${TASKS_LOCATION:southamerica-east1}
   target-url: ${TASKS_TARGET_URL:}
 
 # Attempts before a message is given up: the same number as max_attempts of the queues in

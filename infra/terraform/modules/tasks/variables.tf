@@ -3,9 +3,15 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Region of the queues and of the Cloud Run service they call."
+  description = "Region of the Cloud Run service the tasks call (part of its URL)."
   type        = string
   default     = "southamerica-west1"
+}
+
+variable "queue_region" {
+  description = "Region where the queues live. Cloud Tasks is not available in southamerica-west1 (Santiago); a task only calls a URL, so it can be in another region: São Paulo is the closest. The API must be told the same one (TASKS_LOCATION). Check the list with: gcloud tasks locations list"
+  type        = string
+  default     = "southamerica-east1"
 }
 
 variable "service_name" {

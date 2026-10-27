@@ -64,7 +64,7 @@ After the first `terraform apply` (dev or prod):
 2. Redeploy the API, so Cloud Run gets `INTERNAL_SCHEDULER_EMAIL` (the API only accepts ID tokens of that account), `TASKS_PROJECT` and `TASKS_TARGET_URL`.
 
 `modules/scheduler/` creates the `api-scheduler` service account and one job per entry of `var.jobs`. The jobs live in `southamerica-east1` because Cloud Scheduler does not exist in `southamerica-west1`; they still call the API in Santiago.
-`modules/tasks/` creates one queue per channel; its `max_attempts` must equal `outbox.max-attempts` in
+`modules/tasks/` creates one queue per channel, in `southamerica-east1` for the same reason (`TASKS_LOCATION` in the deploy workflows must match); its `max_attempts` must equal `outbox.max-attempts` in
 `application-prod.yml`.
 
 ## Day to day

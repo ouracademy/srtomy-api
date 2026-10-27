@@ -23,7 +23,7 @@ class TaskGatewayConfig {
   TaskGateway taskGateway(
       AttemptDeliveryCommandHandler attemptDeliveryCommandHandler,
       @Value("${tasks.project:}") String project,
-      @Value("${tasks.location:southamerica-west1}") String location,
+      @Value("${tasks.location:southamerica-east1}") String location,
       @Value("${tasks.target-url:}") String targetUrl,
       @Value("${tasks.api-url:https://cloudtasks.googleapis.com}") String apiUrl,
       @Value("${internal.scheduler-email:}") String serviceAccountEmail,
