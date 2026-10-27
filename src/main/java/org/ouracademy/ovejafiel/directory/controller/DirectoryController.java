@@ -7,11 +7,14 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.ouracademy.ovejafiel.directory.controller.dto.DirectoryEntryResponse;
 import org.ouracademy.ovejafiel.directory.controller.dto.DirectoryNodeResponse;
+import org.ouracademy.ovejafiel.directory.controller.dto.MyNodeResponse;
 import org.ouracademy.ovejafiel.directory.controller.dto.PublicPageResponse;
 import org.ouracademy.ovejafiel.directory.query.get_church_directory.GetChurchDirectoryQuery;
 import org.ouracademy.ovejafiel.directory.query.get_church_directory.GetChurchDirectoryQueryHandler;
 import org.ouracademy.ovejafiel.directory.query.get_directory_entry.GetDirectoryEntryQuery;
 import org.ouracademy.ovejafiel.directory.query.get_directory_entry.GetDirectoryEntryQueryHandler;
+import org.ouracademy.ovejafiel.directory.query.get_my_nodes.GetMyNodesQuery;
+import org.ouracademy.ovejafiel.directory.query.get_my_nodes.GetMyNodesQueryHandler;
 import org.ouracademy.ovejafiel.directory.query.get_public_page.GetPublicPageQuery;
 import org.ouracademy.ovejafiel.directory.query.get_public_page.GetPublicPageQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
@@ -33,6 +36,7 @@ public class DirectoryController {
   GetChurchDirectoryQueryHandler getChurchDirectoryQueryHandler;
   GetDirectoryEntryQueryHandler getDirectoryEntryQueryHandler;
   GetPublicPageQueryHandler getPublicPageQueryHandler;
+  GetMyNodesQueryHandler getMyNodesQueryHandler;
 
   /** Every node of the church with its basic information. */
   @GetMapping("organizations/{churchId}/directory")
@@ -43,6 +47,14 @@ public class DirectoryController {
         .nodes()
         .stream()
         .map(DirectoryNodeResponse::from)
+        .toList();
+  }
+
+  /** The groups and ministries where the signed-in user's own person is a member or a leader. */
+  @GetMapping("me/nodes")
+  public List<MyNodeResponse> myNodes(@AuthenticationPrincipal Jwt jwt) {
+    return getMyNodesQueryHandler.handle(new GetMyNodesQuery(jwt.getSubject())).stream()
+        .map(MyNodeResponse::from)
         .toList();
   }
 

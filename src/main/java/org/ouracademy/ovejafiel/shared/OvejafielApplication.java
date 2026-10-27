@@ -3,6 +3,7 @@ package org.ouracademy.ovejafiel.shared;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Application entry point.
@@ -23,6 +24,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = OvejafielApplication.BASE_PACKAGE)
 @AutoConfigurationPackage(basePackages = OvejafielApplication.BASE_PACKAGE)
+@EnableScheduling
 public class OvejafielApplication {
 
   static final String BASE_PACKAGE = "org.ouracademy.ovejafiel";

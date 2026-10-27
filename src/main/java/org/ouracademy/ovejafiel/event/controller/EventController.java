@@ -113,9 +113,10 @@ public class EventController {
                 eventRequest.getIsACourse(),
                 new PartyId(eventRequest.getOrganizationId()),
                 eventRequest.getSpeakerIds().stream().map(PartyId::new).toList(),
-                eventRequest.getDaysOfWeek(),
-                eventRequest.getEndRecur(),
-                eventRequest.isRecurrent()))
+                eventRequest.getRecurrence() == null
+                    ? null
+                    : eventRequest.getRecurrence().toRecurrence(),
+                eventRequest.zone()))
         .id()
         .value();
   }

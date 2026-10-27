@@ -1,13 +1,12 @@
 package org.ouracademy.ovejafiel.event.query.get_shared_event;
 
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.event.domain.AccessLevel;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
-import org.ouracademy.ovejafiel.event.domain.RecurrentEvent;
 import org.ouracademy.ovejafiel.event.query.EventAccess;
+import org.ouracademy.ovejafiel.event.query.RecurrenceResult;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.springframework.stereotype.Service;
@@ -37,12 +36,6 @@ class GetSharedEventQueryHandlerImpl implements GetSharedEventQueryHandler {
 
   private GetSharedEventResult result(String subject, Event event) {
     var user = eventAccess.verifiedUser(subject);
-    List<Integer> days = null;
-    var endRecur = (java.time.LocalDate) null;
-    if (event instanceof RecurrentEvent recurrent) {
-      days = recurrent.getDaysOfWeek() == null ? null : List.copyOf(recurrent.getDaysOfWeek());
-      endRecur = recurrent.getEndRecur();
-    }
     return new GetSharedEventResult(
         event.getTitle(),
         event.getDescription(),
@@ -51,8 +44,7 @@ class GetSharedEventQueryHandlerImpl implements GetSharedEventQueryHandler {
         event.getEnd(),
         Boolean.TRUE.equals(event.getIsACourse()),
         event.getOrganization().getName(),
-        days,
-        endRecur,
+        RecurrenceResult.from(event.getSeries()),
         eventAccess.canRegister(subject, event),
         user != null
             && eventRegistrationRepository.existsByEventIdAndEmailIgnoreCase(

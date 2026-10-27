@@ -82,10 +82,11 @@ class IamAccessIntegrationTests {
     createPerson(alice, "Bob", group, withLevel);
     assertThat(status(bob, HttpMethod.GET, "/organizations/" + group, null)).isEqualTo(403);
 
-    // Linked, but holding a position without level: still nothing.
+    // Linked, but holding a position without level: only the Member level, read-only.
     var other = signUp("other");
     link(other, church.id, createPerson(alice, "Otro", group, label));
-    assertThat(status(other, HttpMethod.GET, "/organizations/" + group, null)).isEqualTo(403);
+    assertThat(status(other, HttpMethod.GET, "/organizations/" + group, null)).isEqualTo(200);
+    assertThat(permissions(other, group)).containsExactlyInAnyOrder("org.read", "events.read");
   }
 
   @Test
@@ -108,11 +109,11 @@ class IamAccessIntegrationTests {
     assertThat(permissions(bob, church.location))
         .containsExactlyInAnyOrder("org.read", "events.read");
 
-    // Taking the level away leaves the position as a label.
+    // Taking the level away leaves the position as a label: the Member level stays as the floor.
     assertThat(status(alice, HttpMethod.PUT, "/positions/" + position + "/access", "{}"))
         .isEqualTo(200);
-    assertThat(status(bob, HttpMethod.GET, "/organizations/" + church.location, null))
-        .isEqualTo(403);
+    assertThat(permissions(bob, church.location))
+        .containsExactlyInAnyOrder("org.read", "events.read");
 
     // Giving it back and then removing the position from the person drops the access too.
     status(
@@ -123,8 +124,9 @@ class IamAccessIntegrationTests {
     assertThat(status(bob, HttpMethod.GET, "/organizations/" + church.location, null))
         .isEqualTo(200);
     updatePerson(alice, personId, "Bob", church.location, null);
-    assertThat(status(bob, HttpMethod.GET, "/organizations/" + church.location, null))
-        .isEqualTo(403);
+    // Without the position only the Member level of the location remains.
+    assertThat(permissions(bob, church.location))
+        .containsExactlyInAnyOrder("org.read", "events.read");
   }
 
   @Test
@@ -193,7 +195,7 @@ class IamAccessIntegrationTests {
     link(bob, church.id, createPerson(alice, "Bob", church.location, position));
 
     assertThat(permissions(bob, church.location))
-        .containsExactlyInAnyOrder("org.read", "members.read", "events.write");
+        .containsExactlyInAnyOrder("org.read", "members.read", "events.read", "events.write");
     var summary =
         find(json(alice, "/organizations/" + church.id + "/positions"), "Tesorero", "name");
     assertThat(values(summary.get("effectivePermissions")))
@@ -207,7 +209,8 @@ class IamAccessIntegrationTests {
                 "/positions/" + position + "/access",
                 "{\"permissions\":[\"events.write\"]}"))
         .isEqualTo(200);
-    assertThat(permissions(bob, church.location)).containsExactly("events.write");
+    assertThat(permissions(bob, church.location))
+        .containsExactlyInAnyOrder("org.read", "events.read", "events.write");
   }
 
   @Test
@@ -313,7 +316,7 @@ class IamAccessIntegrationTests {
     var position = createPosition(alice, church.id, "Tesorero", treasurer);
     link(bob, church.id, createPerson(alice, "Bob", church.location, position));
     assertThat(permissions(bob, church.location))
-        .containsExactlyInAnyOrder("org.read", "events.write");
+        .containsExactlyInAnyOrder("org.read", "events.read", "events.write");
 
     // Validation: unknown permission, no permissions, duplicate name (any case), predefined name.
     assertThat(status(alice, HttpMethod.POST, path, role("Otro", "org.fly"))).isEqualTo(400);
@@ -325,7 +328,8 @@ class IamAccessIntegrationTests {
     assertThat(
             status(alice, HttpMethod.PUT, "/roles/" + treasurer, role("Tesorero", "events.read")))
         .isEqualTo(200);
-    assertThat(permissions(bob, church.location)).containsExactly("events.read");
+    assertThat(permissions(bob, church.location))
+        .containsExactlyInAnyOrder("org.read", "events.read");
 
     // It shows next to the predefined ones.
     var roles = json(alice, path);

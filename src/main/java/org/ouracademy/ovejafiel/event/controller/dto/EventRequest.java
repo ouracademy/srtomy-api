@@ -1,9 +1,11 @@
 package org.ouracademy.ovejafiel.event.controller.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.LocalDate;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -27,20 +29,26 @@ public class EventRequest {
 
   Boolean isACourse = false;
 
-  List<Integer> daysOfWeek = new ArrayList<>();
+  /** Present when the event repeats. */
+  @Valid RecurrenceRequest recurrence;
 
-  LocalDate endRecur;
+  /** IANA zone the event repeats in (e.g. America/Lima); UTC when omitted. */
+  String timeZone;
 
-  @AssertTrue
-  public boolean isValidDaysOfWeek() {
-    if (isRecurrent()) {
-      return !daysOfWeek.isEmpty();
-    } else {
+  @AssertTrue(message = "La zona horaria no es válida")
+  public boolean isValidTimeZone() {
+    if (timeZone == null) {
       return true;
+    }
+    try {
+      ZoneId.of(timeZone);
+      return true;
+    } catch (DateTimeException e) {
+      return false;
     }
   }
 
-  public boolean isRecurrent() {
-    return endRecur != null;
+  public ZoneId zone() {
+    return timeZone == null ? ZoneId.of("UTC") : ZoneId.of(timeZone);
   }
 }

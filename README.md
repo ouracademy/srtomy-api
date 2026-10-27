@@ -21,7 +21,8 @@ and becomes its Owner. Access is checked per request with GCP-style roles inheri
 church → location → group/ministry tree (`iam` module, `specs/003-identity-iam/`). Access comes
 from **positions** (cargos): each position may carry an access level, and whoever holds it
 (through a person linked to their user) gets that level on the node and below
-(`specs/004b-positions-with-access/`). Owner is the only access granted directly. Custom
+(`specs/004b-positions-with-access/`). Every linked person is at least a **Member** (read-only)
+of the nodes they belong to, with or without a position (`specs/008-my-space/`). Owner is the only access granted directly. Custom
 levels are managed from the "Accesos" endpoints (`specs/004-access-management/`). The API
 no longer calls the Auth0 Management API.
 

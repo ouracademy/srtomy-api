@@ -28,7 +28,6 @@ import org.ouracademy.ovejafiel.attendance.domain.EventAttendance;
 import org.ouracademy.ovejafiel.attendance.repository.EventAttendanceRepository;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
-import org.ouracademy.ovejafiel.event.domain.SingleEvent;
 import org.ouracademy.ovejafiel.event.query.FindEventResult;
 import org.ouracademy.ovejafiel.event.query.find_event_by_id.FindEventByIdQuery;
 import org.ouracademy.ovejafiel.event.query.find_event_by_id.FindEventByIdQueryHandler;
@@ -52,7 +51,7 @@ class RegisterAttendanceCommandHandlerImplTests {
   EventId eventId = EventId.generate();
   PartyId personId = PartyId.generate();
   Person attendee = person(personId, "Jose", "Mena");
-  SingleEvent event =
+  Event event =
       singleEvent(
           eventId,
           "Culto",

@@ -10,7 +10,10 @@ import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
 import org.ouracademy.ovejafiel.person.query.FindPersonResult;
 
-/** Same JSON fields the endpoints returned when they serialized the SingleEvent entity. */
+/**
+ * Same JSON fields the endpoints returned when they serialized the event entity, plus {@code
+ * recurrence} when it belongs to a series.
+ */
 public record EventResponse(
     UUID id,
     String title,
@@ -21,12 +24,11 @@ public record EventResponse(
     OrganizationResponse organization,
     String description,
     Boolean isACourse,
-    RecurrentEventResponse recurrentEvent,
+    RecurrenceResponse recurrence,
     LocalDateTime createDate,
     LocalDateTime lastModifiedDate) {
 
   public static EventResponse from(FindEventResult result) {
-    var recurrentEvent = result.recurrentEvent();
     return new EventResponse(
         result.id().value(),
         result.title(),
@@ -37,42 +39,9 @@ public record EventResponse(
         OrganizationResponse.from(result.organization()),
         result.description(),
         result.isACourse(),
-        recurrentEvent == null ? null : RecurrentEventResponse.from(recurrentEvent),
+        RecurrenceResponse.from(result.recurrence()),
         result.createDate(),
         result.lastModifiedDate());
-  }
-
-  public record RecurrentEventResponse(
-      UUID id,
-      String title,
-      List<SpeakerResponse> speakers,
-      ZonedDateTime start,
-      ZonedDateTime end,
-      String address,
-      OrganizationResponse organization,
-      String description,
-      Boolean isACourse,
-      LocalDate endRecur,
-      List<Integer> daysOfWeek,
-      LocalDateTime createDate,
-      LocalDateTime lastModifiedDate) {
-
-    static RecurrentEventResponse from(FindEventResult.RecurrentEventResult result) {
-      return new RecurrentEventResponse(
-          result.id().value(),
-          result.title(),
-          speakersOf(result.speakers()),
-          result.start(),
-          result.end(),
-          result.address(),
-          OrganizationResponse.from(result.organization()),
-          result.description(),
-          result.isACourse(),
-          result.endRecur(),
-          result.daysOfWeek(),
-          result.createDate(),
-          result.lastModifiedDate());
-    }
   }
 
   /** Same JSON fields as the serialized Person entity. */

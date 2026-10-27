@@ -109,8 +109,8 @@ class InvitationIntegrationTests {
     var accepted = read(body(bob, HttpMethod.POST, "/invitations/" + token + "/accept", null));
 
     assertThat(accepted.get("personId").asText()).isEqualTo(personId);
-    // An account without a position gives no access of its own.
-    assertThat(status(bob, HttpMethod.GET, "/organizations/" + group)).isEqualTo(403);
+    // An account without a position is a plain Member of the group it belongs to.
+    assertThat(status(bob, HttpMethod.GET, "/organizations/" + group)).isEqualTo(200);
     // The person now has an account, so inviting them again is refused.
     assertThat(
             status(
@@ -176,7 +176,8 @@ class InvitationIntegrationTests {
     body(bob, HttpMethod.POST, "/invitations/" + lastToken() + "/accept", null);
 
     assertThat(permissions(bob, group)).contains("members.write", "invitations.send");
-    assertThat(permissions(bob, location)).isEmpty();
+    // Being a member of the location is only the Member level there.
+    assertThat(permissions(bob, location)).containsExactlyInAnyOrder("org.read", "events.read");
   }
 
   @Test

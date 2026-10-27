@@ -17,7 +17,8 @@ import org.springframework.data.jpa.repository.Query;
  *
  * <p>What a user may do comes from the {@code user_access} view, which merges direct bindings
  * (Owner), the access level of the positions of the person that represents the user, and group
- * leadership. {@code role_binding} itself only holds the direct ones.
+ * leadership, and the Member level every linked person has on the nodes they belong to. {@code
+ * role_binding} itself only holds the direct ones.
  */
 public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBindingId> {
 
@@ -98,7 +99,8 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
 
   /**
    * The accesses on the node and on all its ancestors, with who holds them, where each one was
-   * made, where it comes from and how many permissions it gives.
+   * made, where it comes from and how many permissions it gives. The implicit Member level of
+   * whoever belongs to a node is left out: it is not a grant anyone made.
    */
   @Query(
       value =
@@ -119,6 +121,7 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
           left join iam_role r on r.id = ua.role_id
           join party p on p.id = ua.organization_id
           where ua.organization_id in (select id from ancestors)
+          and ua.source <> 'MEMBER'
           order by lower(u.email), r.name, ua.position_name
           """,
       nativeQuery = true)

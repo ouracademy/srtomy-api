@@ -23,6 +23,7 @@ import org.ouracademy.ovejafiel.event.controller.dto.EventRegistrationRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.EventRegistrationResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.EventSharingRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.EventSharingResponse;
+import org.ouracademy.ovejafiel.event.controller.dto.MyEventResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.RegistrationOutcomeResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.ShareEventRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.ShareEventResponse;
@@ -42,6 +43,8 @@ import org.ouracademy.ovejafiel.event.query.list_event_registrations.ListEventRe
 import org.ouracademy.ovejafiel.event.query.list_event_registrations.ListEventRegistrationsQueryHandler;
 import org.ouracademy.ovejafiel.event.query.list_events_shared_with.ListEventsSharedWithQuery;
 import org.ouracademy.ovejafiel.event.query.list_events_shared_with.ListEventsSharedWithQueryHandler;
+import org.ouracademy.ovejafiel.event.query.list_my_events.ListMyEventsQuery;
+import org.ouracademy.ovejafiel.event.query.list_my_events.ListMyEventsQueryHandler;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -77,6 +80,7 @@ public class EventSharingController {
   GetSharedEventQueryHandler getSharedEventQueryHandler;
   RegisterForEventCommandHandler registerForEventCommandHandler;
   ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
+  ListMyEventsQueryHandler listMyEventsQueryHandler;
 
   @GetMapping("events/{id}/sharing")
   public EventSharingResponse sharing(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -150,6 +154,14 @@ public class EventSharingController {
         new CancelEventRegistrationCommand(
             new EventId(id), new EventRegistrationId(registrationId)));
     return ResponseEntity.noContent().build();
+  }
+
+  /** The events and courses the signed-in user signed up for or attended, most recent first. */
+  @GetMapping("me/events")
+  public List<MyEventResponse> myEvents(@AuthenticationPrincipal Jwt jwt) {
+    return listMyEventsQueryHandler.handle(new ListMyEventsQuery(jwt.getSubject())).stream()
+        .map(MyEventResponse::from)
+        .toList();
   }
 
   /** The events other people shared with the signed-in user. */

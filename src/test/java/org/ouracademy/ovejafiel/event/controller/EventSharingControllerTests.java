@@ -45,6 +45,7 @@ import org.ouracademy.ovejafiel.event.query.get_shared_event.GetSharedEventResul
 import org.ouracademy.ovejafiel.event.query.list_event_registrations.ListEventRegistrationsQueryHandler;
 import org.ouracademy.ovejafiel.event.query.list_events_shared_with.ListEventsSharedWithQueryHandler;
 import org.ouracademy.ovejafiel.event.query.list_events_shared_with.SharedWithMeResult;
+import org.ouracademy.ovejafiel.event.query.list_my_events.ListMyEventsQueryHandler;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
@@ -78,6 +79,7 @@ class EventSharingControllerTests {
   @MockitoBean GetSharedEventQueryHandler getSharedEventQueryHandler;
   @MockitoBean RegisterForEventCommandHandler registerForEventCommandHandler;
   @MockitoBean ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
+  @MockitoBean ListMyEventsQueryHandler listMyEventsQueryHandler;
 
   UUID id = UUID.randomUUID();
 
@@ -105,7 +107,6 @@ class EventSharingControllerTests {
         ZonedDateTime.parse("2030-01-05T12:00:00Z"),
         true,
         "Jóvenes",
-        null,
         null,
         canRegister,
         false);
