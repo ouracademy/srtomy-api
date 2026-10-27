@@ -16,4 +16,4 @@
 - ¿Aceptas que quien puede abrir la página (incluido `CHURCH`) pueda inscribirse, o la inscripción debe poder abrirse a gente que no ve el evento?
 - El correo de confirmación con el enlace de cancelación queda como deuda técnica (outbox); mientras tanto el código se muestra al inscribirse y en Mi espacio.
 - Quitar un ticket con historial de inscripciones se rechaza; quitar toda la inscripción borra las filas canceladas.
-- El PR #50 (`srtomy` → `ovejafiel`) no está fusionado en `main`: los nombres de paquete de este plan usan `org.ouracademy.srtomy`.
+- El rename `srtomy` → `ovejafiel` (PR #50) ya está en `main`: los paquetes de este plan son `org.ouracademy.ovejafiel.*`; los repos siguen llamándose `srtomy-api` y `srtomy-ui`.
