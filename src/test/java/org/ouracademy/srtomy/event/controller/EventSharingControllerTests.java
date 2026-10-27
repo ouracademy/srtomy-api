@@ -216,6 +216,7 @@ class EventSharingControllerTests {
             .hasStatus(201)
             .bodyJson();
     body.extractingPath("$.emailSent").isEqualTo(true);
+    body.extractingPath("$.emailStatus").isEqualTo("SENT");
     body.extractingPath("$.share.email").isEqualTo("ana@x.org");
     verify(shareEventCommandHandler)
         .handle(new ShareEventCommand("test-user", new EventId(id), "ana@x.org", ShareRole.VIEWER));

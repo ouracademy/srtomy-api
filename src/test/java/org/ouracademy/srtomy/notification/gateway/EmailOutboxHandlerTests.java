@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
+import org.ouracademy.srtomy.outbox.PermanentDeliveryException;
+import org.ouracademy.srtomy.outbox.domain.OutboxChannel;
 import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 
 class EmailOutboxHandlerTests {
@@ -14,22 +17,24 @@ class EmailOutboxHandlerTests {
   EmailOutboxHandler handler = new EmailOutboxHandler(gateway);
 
   @Test
-  void handlesTheEmailType() {
-    assertThat(handler.type()).isEqualTo("EMAIL");
+  void handlesTheEmailChannel() {
+    assertThat(handler.channel()).isEqualTo(OutboxChannel.EMAIL);
   }
 
   @Test
-  void sendsThePayloadUsingTheMessageIdAsIdempotencyKey() {
+  void sendsTheContentUsingTheMessageIdAsIdempotencyKey() {
     var id = OutboxMessageId.generate();
+    when(gateway.send(id.value().toString(), "ana@x.org", "Hola", "Texto")).thenReturn("re_1");
 
-    handler.handle(id, "{\"to\":\"ana@x.org\",\"subject\":\"Hola\",\"text\":\"Texto\"}");
+    var providerId = handler.deliver(id, "ana@x.org", "{\"subject\":\"Hola\",\"text\":\"Texto\"}");
 
+    assertThat(providerId).isEqualTo("re_1");
     verify(gateway).send(id.value().toString(), "ana@x.org", "Hola", "Texto");
   }
 
   @Test
-  void anUnreadablePayloadFails() {
-    assertThatThrownBy(() -> handler.handle(OutboxMessageId.generate(), "not json"))
-        .isInstanceOf(IllegalStateException.class);
+  void unreadableContentIsGivenUpAtOnce() {
+    assertThatThrownBy(() -> handler.deliver(OutboxMessageId.generate(), "ana@x.org", "not json"))
+        .isInstanceOf(PermanentDeliveryException.class);
   }
 }

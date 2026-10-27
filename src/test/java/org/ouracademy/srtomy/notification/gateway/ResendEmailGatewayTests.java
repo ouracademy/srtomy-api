@@ -10,6 +10,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.ouracademy.srtomy.outbox.PermanentDeliveryException;
 
 class ResendEmailGatewayTests {
 
@@ -83,10 +86,26 @@ class ResendEmailGatewayTests {
   }
 
   @Test
-  void aRejectedMessageThrows() {
-    status = 422;
+  void returnsTheIdTheProviderGaveTheEmail() {
+    assertThat(gateway().send("msg-1", "ana@x.org", "S", "T")).isEqualTo("1");
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {400, 401, 403, 422})
+  void aRequestTheProviderRefusesIsGivenUpAtOnce(int refusal) {
+    status = refusal;
 
     assertThatThrownBy(() -> gateway().send("msg-1", "ana@x.org", "S", "T"))
-        .isInstanceOf(RuntimeException.class);
+        .isInstanceOf(PermanentDeliveryException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {408, 409, 429, 500, 503})
+  void aFailureThatMayPassIsWorthRetrying(int failure) {
+    status = failure;
+
+    assertThatThrownBy(() -> gateway().send("msg-1", "ana@x.org", "S", "T"))
+        .isInstanceOf(RuntimeException.class)
+        .isNotInstanceOf(PermanentDeliveryException.class);
   }
 }

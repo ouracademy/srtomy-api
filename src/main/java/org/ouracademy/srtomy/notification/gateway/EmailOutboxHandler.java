@@ -3,8 +3,10 @@ package org.ouracademy.srtomy.notification.gateway;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.srtomy.notification.command.send_email.EmailPayload;
+import org.ouracademy.srtomy.notification.command.send_email.EmailContent;
 import org.ouracademy.srtomy.outbox.OutboxMessageHandler;
+import org.ouracademy.srtomy.outbox.PermanentDeliveryException;
+import org.ouracademy.srtomy.outbox.domain.OutboxChannel;
 import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 import org.springframework.stereotype.Component;
 
@@ -18,18 +20,19 @@ class EmailOutboxHandler implements OutboxMessageHandler {
   private final EmailGateway emailGateway;
 
   @Override
-  public String type() {
-    return EmailPayload.TYPE;
+  public OutboxChannel channel() {
+    return OutboxChannel.EMAIL;
   }
 
   @Override
-  public void handle(OutboxMessageId id, String payload) {
-    EmailPayload email;
+  public String deliver(OutboxMessageId id, String recipient, String payload) {
+    EmailContent content;
     try {
-      email = JSON.readValue(payload, EmailPayload.class);
-    } catch (JsonProcessingException e) {
-      throw new IllegalStateException("Unreadable email payload", e);
+      content = JSON.readValue(payload, EmailContent.class);
+    } catch (JsonProcessingException | IllegalArgumentException e) {
+      // Not worth repeating: the same payload will not read the next time either.
+      throw new PermanentDeliveryException("Unreadable email content", e);
     }
-    emailGateway.send(id.value().toString(), email.to(), email.subject(), email.text());
+    return emailGateway.send(id.value().toString(), recipient, content.subject(), content.text());
   }
 }

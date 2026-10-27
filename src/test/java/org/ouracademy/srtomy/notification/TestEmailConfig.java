@@ -17,7 +17,9 @@ public class TestEmailConfig {
   @Bean
   @Primary
   public EmailGateway recordingEmailGateway(SentEmails sentEmails) {
-    return (idempotencyKey, to, subject, text) ->
-        sentEmails.deliver(new SentEmails.Email(idempotencyKey, to, subject, text));
+    return (idempotencyKey, to, subject, text) -> {
+      sentEmails.deliver(new SentEmails.Email(idempotencyKey, to, subject, text));
+      return "test-" + idempotencyKey;
+    };
   }
 }

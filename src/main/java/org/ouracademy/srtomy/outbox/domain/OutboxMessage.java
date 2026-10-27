@@ -5,43 +5,35 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import org.ouracademy.srtomy.shared.domain.DomainObject;
 
 /**
- * Something to do against a system outside our database (today: send an email), saved in the same
- * transaction as the change that asked for it, and done afterwards with retries. See "Operaciones
- * con sistemas externos" in docs/architecture.md.
+ * Something to deliver through a system outside our database (an email, a WhatsApp message), saved
+ * in the same transaction as the change that asked for it and delivered afterwards by a Cloud Tasks
+ * task, which retries it. See "Trabajo programado y sistemas externos" in docs/code-style.md.
  */
 @Entity
 @Getter
 public class OutboxMessage extends DomainObject {
 
-  /**
-   * After the n-th failed attempt, wait this long; the last failure gives up. The scheduler drains
-   * every minute, so the first retry is at most about a minute late.
-   */
-  private static final Duration[] BACKOFF = {
-    Duration.ofMinutes(1),
-    Duration.ofMinutes(5),
-    Duration.ofMinutes(30),
-    Duration.ofHours(2),
-    Duration.ofHours(12)
-  };
-
-  public static final int MAX_ATTEMPTS = BACKOFF.length + 1;
-
   private static final int MAX_ERROR_LENGTH = 1000;
 
   @Id OutboxMessageId id = OutboxMessageId.generate();
 
-  /** Picks the handler that does the work, for example {@code EMAIL}. */
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  OutboxChannel channel;
+
+  /** What it is about, for whoever reads the table: INVITATION, EVENT_SHARE... */
   @Column(nullable = false)
   String type;
 
   @Column(nullable = false)
+  String recipient;
+
+  /** Null once the message is done: it may hold a secret (the link of an invitation). */
   String payload;
 
   @Enumerated(EnumType.STRING)
@@ -51,10 +43,9 @@ public class OutboxMessage extends DomainObject {
   @Column(nullable = false)
   int attempts;
 
-  @Column(nullable = false)
-  LocalDateTime nextAttemptAt;
-
   String lastError;
+
+  String providerMessageId;
 
   LocalDateTime sentAt;
 
@@ -62,35 +53,36 @@ public class OutboxMessage extends DomainObject {
     // jpa only
   }
 
-  public OutboxMessage(String type, String payload, LocalDateTime now) {
+  public OutboxMessage(OutboxChannel channel, String type, String recipient, String payload) {
+    this.channel = channel;
     this.type = type;
+    this.recipient = recipient;
     this.payload = payload;
-    this.nextAttemptAt = now;
   }
 
-  public void markSent(LocalDateTime now) {
+  public void markSent(String providerMessageId, LocalDateTime now) {
+    attempts++;
     status = OutboxStatus.SENT;
-    attempts++;
     sentAt = now;
+    this.providerMessageId = providerMessageId;
     lastError = null;
+    payload = null;
   }
 
-  /** Schedules the next attempt, or gives up when there are no more. Returns the new status. */
-  public OutboxStatus markFailed(String error, LocalDateTime now) {
+  /** An attempt that did not work but may work later: the queue calls again. */
+  public void recordFailedAttempt(String error) {
     attempts++;
-    lastError =
-        error == null ? null : error.substring(0, Math.min(error.length(), MAX_ERROR_LENGTH));
-    if (attempts >= MAX_ATTEMPTS) {
-      status = OutboxStatus.FAILED;
-    } else {
-      nextAttemptAt = now.plus(BACKOFF[attempts - 1]);
-    }
-    return status;
+    lastError = truncated(error);
   }
 
-  /** Nothing will be retried, whatever the attempts left (for example an unknown type). */
-  public void giveUp(String error) {
+  /** Nothing will be tried again. */
+  public void markFailed(String error) {
     status = OutboxStatus.FAILED;
-    lastError = error;
+    lastError = truncated(error);
+    payload = null;
+  }
+
+  private static String truncated(String error) {
+    return error == null ? null : error.substring(0, Math.min(error.length(), MAX_ERROR_LENGTH));
   }
 }

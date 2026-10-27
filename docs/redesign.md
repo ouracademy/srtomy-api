@@ -194,7 +194,7 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 
 No se construye en 005-009; queda documentado para no perder la idea. Una campana en la cabecera de la app, **genérica**: no pensada solo para invitaciones, sino para cualquier aviso dirigido a un usuario.
 
-- **Modelo**: tabla `app_notification` (`id`, `user_id`, `type`, `payload` JSON, `created_at`, `read_at`), con tipo y datos mínimos para armar el texto y el enlace en la UI. El módulo `notification` (hoy solo el `EmailGateway`) crece con un `NotificationGateway` por canal: campana, correo y, más adelante, push.
+- **Modelo**: tabla `app_notification` (`id`, `user_id`, `type`, `payload` JSON, `created_at`, `read_at`), con tipo y datos mínimos para armar el texto y el enlace en la UI. Cada aviso que salga de la app (correo, WhatsApp) se entrega por el outbox (§12); la campana es un canal más, que escribe en `app_notification`.
 - **API**: `GET /v1/me/notifications` (paginado, con contador de no leídas), `POST /v1/me/notifications/{id}/read` y `POST /v1/me/notifications/read-all`. La UI consulta el contador con SWR (polling suave) y abre un menú con la lista.
 - **Tipos iniciales**:
   - Invitación aceptada: avisa a quien invitó ("Ana aceptó tu invitación a la sede X").
@@ -204,6 +204,15 @@ No se construye en 005-009; queda documentado para no perder la idea. Una campan
   - Otros candidatos: evento compartido contigo (007), inscripción nueva a un curso, cargo asignado o retirado.
 - **Preferencias**: pantalla para elegir qué tipos recibir y por qué canal; los avisos del sistema no se pueden silenciar.
 - **Decisiones abiertas**: retención (p. ej. 90 días), si el cumpleaños se genera al vuelo (sin guardar filas) y si hace falta tiempo real (SSE) o basta el polling.
+
+## 12. Trabajo futuro: mensajería multicanal y agentes en WhatsApp
+
+La entrega de mensajes ya está resuelta para correo (módulo `outbox`, ver «Trabajo programado y sistemas externos» en `docs/code-style.md`). Lo que sigue se apoya en el mismo contrato (la tabla `outbox_message` y un `OutboxMessageHandler` por canal), sin cambiar a quien encola.
+
+- **Envíos programados**: cumpleaños (desde `person.birthdate`) e invitaciones a cursos y eventos. Un job diario de Cloud Scheduler recorre los nodos, inserta los mensajes con `dispatchNow = false` y programa las tareas en lotes; el barrido diario recoge las que falten.
+- **Canal WhatsApp** (`WhatsAppOutboxHandler`, cola `outbox-whatsapp` con su propio límite de velocidad por los límites de Meta): plantillas aprobadas para escribir primero, ventana de 24 horas para responder libremente y **consentimiento previo** del destinatario (un dato nuevo en la persona o el usuario). El estado de la fila ganaría `DELIVERED` y `READ`, y `provider_message_id` casa los avisos del proveedor.
+- **Mensajes entrantes (agentes)**: cada webhook se guarda primero en un **inbox** (tabla con el id del mensaje del proveedor como clave única, para que un reintento del webhook no ejecute dos veces la misma acción) y se procesa con una tarea de Cloud Tasks. El agente ejecuta los mismos comandos del API con la identidad del usuario vinculado a ese número, y responde por el outbox.
+- **Si crece el volumen o aparecen otros servicios** (un MCP en Python, por ejemplo): leer la tabla con Debezium o Datastream y publicar en Pub/Sub, sin tocar a quien encola.
 
 ## Archivos clave
 

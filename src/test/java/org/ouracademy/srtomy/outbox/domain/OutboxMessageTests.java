@@ -2,70 +2,67 @@ package org.ouracademy.srtomy.outbox.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
 class OutboxMessageTests {
 
   LocalDateTime now = LocalDateTime.of(2026, 10, 26, 10, 0);
-  OutboxMessage message = new OutboxMessage("EMAIL", "{}", now);
+  OutboxMessage message =
+      new OutboxMessage(OutboxChannel.EMAIL, "INVITATION", "ana@x.org", "{\"link\":\"secret\"}");
 
   @Test
-  void startsPendingAndDueAtOnce() {
+  void startsPendingWithoutAttempts() {
     assertThat(message.getStatus()).isEqualTo(OutboxStatus.PENDING);
-    assertThat(message.getNextAttemptAt()).isEqualTo(now);
     assertThat(message.getAttempts()).isZero();
+    assertThat(message.getPayload()).isNotNull();
   }
 
   @Test
-  void sendingItMarksItDone() {
-    message.markSent(now);
+  void sendingItMarksItDoneAndErasesThePayload() {
+    message.markSent("re_123", now);
 
     assertThat(message.getStatus()).isEqualTo(OutboxStatus.SENT);
     assertThat(message.getSentAt()).isEqualTo(now);
+    assertThat(message.getProviderMessageId()).isEqualTo("re_123");
     assertThat(message.getAttempts()).isEqualTo(1);
+    assertThat(message.getPayload()).isNull();
   }
 
   @Test
-  void eachFailureWaitsLongerBeforeTheNextAttempt() {
-    var waits =
-        new Duration[] {
-          Duration.ofMinutes(1),
-          Duration.ofMinutes(5),
-          Duration.ofMinutes(30),
-          Duration.ofHours(2),
-          Duration.ofHours(12)
-        };
-    for (var wait : waits) {
-      assertThat(message.markFailed("boom", now)).isEqualTo(OutboxStatus.PENDING);
-      assertThat(message.getNextAttemptAt()).isEqualTo(now.plus(wait));
-    }
-    assertThat(message.getLastError()).isEqualTo("boom");
+  void aFailedAttemptKeepsItPendingWithItsError() {
+    message.recordFailedAttempt("503 from the provider");
+    message.recordFailedAttempt("timeout");
+
+    assertThat(message.getStatus()).isEqualTo(OutboxStatus.PENDING);
+    assertThat(message.getAttempts()).isEqualTo(2);
+    assertThat(message.getLastError()).isEqualTo("timeout");
+    assertThat(message.getPayload()).isNotNull();
   }
 
   @Test
-  void givesUpAfterTheLastAttempt() {
-    for (int i = 1; i < OutboxMessage.MAX_ATTEMPTS; i++) {
-      message.markFailed("boom", now);
-    }
+  void aLaterSuccessClearsTheError() {
+    message.recordFailedAttempt("503");
 
-    assertThat(message.markFailed("still boom", now)).isEqualTo(OutboxStatus.FAILED);
-    assertThat(message.getAttempts()).isEqualTo(OutboxMessage.MAX_ATTEMPTS);
+    message.markSent(null, now);
+
+    assertThat(message.getLastError()).isNull();
+    assertThat(message.getProviderMessageId()).isNull();
+  }
+
+  @Test
+  void givingUpMarksItFailedAndErasesThePayload() {
+    message.markFailed("403 domain not verified");
+
+    assertThat(message.getStatus()).isEqualTo(OutboxStatus.FAILED);
+    assertThat(message.getLastError()).isEqualTo("403 domain not verified");
+    assertThat(message.getPayload()).isNull();
   }
 
   @Test
   void aLongErrorIsTruncated() {
-    message.markFailed("x".repeat(5000), now);
+    message.recordFailedAttempt("x".repeat(5000));
 
     assertThat(message.getLastError()).hasSize(1000);
-  }
-
-  @Test
-  void canGiveUpAtOnce() {
-    message.giveUp("No handler");
-
-    assertThat(message.getStatus()).isEqualTo(OutboxStatus.FAILED);
-    assertThat(message.getLastError()).isEqualTo("No handler");
   }
 }

@@ -1,6 +1,7 @@
 package org.ouracademy.srtomy.notification.command.send_email;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -13,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.ouracademy.srtomy.outbox.command.enqueue_message.EnqueueMessageCommand;
 import org.ouracademy.srtomy.outbox.command.enqueue_message.EnqueueMessageCommandHandler;
 import org.ouracademy.srtomy.outbox.command.enqueue_message.EnqueueMessageResult;
+import org.ouracademy.srtomy.outbox.domain.OutboxChannel;
 import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 
 @ExtendWith(MockitoExtension.class)
@@ -22,20 +24,22 @@ class SendEmailCommandHandlerImplTests {
   @InjectMocks SendEmailCommandHandlerImpl handler;
 
   @Test
-  void queuesTheEmailInTheOutboxAndReturnsItsId() {
+  void queuesTheEmailOnTheEmailChannelAndReturnsItsId() {
     var id = OutboxMessageId.generate();
-    when(enqueue.handle(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(new EnqueueMessageResult(id));
+    when(enqueue.handle(any())).thenReturn(new EnqueueMessageResult(id));
 
     var result =
-        handler.handle(new SendEmailCommand("ana@x.org", "Hola", "Texto \"con\" comillas"));
+        handler.handle(
+            new SendEmailCommand("INVITATION", "ana@x.org", "Hola", "Texto \"con\" comillas"));
 
     assertThat(result.messageId()).isEqualTo(id);
     var queued = ArgumentCaptor.forClass(EnqueueMessageCommand.class);
     verify(enqueue).handle(queued.capture());
-    assertThat(queued.getValue().type()).isEqualTo("EMAIL");
+    assertThat(queued.getValue().channel()).isEqualTo(OutboxChannel.EMAIL);
+    assertThat(queued.getValue().type()).isEqualTo("INVITATION");
+    assertThat(queued.getValue().recipient()).isEqualTo("ana@x.org");
     assertThat(queued.getValue().payload())
-        .isEqualTo(
-            "{\"to\":\"ana@x.org\",\"subject\":\"Hola\",\"text\":\"Texto \\\"con\\\" comillas\"}");
+        .isEqualTo("{\"subject\":\"Hola\",\"text\":\"Texto \\\"con\\\" comillas\"}");
+    assertThat(queued.getValue().dispatchNow()).isTrue();
   }
 }

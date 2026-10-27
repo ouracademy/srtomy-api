@@ -24,8 +24,8 @@ as part of `./mvnw test`.
 
 ## Scheduled work and external systems
 
-- **Never use `@Scheduled` or `@EnableScheduling`; always use Cloud Scheduler.** A job is an internal endpoint under `/v1/internal/**` (only the scheduler's service account may call it, see `InternalSecurityConfig`) plus a `google_cloud_scheduler_job` in `infra/terraform/modules/scheduler`. `ArchitectureTests` fails the build otherwise.
-- **Anything done outside our database (an email, a webhook, another service) goes through the outbox**, never inside the transaction that asked for it: enqueue with `EnqueueMessageCommandHandler` in the same transaction, and implement an `OutboxMessageHandler` that does the work and is safe to repeat. Details in `docs/code-style.md`, "Trabajo programado y sistemas externos".
+- **Never use `@Scheduled` or `@EnableScheduling`; use Cloud Scheduler (work on a calendar) or Cloud Tasks (work that must happen later or be retried).** Both call an internal endpoint under `/v1/internal/**`, which only the scheduler's service account may call (see `InternalSecurityConfig`). A calendar job is one `google_cloud_scheduler_job` in `infra/terraform/modules/scheduler`; a queue is in `infra/terraform/modules/tasks`. `ArchitectureTests` fails the build if `@Scheduled` appears.
+- **Anything done outside our database (an email, a WhatsApp message, a webhook, another service) goes through the outbox**, never inside the transaction that asked for it: enqueue with `EnqueueMessageCommandHandler` in the same transaction (it also schedules the delivery task, and if that fails the whole transaction rolls back), and implement an `OutboxMessageHandler` for the channel that is safe to repeat. Details in `docs/code-style.md`, "Trabajo programado y sistemas externos".
 
 ## Language policy
 

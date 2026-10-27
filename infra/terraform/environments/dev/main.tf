@@ -64,6 +64,14 @@ module "scheduler" {
   project_id = "sr-tommy-dev"
 }
 
+# Cloud Tasks queues for the outbox (emails today): one task per message calls the API back.
+module "tasks" {
+  source = "../../modules/tasks"
+
+  project_id                = "sr-tommy-dev"
+  caller_service_account_id = module.scheduler.scheduler_service_account_id
+}
+
 output "workload_identity_provider" {
   value = module.cicd.workload_identity_provider
 }
@@ -82,4 +90,8 @@ output "neon_database_host" {
 
 output "scheduler_service_account_email" {
   value = module.scheduler.scheduler_service_account_email
+}
+
+output "api_url" {
+  value = module.tasks.api_url
 }

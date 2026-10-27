@@ -28,10 +28,10 @@ variable "jobs" {
     path        = string
   }))
   default = {
-    "drain-outbox" = {
-      description = "Retries the emails that did not leave right after their commit (the first attempt is immediate, so this is only the safety net)."
-      schedule    = "* * * * *"
-      path        = "/v1/internal/outbox/drain"
+    "dispatch-pending-outbox" = {
+      description = "Daily sweep: schedules the outbox messages that were saved without a task (a bulk of them) or whose task was lost."
+      schedule    = "0 4 * * *"
+      path        = "/v1/internal/outbox/dispatch-pending"
     }
     "extend-event-series" = {
       description = "Adds upcoming occurrences to the event series that never end (or end far away)."

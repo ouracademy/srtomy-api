@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.srtomy.outbox.domain.OutboxChannel;
 import org.ouracademy.srtomy.outbox.domain.OutboxMessage;
 import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 import org.ouracademy.srtomy.outbox.domain.OutboxStatus;
@@ -22,9 +23,9 @@ class FindOutboxStatusesQueryHandlerImplTests {
 
   @Test
   void answersTheStatusOfEachKnownMessage() {
-    var sent = new OutboxMessage("EMAIL", "{}", LocalDateTime.now());
-    sent.markSent(LocalDateTime.now());
-    var waiting = new OutboxMessage("EMAIL", "{}", LocalDateTime.now());
+    var sent = new OutboxMessage(OutboxChannel.EMAIL, "INVITATION", "a@x.org", "{}");
+    sent.markSent(null, LocalDateTime.now());
+    var waiting = new OutboxMessage(OutboxChannel.EMAIL, "INVITATION", "a@x.org", "{}");
     var unknown = OutboxMessageId.generate();
     when(repository.findStatusesByIdIn(List.of(sent.getId(), waiting.getId(), unknown)))
         .thenReturn(

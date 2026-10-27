@@ -132,7 +132,9 @@ public class EventSharingController {
             .handle(new FindOutboxStatusesQuery(List.of(result.emailMessageId())))
             .of(result.emailMessageId());
     return new ShareEventResponse(
-        EventSharingResponse.shareFrom(result.share()), emailStatus == OutboxStatus.SENT);
+        EventSharingResponse.shareFrom(result.share()),
+        emailStatus == OutboxStatus.SENT,
+        emailStatus == null ? null : emailStatus.name());
   }
 
   @DeleteMapping("events/{id}/shares/{shareId}")

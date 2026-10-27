@@ -3,6 +3,11 @@ output "scheduler_service_account_email" {
   value       = google_service_account.scheduler.email
 }
 
+output "scheduler_service_account_id" {
+  description = "The account's email, as the tasks module and IAM bindings name it."
+  value       = google_service_account.scheduler.email
+}
+
 output "audience" {
   value = var.audience
 }

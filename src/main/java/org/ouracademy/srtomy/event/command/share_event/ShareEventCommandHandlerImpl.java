@@ -65,6 +65,7 @@ class ShareEventCommandHandlerImpl implements ShareEventCommandHandler {
         sendEmailCommandHandler
             .handle(
                 new SendEmailCommand(
+                    "EVENT_SHARE",
                     email,
                     who + " compartió contigo «" + event.getTitle() + "»",
                     "Hola,\n\n"

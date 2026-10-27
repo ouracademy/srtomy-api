@@ -1,20 +1,21 @@
 package org.ouracademy.srtomy.outbox;
 
+import org.ouracademy.srtomy.outbox.domain.OutboxChannel;
 import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
 
-/**
- * Does the work of one kind of outbox message. A module that needs something done outside the
- * database implements this and enqueues messages of its {@link #type()}.
- */
+/** Delivers the messages of one channel through its provider. */
 public interface OutboxMessageHandler {
 
-  String type();
+  OutboxChannel channel();
 
   /**
    * Must be safe to repeat: a message is delivered at least once. The id is stable, so it can be
    * used as the idempotency key of the provider.
    *
-   * @throws RuntimeException when it did not work; the message is retried later
+   * @return the id the provider gave the message, or null when it gives none
+   * @throws PermanentDeliveryException when trying again cannot work (the provider refuses the
+   *     message or the recipient)
+   * @throws RuntimeException for any other failure; the queue calls again later
    */
-  void handle(OutboxMessageId id, String payload);
+  String deliver(OutboxMessageId id, String recipient, String payload);
 }

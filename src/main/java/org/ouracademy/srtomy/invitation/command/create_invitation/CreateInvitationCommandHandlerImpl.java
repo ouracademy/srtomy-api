@@ -107,6 +107,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
         sendEmailCommandHandler
             .handle(
                 new SendEmailCommand(
+                    "INVITATION",
                     email,
                     "Te invitaron a " + organization.name() + " en Sr. Tommy",
                     body(
