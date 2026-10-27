@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-25
 
-**Status**: Implemented (API); la UI va en el repo `ovejafiel-ui`
+**Status**: Implemented (API); la UI va en el repo `srtomy-ui`
 
 **Input**: Los eventos recurrentes de hoy solo repiten por días de la semana y **siempre exigen fecha de fin**. Se quiere repetir como en Google Calendar (cada N días, semanas, meses o años; terminando nunca, en una fecha o tras N veces) y que cada usuario pueda **ver sus eventos en Google Calendar o Apple Calendar** suscribiéndose a un enlace privado. Aún no hay datos en producción, así que el modelo se reemplaza sin compatibilidad hacia atrás.
 

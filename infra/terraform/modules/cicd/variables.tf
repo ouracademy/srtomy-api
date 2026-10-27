@@ -12,7 +12,7 @@ variable "region" {
 variable "github_repo" {
   description = "GitHub repo allowed to impersonate the deploy service account, as \"owner/repo\"."
   type        = string
-  default     = "ouracademy/ovejafiel-api"
+  default     = "ouracademy/srtomy-api"
 }
 
 variable "deploy_branch" {

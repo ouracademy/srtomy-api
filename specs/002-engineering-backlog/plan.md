@@ -34,23 +34,23 @@ requested directly (drop `recurring`, drop App Engine, keep dependencies current
 
 ### 1. ✅ DONE — Remove `net.logicsquad:recurring`
 
-[#19](https://github.com/ouracademy/ovejafiel-api/pull/19), merged. Confirmed unused, deleted
+[#19](https://github.com/ouracademy/srtomy-api/pull/19), merged. Confirmed unused, deleted
 with no source changes.
 
 ### 2. ✅ DONE — Remove App Engine, standardize on Cloud Run
 
-[#19](https://github.com/ouracademy/ovejafiel-api/pull/19), merged — same PR as item 1.
+[#19](https://github.com/ouracademy/srtomy-api/pull/19), merged — same PR as item 1.
 Removed `appengine-maven-plugin`, `src/main/appengine/app.yaml`, and the README section.
 Dependabot PR #13 closed as no longer applicable.
 
 ### 3. ✅ DONE — Upgrade springdoc-openapi 2.4.0 → 3.1.1
 
-[#20](https://github.com/ouracademy/ovejafiel-api/pull/20), merged. No source changes needed.
+[#20](https://github.com/ouracademy/srtomy-api/pull/20), merged. No source changes needed.
 Dependabot PR #15 (already-satisfied parent bump) closed as superseded.
 
 **Follow-up dependency audit** also found `google-java-format` still pinned at `1.28.0`
 for a JVM 17 constraint that stopped applying once this project moved to Java 21 — bumped
-to `1.36.0` in [#22](https://github.com/ouracademy/ovejafiel-api/pull/22), merged (`1.37.0`,
+to `1.36.0` in [#22](https://github.com/ouracademy/srtomy-api/pull/22), merged (`1.37.0`,
 the actual latest, fails under the current spotless-maven-plugin — see that PR). Everything
 else in `pom.xml` (Spring Boot, spring-cloud, spring-cloud-gcp, hypersistence-utils,
 jacoco-maven-plugin, sonar-maven-plugin, spotless-maven-plugin) was already at its latest
@@ -67,22 +67,22 @@ the user** via Issues → Security Hotspots → that line → Review → Safe.
 
 ### 5. ✅ DONE — API versioning `/v1` (Stage G)
 
-[#23](https://github.com/ouracademy/ovejafiel-api/pull/23) +
-[ovejafiel-ui#43](https://github.com/ouracademy/ovejafiel-ui/pull/43). Both merged.
+[#23](https://github.com/ouracademy/srtomy-api/pull/23) +
+[srtomy-ui#43](https://github.com/ouracademy/srtomy-ui/pull/43). Both merged.
 
 Implemented via `WebMvcConfigurer.configurePathMatch` prefixing only `@RestController`
 classes with `/v1` — not `server.servlet.context-path` and not a separate management port,
 so `/actuator/**` stays unversioned (it isn't `@RestController`-registered) and the app
-still runs on the single port Cloud Run exposes. `ovejafiel-ui`'s `NEXT_PUBLIC_API_URL` stays
+still runs on the single port Cloud Run exposes. `srtomy-ui`'s `NEXT_PUBLIC_API_URL` stays
 origin-only; `/v1` is appended once in `app/(api)/api.tsx` instead of in every
 environment's env var.
 
 ### 6. 🔲 Dev done, prod pending — Cloud Run deploy pipeline (Stage H)
 
-[#26](https://github.com/ouracademy/ovejafiel-api/pull/26) (open). Built with Terraform
+[#26](https://github.com/ouracademy/srtomy-api/pull/26) (open). Built with Terraform
 (`infra/terraform/`) instead of one-off `gcloud` commands, since this needs to be
 reproducible across two environments (`sr-tommy-dev`, `sr-tommy-prod`). Covers: WIF
-(scoped to `ouracademy/ovejafiel-api`, branch `main` only), a dedicated deploy service
+(scoped to `ouracademy/srtomy-api`, branch `main` only), a dedicated deploy service
 account, Artifact Registry repo, a Neon Postgres project per environment (replacing the
 long-gone ElephantSQL setup), and Secret Manager secrets wired straight from Neon's
 generated credentials. `deploy-dev.yml` (auto on `main`) and `deploy-prod.yml` (manual,
@@ -95,7 +95,7 @@ ready to go.
 
 ### 7. ✅ DONE — Observability: structured logging (Stage I)
 
-[#24](https://github.com/ouracademy/ovejafiel-api/pull/24). Added
+[#24](https://github.com/ouracademy/srtomy-api/pull/24). Added
 `spring-cloud-gcp-starter-logging` + a `logback-spring.xml` using its bundled
 `logback-json-appender.xml` (Stackdriver JSON layout) for every profile except `local`,
 which keeps Boot's normal human-readable console output. Done ahead of the deploy
@@ -105,7 +105,7 @@ pipeline (item 6) rather than after, since there was no reason to wait.
 
 - **`cors_origin: "*"`** in both `application.yml` and `application-prod.yml` is wide open.
   Now that the API requires auth, a stolen/leaked token from a malicious origin is a more
-  realistic risk than it was pre-auth. Scope it to the actual ovejafiel-ui origin(s) once a
+  realistic risk than it was pre-auth. Scope it to the actual srtomy-ui origin(s) once a
   real domain exists.
 - **`hikari.maximumPoolSize: 2`** in `application-prod.yml` — inherited from an old
   ElephantSQL free-tier limit, already flagged with a comment, never revisited against
@@ -116,7 +116,7 @@ pipeline (item 6) rather than after, since there was no reason to wait.
   The parent has been GA (`4.1.1`) since PR #3 — worth trying the flag's removal now to get
   full dependency resolution in the scan instead of the degraded mode.
 - ~~**`Complaint.dni`** has no `@NotBlank`/`@NotNull`...~~ ✅ DONE —
-  [#21](https://github.com/ouracademy/ovejafiel-api/pull/21), merged. Resolved the other
+  [#21](https://github.com/ouracademy/srtomy-api/pull/21), merged. Resolved the other
   direction from what was originally proposed here: rather than requiring `dni`, migrated
   the DB (`V1.0.9__make_complaint_dni_optional.sql`) to make it genuinely optional, since
   not every complaint has an identity document.

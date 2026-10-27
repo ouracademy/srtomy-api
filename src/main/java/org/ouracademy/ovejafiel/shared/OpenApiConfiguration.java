@@ -8,8 +8,8 @@ import io.swagger.v3.oas.annotations.servers.Server;
 @OpenAPIDefinition(
     info =
         @Info( //
-            title = "API Sr. Tommy", //
-            description = "Contiene las API REST para Sr. Tommy",
+            title = "API Ovejafiel", //
+            description = "Contiene las API REST para Ovejafiel",
             contact =
                 @Contact( //
                     email = "dev@ouracademy.org", //

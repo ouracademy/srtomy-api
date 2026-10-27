@@ -6,4 +6,4 @@
 - [x] T004 Endpoint interno `extend-series` (Cloud Scheduler) para series sin fin (horizonte móvil de 12 meses).
 - [x] T005 Calendario privado `.ics`: token, renovar, consulta y serializador RFC 5545.
 - [x] T006 Pruebas unitarias e integración.
-- [ ] T007 (repo `ovejafiel-ui`) Selector de repetición estilo Google y tarjeta «Sincroniza con tu calendario».
+- [ ] T007 (repo `srtomy-ui`) Selector de repetición estilo Google y tarjeta «Sincroniza con tu calendario».

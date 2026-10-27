@@ -119,9 +119,9 @@ terraform output artifact_registry_repository_url
 ```
 
 ```sh
-gh variable set <ENV>_WORKLOAD_IDENTITY_PROVIDER --repo ouracademy/ovejafiel-api --body "<value>"
-gh variable set <ENV>_DEPLOY_SERVICE_ACCOUNT --repo ouracademy/ovejafiel-api --body "<value>"
-gh variable set <ENV>_ARTIFACT_REGISTRY_URL --repo ouracademy/ovejafiel-api --body "<value>"
+gh variable set <ENV>_WORKLOAD_IDENTITY_PROVIDER --repo ouracademy/srtomy-api --body "<value>"
+gh variable set <ENV>_DEPLOY_SERVICE_ACCOUNT --repo ouracademy/srtomy-api --body "<value>"
+gh variable set <ENV>_ARTIFACT_REGISTRY_URL --repo ouracademy/srtomy-api --body "<value>"
 ```
 
 Where `<ENV>` is `DEV` or `PROD`, matching what `.github/workflows/deploy-dev.yml` and

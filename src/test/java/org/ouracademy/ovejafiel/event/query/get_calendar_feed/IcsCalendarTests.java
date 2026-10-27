@@ -13,7 +13,7 @@ class IcsCalendarTests {
 
   private static IcsCalendar.Entry entry(String summary, String location, String description) {
     return new IcsCalendar.Entry(
-        "id-1@ovejafiel",
+        "id-1@srtomy",
         Instant.parse("2026-01-05T15:00:00Z"),
         Instant.parse("2026-01-05T17:00:00Z"),
         summary,
@@ -31,7 +31,7 @@ class IcsCalendarTests {
     assertThat(ics)
         .contains(
             "BEGIN:VEVENT\r\n",
-            "UID:id-1@ovejafiel\r\n",
+            "UID:id-1@srtomy\r\n",
             "DTSTAMP:20260101T000000Z\r\n",
             "DTSTART:20260105T150000Z\r\n",
             "DTEND:20260105T170000Z\r\n",

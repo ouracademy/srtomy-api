@@ -50,7 +50,7 @@ class GetCalendarFeedQueryHandlerImpl implements GetCalendarFeedQueryHandler {
   private IcsCalendar.Entry entry(Event event) {
     var organization = event.getOrganization();
     return new IcsCalendar.Entry(
-        event.getId().value() + "@ovejafiel",
+        event.getId().value() + "@srtomy",
         event.getStart().toInstant(),
         event.getEnd().toInstant(),
         event.getTitle() + " · " + organization.getName(),

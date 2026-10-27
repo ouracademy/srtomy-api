@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-25
 
-**Status**: Implemented (API y UI, esta última en el repo `ovejafiel-ui`)
+**Status**: Implemented (API y UI, esta última en el repo `srtomy-ui`)
 
 **Input**: Desde la 004b el acceso nace de los cargos: una persona con cuenta y **sin cargo** no tiene ningún acceso (deuda técnica 9). Esta fase le da el nivel **Miembro** y una vista propia, «Mi espacio» (`/portal/me`). Diseño: [`docs/redesign.md`](../../docs/redesign.md) §4.6 y §9.
 
@@ -36,7 +36,7 @@
 
 `GET /me/events` devuelve los eventos y cursos donde me inscribí o asistí, el más reciente primero, con una marca por cada origen y el enlace para abrirlos.
 
-### US4 — Mi espacio en la UI (P1, repo `ovejafiel-ui`)
+### US4 — Mi espacio en la UI (P1, repo `srtomy-ui`)
 
 Ruta `/portal/me` para cualquier usuario con sesión, con las secciones Mis eventos y cursos, Mis grupos y ministerios, Directorio, Compartidos contigo e Invitaciones; enlazada desde el selector/menú y destino por defecto de quien solo es miembro. Un miembro común no ve «Accesos» ni botones de administración.
 

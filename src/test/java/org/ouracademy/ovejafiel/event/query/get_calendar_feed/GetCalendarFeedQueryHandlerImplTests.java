@@ -63,7 +63,7 @@ class GetCalendarFeedQueryHandlerImplTests {
 
     assertThat(calendar)
         .contains(
-            "UID:" + event.getId().value() + "@ovejafiel\r\n",
+            "UID:" + event.getId().value() + "@srtomy\r\n",
             "SUMMARY:Culto · Iglesia\r\n",
             "LOCATION:Av. Siempre Viva 123\r\n",
             "DTSTART:20260105T150000Z\r\n",
