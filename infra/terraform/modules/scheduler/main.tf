@@ -41,7 +41,7 @@ resource "google_cloud_scheduler_job" "jobs" {
   for_each = var.jobs
 
   project     = var.project_id
-  region      = var.region
+  region      = var.scheduler_region
   name        = each.key
   description = each.value.description
   schedule    = each.value.schedule

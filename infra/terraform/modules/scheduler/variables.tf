@@ -3,9 +3,15 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Region of the Cloud Run service and of the scheduler jobs."
+  description = "Region of the Cloud Run service the jobs call (part of its URL)."
   type        = string
   default     = "southamerica-west1"
+}
+
+variable "scheduler_region" {
+  description = "Region where the Cloud Scheduler jobs live. Cloud Scheduler is not available in southamerica-west1 (Santiago); a job only calls a URL, so it can be in another region: São Paulo is the closest. Check the list with: gcloud scheduler locations list"
+  type        = string
+  default     = "southamerica-east1"
 }
 
 variable "service_name" {
