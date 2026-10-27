@@ -2,8 +2,8 @@ package org.ouracademy.srtomy.event.query.find_event_by_id;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.srtomy.event.EventFixtures.eventSeries;
 import static org.ouracademy.srtomy.event.EventFixtures.occurrenceOf;
-import static org.ouracademy.srtomy.event.EventFixtures.recurrentEvent;
 import static org.ouracademy.srtomy.event.EventFixtures.singleEvent;
 import static org.ouracademy.srtomy.organization.OrganizationFixtures.organization;
 import static org.ouracademy.srtomy.person.PersonFixtures.person;
@@ -17,14 +17,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ouracademy.srtomy.event.domain.EventId;
-import org.ouracademy.srtomy.event.repository.SingleEventRepository;
+import org.ouracademy.srtomy.event.domain.Recurrence;
+import org.ouracademy.srtomy.event.repository.EventRepository;
 import org.ouracademy.srtomy.organization.domain.Organization;
 import org.ouracademy.srtomy.party.domain.PartyId;
 
 @ExtendWith(MockitoExtension.class)
 class FindEventByIdQueryHandlerImplTests {
 
-  @Mock SingleEventRepository singleEventRepository;
+  @Mock EventRepository eventRepository;
 
   FindEventByIdQueryHandlerImpl handler;
 
@@ -32,7 +33,7 @@ class FindEventByIdQueryHandlerImplTests {
 
   @BeforeEach
   void setUp() {
-    handler = new FindEventByIdQueryHandlerImpl(singleEventRepository);
+    handler = new FindEventByIdQueryHandlerImpl(eventRepository);
   }
 
   @Test
@@ -40,7 +41,7 @@ class FindEventByIdQueryHandlerImplTests {
     var id = EventId.generate();
     var speakerId = PartyId.generate();
     var event = singleEvent(id, "Culto", church, List.of(person(speakerId, "Jose", "Mena")));
-    when(singleEventRepository.findById(id)).thenReturn(Optional.of(event));
+    when(eventRepository.findById(id)).thenReturn(Optional.of(event));
 
     var result = handler.handle(new FindEventByIdQuery(id)).orElseThrow();
 
@@ -55,27 +56,29 @@ class FindEventByIdQueryHandlerImplTests {
     assertThat(result.speakers())
         .singleElement()
         .satisfies(s -> assertThat(s.id()).isEqualTo(speakerId));
-    assertThat(result.recurrentEvent()).isNull();
+    assertThat(result.recurrence()).isNull();
   }
 
   @Test
-  void includesTheRecurrenceOfAnExpandedOccurrence() {
-    var recurrent = recurrentEvent(EventId.generate(), church);
-    var occurrence = occurrenceOf(recurrent, EventId.generate());
-    when(singleEventRepository.findById(occurrence.getId())).thenReturn(Optional.of(occurrence));
+  void includesTheRecurrenceOfAnOccurrenceOfASeries() {
+    var series = eventSeries(church);
+    var occurrence = occurrenceOf(series, EventId.generate());
+    when(eventRepository.findById(occurrence.getId())).thenReturn(Optional.of(occurrence));
 
     var result = handler.handle(new FindEventByIdQuery(occurrence.getId())).orElseThrow();
 
-    assertThat(result.recurrentEvent().id()).isEqualTo(recurrent.getId());
-    assertThat(result.recurrentEvent().daysOfWeek()).containsExactly(1, 3);
-    assertThat(result.recurrentEvent().endRecur()).isEqualTo(LocalDate.of(2026, 1, 14));
-    assertThat(result.recurrentEvent().organization().id()).isEqualTo(church.getId());
+    assertThat(result.recurrence().seriesId()).isEqualTo(series.getId());
+    assertThat(result.recurrence().frequency()).isEqualTo(Recurrence.Frequency.WEEKLY);
+    assertThat(result.recurrence().daysOfWeek()).containsExactly(1, 3);
+    assertThat(result.recurrence().endType()).isEqualTo(Recurrence.EndType.UNTIL);
+    assertThat(result.recurrence().until()).isEqualTo(LocalDate.of(2026, 1, 14));
+    assertThat(result.recurrence().timeZone()).isEqualTo("UTC");
   }
 
   @Test
   void isEmptyWhenTheEventDoesNotExist() {
     var id = EventId.generate();
-    when(singleEventRepository.findById(id)).thenReturn(Optional.empty());
+    when(eventRepository.findById(id)).thenReturn(Optional.empty());
 
     assertThat(handler.handle(new FindEventByIdQuery(id))).isEmpty();
   }

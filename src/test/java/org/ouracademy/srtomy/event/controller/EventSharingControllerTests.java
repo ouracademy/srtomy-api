@@ -45,6 +45,7 @@ import org.ouracademy.srtomy.event.query.get_shared_event.GetSharedEventResult;
 import org.ouracademy.srtomy.event.query.list_event_registrations.ListEventRegistrationsQueryHandler;
 import org.ouracademy.srtomy.event.query.list_events_shared_with.ListEventsSharedWithQueryHandler;
 import org.ouracademy.srtomy.event.query.list_events_shared_with.SharedWithMeResult;
+import org.ouracademy.srtomy.event.query.list_my_events.ListMyEventsQueryHandler;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
 import org.ouracademy.srtomy.shared.TestSecurityConfig;
@@ -78,6 +79,7 @@ class EventSharingControllerTests {
   @MockitoBean GetSharedEventQueryHandler getSharedEventQueryHandler;
   @MockitoBean RegisterForEventCommandHandler registerForEventCommandHandler;
   @MockitoBean ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
+  @MockitoBean ListMyEventsQueryHandler listMyEventsQueryHandler;
 
   UUID id = UUID.randomUUID();
 
@@ -105,7 +107,6 @@ class EventSharingControllerTests {
         ZonedDateTime.parse("2030-01-05T12:00:00Z"),
         true,
         "Jóvenes",
-        null,
         null,
         canRegister,
         false);

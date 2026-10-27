@@ -1,8 +1,6 @@
 package org.ouracademy.srtomy.event.controller.dto;
 
-import java.time.LocalDate;
 import java.time.ZonedDateTime;
-import java.util.List;
 import org.ouracademy.srtomy.event.query.get_shared_event.GetSharedEventResult;
 
 /** The page of a shared event: what it is, where and when, and what the visitor can do. */
@@ -14,8 +12,7 @@ public record SharedEventResponse(
     ZonedDateTime end,
     boolean isACourse,
     String organizationName,
-    List<Integer> daysOfWeek,
-    LocalDate endRecur,
+    RecurrenceResponse recurrence,
     boolean canRegister,
     boolean registered) {
 
@@ -28,8 +25,7 @@ public record SharedEventResponse(
         result.end(),
         result.isACourse(),
         result.organizationName(),
-        result.daysOfWeek(),
-        result.endRecur(),
+        RecurrenceResponse.from(result.recurrence()),
         result.canRegister(),
         result.registered());
   }

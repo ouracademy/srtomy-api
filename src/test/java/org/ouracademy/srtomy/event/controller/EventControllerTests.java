@@ -10,6 +10,7 @@ import static org.ouracademy.srtomy.organization.OrganizationFixtures.organizati
 import static org.ouracademy.srtomy.person.PersonFixtures.person;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -29,6 +30,7 @@ import org.ouracademy.srtomy.event.command.edit_event.EditEventCommandHandler;
 import org.ouracademy.srtomy.event.domain.AccessLevel;
 import org.ouracademy.srtomy.event.domain.EventChangeOption;
 import org.ouracademy.srtomy.event.domain.EventId;
+import org.ouracademy.srtomy.event.domain.Recurrence;
 import org.ouracademy.srtomy.event.query.FindEventResult;
 import org.ouracademy.srtomy.event.query.authorize_event.AuthorizeEventQuery;
 import org.ouracademy.srtomy.event.query.authorize_event.AuthorizeEventQueryHandler;
@@ -178,7 +180,9 @@ class EventControllerTests {
                     {"name": "Servicio", "startTime": "2026-01-05T10:00:00-05:00",
                      "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s",
                      "speakerIds": ["%s"], "address": "Av. 1", "description": "d",
-                     "isACourse": true, "daysOfWeek": [1, 3], "endRecur": "2026-01-14"}
+                     "isACourse": true, "timeZone": "America/Lima",
+                     "recurrence": {"frequency": "WEEKLY", "interval": 2, "daysOfWeek": [1, 3],
+                                    "endType": "UNTIL", "until": "2026-01-14"}}
                     """
                         .formatted(organizationId, speakerId)))
         .hasStatus(201)
@@ -198,13 +202,22 @@ class EventControllerTests {
                 true,
                 new PartyId(organizationId),
                 List.of(new PartyId(speakerId)),
-                List.of(1, 3),
-                java.time.LocalDate.of(2026, 1, 14),
-                true));
+                Recurrence.of(
+                    Recurrence.Frequency.WEEKLY,
+                    2,
+                    List.of(1, 3),
+                    null,
+                    Recurrence.EndType.UNTIL,
+                    java.time.LocalDate.of(2026, 1, 14),
+                    null),
+                ZoneId.of("America/Lima")));
   }
 
   @Test
-  void createARecurrentEventWithoutDaysOfWeekIsRejected() {
+  void createARepeatingEventThatNeverEndsIsAccepted() {
+    given(createEventCommandHandler.handle(any()))
+        .willReturn(new CreateEventResult(EventId.generate()));
+
     assertThat(
             mvc.post()
                 .uri("/v1/events")
@@ -214,7 +227,29 @@ class EventControllerTests {
                     """
                     {"name": "Servicio", "startTime": "2026-01-05T10:00:00-05:00",
                      "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s",
-                     "endRecur": "2026-01-14"}
+                     "recurrence": {"frequency": "DAILY"}}
+                    """
+                        .formatted(UUID.randomUUID())))
+        .hasStatus(201);
+
+    var command = ArgumentCaptor.forClass(CreateEventCommand.class);
+    verify(createEventCommandHandler).handle(command.capture());
+    assertThat(command.getValue().recurrence().getEndType()).isEqualTo(Recurrence.EndType.NEVER);
+    assertThat(command.getValue().timeZone()).isEqualTo(ZoneId.of("UTC"));
+  }
+
+  @Test
+  void createARecurrenceEndingOnADateWithoutTheDateIsRejected() {
+    assertThat(
+            mvc.post()
+                .uri("/v1/events")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name": "Servicio", "startTime": "2026-01-05T10:00:00-05:00",
+                     "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s",
+                     "recurrence": {"frequency": "WEEKLY", "endType": "UNTIL"}}
                     """
                         .formatted(UUID.randomUUID())))
         .hasStatus(400);

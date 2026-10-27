@@ -52,5 +52,5 @@
 
 ## Assumptions
 
-- La vista «Mi espacio» y el nivel Miembro sin cargo siguen en la 008: hoy el directorio exige tener acceso en la iglesia (un cargo o ser Propietario).
+- La vista «Mi espacio» y el nivel Miembro sin cargo se hicieron en la [008](../008-my-space/spec.md): ser miembro de un nodo da el nivel Miembro y, con él, un lugar en el directorio de la iglesia.
 - Una persona sin edad registrada no sale en una página pública: la iglesia debe registrar la edad o la fecha de nacimiento de quien quiera mostrar.
