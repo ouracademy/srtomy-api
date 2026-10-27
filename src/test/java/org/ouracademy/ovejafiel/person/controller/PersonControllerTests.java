@@ -34,8 +34,8 @@ import org.ouracademy.ovejafiel.person.query.find_person_by_id.FindPersonByIdQue
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQuery;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQueryHandler;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleResult;
-import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
+import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

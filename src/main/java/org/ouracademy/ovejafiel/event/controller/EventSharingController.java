@@ -45,6 +45,9 @@ import org.ouracademy.ovejafiel.event.query.list_events_shared_with.ListEventsSh
 import org.ouracademy.ovejafiel.event.query.list_events_shared_with.ListEventsSharedWithQueryHandler;
 import org.ouracademy.ovejafiel.event.query.list_my_events.ListMyEventsQuery;
 import org.ouracademy.ovejafiel.event.query.list_my_events.ListMyEventsQueryHandler;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxStatus;
+import org.ouracademy.ovejafiel.outbox.query.find_outbox_statuses.FindOutboxStatusesQuery;
+import org.ouracademy.ovejafiel.outbox.query.find_outbox_statuses.FindOutboxStatusesQueryHandler;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -81,6 +84,7 @@ public class EventSharingController {
   RegisterForEventCommandHandler registerForEventCommandHandler;
   ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
   ListMyEventsQueryHandler listMyEventsQueryHandler;
+  FindOutboxStatusesQueryHandler findOutboxStatusesQueryHandler;
 
   @GetMapping("events/{id}/sharing")
   public EventSharingResponse sharing(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -122,8 +126,15 @@ public class EventSharingController {
         shareEventCommandHandler.handle(
             new ShareEventCommand(
                 jwt.getSubject(), new EventId(id), request.email(), request.role()));
+    // The attempt right after the commit has already run: report how it went.
+    var emailStatus =
+        findOutboxStatusesQueryHandler
+            .handle(new FindOutboxStatusesQuery(List.of(result.emailMessageId())))
+            .of(result.emailMessageId());
     return new ShareEventResponse(
-        EventSharingResponse.shareFrom(result.share()), result.emailSent());
+        EventSharingResponse.shareFrom(result.share()),
+        emailStatus == OutboxStatus.SENT,
+        emailStatus == null ? null : emailStatus.name());
   }
 
   @DeleteMapping("events/{id}/shares/{shareId}")

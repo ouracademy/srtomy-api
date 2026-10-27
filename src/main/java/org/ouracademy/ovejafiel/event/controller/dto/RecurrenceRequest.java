@@ -28,8 +28,8 @@ public class RecurrenceRequest {
   Integer count;
 
   /**
-   * @throws org.ouracademy.ovejafiel.shared.domain.DomainValidationException when the combination
-   *     is not a valid recurrence
+   * @throws org.ouracademy.ovejafiel.shared.domain.DomainValidationException when the combination is
+   *     not a valid recurrence
    */
   public Recurrence toRecurrence() {
     return Recurrence.of(frequency, interval, daysOfWeek, monthlyMode, endType, until, count);

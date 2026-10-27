@@ -21,7 +21,7 @@
 		<!-- SonarCloud; adjust org/projectKey if they differ in your SonarCloud
 		account -->
 		<sonar.organization>ouracademy</sonar.organization>
-		<sonar.projectKey>ouracademy_ovejafiel-api</sonar.projectKey>
+		<sonar.projectKey>ouracademy_srtomy-api</sonar.projectKey>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 	</properties>
 	<dependencies>

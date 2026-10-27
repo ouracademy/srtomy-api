@@ -15,8 +15,8 @@ import org.ouracademy.ovejafiel.event.command.renew_calendar_feed.RenewCalendarF
 import org.ouracademy.ovejafiel.event.command.renew_calendar_feed.RenewCalendarFeedResult;
 import org.ouracademy.ovejafiel.event.query.get_calendar_feed.GetCalendarFeedQueryHandler;
 import org.ouracademy.ovejafiel.event.query.get_calendar_feed.GetCalendarFeedResult;
-import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
+import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

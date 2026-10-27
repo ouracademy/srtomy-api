@@ -70,7 +70,7 @@ Rationale: small, reviewed, well-described changes are easier to verify, revert,
   never manual schema edits.
 - Formatting: Spotless with `google-java-format`, applied automatically on edit via the Claude Code
   hook, enforced in CI with `./mvnw spotless:check`.
-- Static analysis: SonarCloud (`ouracademy_ovejafiel-api`) runs as a CI job and as an independent
+- Static analysis: SonarCloud (`ouracademy_srtomy-api`) runs as a CI job and as an independent
   Automatic Analysis check; Security Hotspots require a human "Safe"/"Fixed" review in the SonarCloud
   dashboard — a code comment alone does not resolve one.
 - Dependency hygiene: Dependabot (weekly, Maven + GitHub Actions) plus `osv-scanner` and `gitleaks`

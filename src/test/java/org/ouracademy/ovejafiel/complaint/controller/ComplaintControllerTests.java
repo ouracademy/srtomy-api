@@ -12,8 +12,8 @@ import org.ouracademy.ovejafiel.complaint.command.create_complaint.CreateComplai
 import org.ouracademy.ovejafiel.complaint.command.create_complaint.CreateComplaintCommandHandler;
 import org.ouracademy.ovejafiel.complaint.command.create_complaint.CreateComplaintResult;
 import org.ouracademy.ovejafiel.complaint.domain.ComplaintId;
-import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
+import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

@@ -45,6 +45,9 @@ import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.F
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
+import org.ouracademy.ovejafiel.outbox.command.cancel_message.CancelMessageCommand;
+import org.ouracademy.ovejafiel.outbox.command.cancel_message.CancelMessageCommandHandler;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxMessageId;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.command.fill_person_email.FillPersonEmailCommand;
 import org.ouracademy.ovejafiel.person.command.fill_person_email.FillPersonEmailCommandHandler;
@@ -77,6 +80,7 @@ class CreateInvitationCommandHandlerImplTests {
   FindPeopleByEmailQueryHandler findPeopleByEmail = mock(FindPeopleByEmailQueryHandler.class);
   FillPersonEmailCommandHandler fillPersonEmail = mock(FillPersonEmailCommandHandler.class);
   SendEmailCommandHandler sendEmail = mock(SendEmailCommandHandler.class);
+  CancelMessageCommandHandler cancelMessage = mock(CancelMessageCommandHandler.class);
   EntityManager entityManager = mock(EntityManager.class);
   CreateInvitationCommandHandlerImpl handler =
       new CreateInvitationCommandHandlerImpl(
@@ -90,11 +94,14 @@ class CreateInvitationCommandHandlerImplTests {
           findPeopleByEmail,
           fillPersonEmail,
           sendEmail,
+          cancelMessage,
           entityManager);
 
   PartyId church = PartyId.generate();
   PartyId node = PartyId.generate();
   Organization nodeEntity = InvitationFixtures.organization(node, "Sede Norte");
+
+  OutboxMessageId queued = OutboxMessageId.generate();
 
   @BeforeEach
   void setUp() {
@@ -114,7 +121,7 @@ class CreateInvitationCommandHandlerImplTests {
     when(invitationRepository.save(any(Invitation.class))).thenAnswer(call -> call.getArgument(0));
     when(invitationRepository.findByOrganizationIdAndStatusOrderByCreateDateDesc(any(), any()))
         .thenReturn(List.of());
-    when(sendEmail.handle(any())).thenReturn(new SendEmailResult(true));
+    when(sendEmail.handle(any())).thenReturn(new SendEmailResult(queued));
     when(findPeopleByEmail.handle(any())).thenReturn(new FindPeopleByEmailResult(List.of()));
   }
 
@@ -159,7 +166,8 @@ class CreateInvitationCommandHandlerImplTests {
     assertThat(saved.getValue().getFirstName()).isEqualTo("Beto");
     assertThat(saved.getValue().getExpiresAt())
         .isBetween(LocalDateTime.now().plusDays(13), LocalDateTime.now().plusDays(15));
-    assertThat(result.emailSent()).isTrue();
+    assertThat(result.emailMessageId()).isEqualTo(queued);
+    assertThat(saved.getValue().getEmailMessageId()).isEqualTo(queued);
     assertThat(result.invitation().status()).isEqualTo(InvitationStatus.PENDING);
 
     var email = ArgumentCaptor.forClass(SendEmailCommand.class);
@@ -172,16 +180,6 @@ class CreateInvitationCommandHandlerImplTests {
     // Only the hash is stored.
     var token = email.getValue().text().replaceAll("(?s).*/invitacion/([A-Za-z0-9_-]{43}).*", "$1");
     assertThat(saved.getValue().getTokenHash()).isEqualTo(InvitationTokens.hash(token));
-  }
-
-  @Test
-  void aFailedEmailKeepsTheInvitation() {
-    when(sendEmail.handle(any())).thenReturn(new SendEmailResult(false));
-
-    var result = handler.handle(newPerson("beto@example.org", null));
-
-    assertThat(result.emailSent()).isFalse();
-    verify(invitationRepository).save(any(Invitation.class));
   }
 
   @Test
@@ -198,6 +196,22 @@ class CreateInvitationCommandHandlerImplTests {
 
     verify(same).revoke();
     verify(other, never()).revoke();
+  }
+
+  @Test
+  void theEmailOfTheReplacedInvitationIsWithdrawnSoItsDeadLinkNeverGoesOut() {
+    var old = mock(Invitation.class);
+    var oldMessage = OutboxMessageId.generate();
+    when(old.isFor("beto@example.org")).thenReturn(true);
+    when(old.getEmailMessageId()).thenReturn(oldMessage);
+    when(invitationRepository.findByOrganizationIdAndStatusOrderByCreateDateDesc(
+            node, InvitationStatus.PENDING))
+        .thenReturn(List.of(old));
+
+    handler.handle(newPerson("beto@example.org", null));
+
+    verify(cancelMessage).handle(new CancelMessageCommand(oldMessage));
+    verify(cancelMessage, never()).handle(new CancelMessageCommand(queued));
   }
 
   @Test

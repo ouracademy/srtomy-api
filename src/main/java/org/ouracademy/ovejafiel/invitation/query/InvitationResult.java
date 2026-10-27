@@ -5,6 +5,7 @@ import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.ovejafiel.invitation.domain.Invitation;
 import org.ouracademy.ovejafiel.invitation.domain.InvitationId;
 import org.ouracademy.ovejafiel.invitation.domain.InvitationStatus;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxStatus;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 
 /** An invitation as exposed outside the module (never the JPA entity, never the token). */
@@ -21,7 +22,9 @@ public record InvitationResult(
     InvitationStatus status,
     LocalDateTime expiresAt,
     String invitedByEmail,
-    LocalDateTime createDate) {
+    LocalDateTime createDate,
+    // Null until asked of the outbox (and for invitations from before it).
+    OutboxStatus emailStatus) {
 
   public static InvitationResult from(Invitation invitation, LocalDateTime now) {
     var position = invitation.getPosition();
@@ -48,7 +51,26 @@ public record InvitationResult(
         invitation.effectiveStatus(now),
         invitation.getExpiresAt(),
         invitation.getInvitedBy().getEmail(),
-        invitation.getCreateDate());
+        invitation.getCreateDate(),
+        null);
+  }
+
+  public InvitationResult withEmailStatus(OutboxStatus emailStatus) {
+    return new InvitationResult(
+        id,
+        email,
+        organizationId,
+        organizationName,
+        positionId,
+        positionName,
+        personId,
+        personName,
+        needsName,
+        status,
+        expiresAt,
+        invitedByEmail,
+        createDate,
+        emailStatus);
   }
 
   private static boolean isBlank(String value) {

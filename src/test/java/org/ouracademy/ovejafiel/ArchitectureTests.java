@@ -50,7 +50,8 @@ class ArchitectureTests {
           "iam",
           "notification",
           "invitation",
-          "directory");
+          "directory",
+          "outbox");
 
   /** Packages of a module that no other module may depend on. */
   private static final List<String> RESTRICTED_SUB_PACKAGES =
@@ -82,6 +83,25 @@ class ArchitectureTests {
    *       live under <module>.domain.., so this is allowed too. What stays forbidden is reaching
    *       that module's repository/gateway/controller.
    */
+  /*
+   * Work on a schedule is Cloud Scheduler's job, calling an internal endpoint (see
+   * docs/code-style.md, "Trabajo programado y sistemas externos"). An in-process scheduler would not
+   * run when Cloud Run has no instance up, and would run once per instance when it has several.
+   */
+  @ArchTest
+  static final ArchRule no_in_process_scheduling =
+      CompositeArchRule.of(
+              methods()
+                  .should()
+                  .notBeAnnotatedWith(org.springframework.scheduling.annotation.Scheduled.class)
+                  .allowEmptyShould(true))
+          .and(
+              noClasses()
+                  .should()
+                  .beAnnotatedWith(org.springframework.scheduling.annotation.EnableScheduling.class)
+                  .allowEmptyShould(true))
+          .because("scheduled work goes through Cloud Scheduler calling /v1/internal/**");
+
   @ArchTest
   static final ArchRule modules_only_expose_their_domain =
       CompositeArchRule.of(

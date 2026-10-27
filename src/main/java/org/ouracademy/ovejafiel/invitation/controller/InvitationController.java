@@ -32,6 +32,9 @@ import org.ouracademy.ovejafiel.invitation.query.list_invitations_for_email.List
 import org.ouracademy.ovejafiel.invitation.query.list_invitations_for_email.ListInvitationsForEmailQueryHandler;
 import org.ouracademy.ovejafiel.invitation.query.list_invitations_of_organization.ListInvitationsOfOrganizationQuery;
 import org.ouracademy.ovejafiel.invitation.query.list_invitations_of_organization.ListInvitationsOfOrganizationQueryHandler;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxStatus;
+import org.ouracademy.ovejafiel.outbox.query.find_outbox_statuses.FindOutboxStatusesQuery;
+import org.ouracademy.ovejafiel.outbox.query.find_outbox_statuses.FindOutboxStatusesQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.user.query.find_user_by_subject.FindUserBySubjectQuery;
 import org.ouracademy.ovejafiel.user.query.find_user_by_subject.FindUserBySubjectQueryHandler;
@@ -65,6 +68,7 @@ public class InvitationController {
   ListInvitationsOfOrganizationQueryHandler listInvitationsOfOrganizationQueryHandler;
   ListInvitationsForEmailQueryHandler listInvitationsForEmailQueryHandler;
   FindUserBySubjectQueryHandler findUserBySubjectQueryHandler;
+  FindOutboxStatusesQueryHandler findOutboxStatusesQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
   /** Invites someone to the node; inviting the same email again resends the email. */
@@ -88,8 +92,14 @@ public class InvitationController {
                 request.personId() == null ? null : new PartyId(request.personId()),
                 request.firstName(),
                 request.lastName()));
+    // The attempt right after the commit has already run: report how it went.
+    var emailStatus =
+        findOutboxStatusesQueryHandler
+            .handle(new FindOutboxStatusesQuery(List.of(result.emailMessageId())))
+            .of(result.emailMessageId());
     return new CreateInvitationResponse(
-        InvitationResponse.from(result.invitation()), result.emailSent());
+        InvitationResponse.from(result.invitation().withEmailStatus(emailStatus)),
+        emailStatus == OutboxStatus.SENT);
   }
 
   /** The pending invitations of the node (the expired ones are flagged by their status). */

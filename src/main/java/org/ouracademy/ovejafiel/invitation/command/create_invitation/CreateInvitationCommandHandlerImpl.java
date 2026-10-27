@@ -23,6 +23,8 @@ import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.F
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
+import org.ouracademy.ovejafiel.outbox.command.cancel_message.CancelMessageCommand;
+import org.ouracademy.ovejafiel.outbox.command.cancel_message.CancelMessageCommandHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.command.fill_person_email.FillPersonEmailCommand;
 import org.ouracademy.ovejafiel.person.command.fill_person_email.FillPersonEmailCommandHandler;
@@ -57,6 +59,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
   private final FindPeopleByEmailQueryHandler findPeopleByEmailQueryHandler;
   private final FillPersonEmailCommandHandler fillPersonEmailCommandHandler;
   private final SendEmailCommandHandler sendEmailCommandHandler;
+  private final CancelMessageCommandHandler cancelMessageCommandHandler;
   private final EntityManager entityManager;
 
   @Value("${app.url:http://localhost:3000}")
@@ -80,7 +83,7 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
     var tokenOfOld =
         invitationRepository.findByOrganizationIdAndStatusOrderByCreateDateDesc(
             command.organizationId(), InvitationStatus.PENDING);
-    tokenOfOld.stream().filter(old -> old.isFor(email)).forEach(Invitation::revoke);
+    tokenOfOld.stream().filter(old -> old.isFor(email)).forEach(this::replace);
 
     var token = InvitationTokens.newToken();
     var invitation =
@@ -103,10 +106,11 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
             .handle(new FindOrganizationByIdQuery(churchId))
             .map(FindOrganizationResult::name)
             .orElse("");
-    var sent =
+    var queued =
         sendEmailCommandHandler
             .handle(
                 new SendEmailCommand(
+                    "INVITATION",
                     email,
                     "Te invitaron a " + organization.name() + " en Sr. Tommy",
                     body(
@@ -116,8 +120,18 @@ class CreateInvitationCommandHandlerImpl implements CreateInvitationCommandHandl
                         position,
                         invitation,
                         token)))
-            .delivered();
-    return new CreateInvitationResult(InvitationResult.from(invitation, LocalDateTime.now()), sent);
+            .messageId();
+    invitation.emailQueued(queued);
+    return new CreateInvitationResult(
+        InvitationResult.from(invitation, LocalDateTime.now()), queued);
+  }
+
+  /** Revokes the invitation and withdraws its email if it has not left: its link is dead now. */
+  private void replace(Invitation old) {
+    old.revoke();
+    if (old.getEmailMessageId() != null) {
+      cancelMessageCommandHandler.handle(new CancelMessageCommand(old.getEmailMessageId()));
+    }
   }
 
   private String body(

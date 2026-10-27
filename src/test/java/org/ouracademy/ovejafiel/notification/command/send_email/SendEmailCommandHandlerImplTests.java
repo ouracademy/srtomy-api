@@ -1,38 +1,45 @@
 package org.ouracademy.ovejafiel.notification.command.send_email;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ouracademy.ovejafiel.notification.gateway.EmailGateway;
+import org.ouracademy.ovejafiel.outbox.command.enqueue_message.EnqueueMessageCommand;
+import org.ouracademy.ovejafiel.outbox.command.enqueue_message.EnqueueMessageCommandHandler;
+import org.ouracademy.ovejafiel.outbox.command.enqueue_message.EnqueueMessageResult;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxChannel;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxMessageId;
 
 @ExtendWith(MockitoExtension.class)
 class SendEmailCommandHandlerImplTests {
 
-  @Mock EmailGateway emailGateway;
+  @Mock EnqueueMessageCommandHandler enqueue;
   @InjectMocks SendEmailCommandHandlerImpl handler;
 
   @Test
-  void handsTheMessageToTheGateway() {
-    var result = handler.handle(new SendEmailCommand("ana@x.org", "Hola", "Texto"));
+  void queuesTheEmailOnTheEmailChannelAndReturnsItsId() {
+    var id = OutboxMessageId.generate();
+    when(enqueue.handle(any())).thenReturn(new EnqueueMessageResult(id));
 
-    assertThat(result.delivered()).isTrue();
-    verify(emailGateway).send("ana@x.org", "Hola", "Texto");
-  }
+    var result =
+        handler.handle(
+            new SendEmailCommand("INVITATION", "ana@x.org", "Hola", "Texto \"con\" comillas"));
 
-  @Test
-  void aProviderFailureIsReportedNotThrown() {
-    doThrow(new IllegalStateException("provider down"))
-        .when(emailGateway)
-        .send("a@x.org", "S", "T");
-
-    var result = handler.handle(new SendEmailCommand("a@x.org", "S", "T"));
-
-    assertThat(result.delivered()).isFalse();
+    assertThat(result.messageId()).isEqualTo(id);
+    var queued = ArgumentCaptor.forClass(EnqueueMessageCommand.class);
+    verify(enqueue).handle(queued.capture());
+    assertThat(queued.getValue().channel()).isEqualTo(OutboxChannel.EMAIL);
+    assertThat(queued.getValue().type()).isEqualTo("INVITATION");
+    assertThat(queued.getValue().recipient()).isEqualTo("ana@x.org");
+    assertThat(queued.getValue().payload())
+        .isEqualTo("{\"subject\":\"Hola\",\"text\":\"Texto \\\"con\\\" comillas\"}");
+    assertThat(queued.getValue().dispatchNow()).isTrue();
   }
 }

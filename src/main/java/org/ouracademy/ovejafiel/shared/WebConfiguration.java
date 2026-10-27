@@ -28,7 +28,6 @@ public class WebConfiguration implements WebMvcConfigurer {
     // any @RestController) so third-party controllers — e.g. springdoc's
     // OpenApiResource — aren't swept in: swagger-ui's bundled JS fetches
     // /v3/api-docs unprefixed, so prefixing it breaks swagger-ui.
-    configurer.addPathPrefix(
-        "/v1", HandlerTypePredicate.forBasePackage("org.ouracademy.ovejafiel"));
+    configurer.addPathPrefix("/v1", HandlerTypePredicate.forBasePackage("org.ouracademy.ovejafiel"));
   }
 }

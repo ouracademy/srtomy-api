@@ -1,10 +1,6 @@
 package org.ouracademy.ovejafiel.invitation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,11 +10,9 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.ouracademy.ovejafiel.iam.domain.PredefinedRoles;
-import org.ouracademy.ovejafiel.notification.command.send_email.SendEmailCommand;
-import org.ouracademy.ovejafiel.notification.command.send_email.SendEmailCommandHandler;
-import org.ouracademy.ovejafiel.notification.command.send_email.SendEmailResult;
+import org.ouracademy.ovejafiel.notification.SentEmails;
+import org.ouracademy.ovejafiel.notification.TestEmailConfig;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
 import org.ouracademy.ovejafiel.user.command.sync_current_user.SyncCurrentUserCommand;
@@ -30,8 +24,8 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
@@ -39,7 +33,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
  * accepting does (links the user to a person and gives the position) and the ways it is refused.
  */
 @SpringBootTest(classes = OvejafielApplication.class, webEnvironment = WebEnvironment.RANDOM_PORT)
-@Import(TestSecurityConfig.class)
+@Import({TestSecurityConfig.class, TestEmailConfig.class})
 class InvitationIntegrationTests {
 
   static final ObjectMapper JSON = new ObjectMapper();
@@ -48,7 +42,8 @@ class InvitationIntegrationTests {
   @LocalServerPort int port;
   @Autowired JwtEncoder jwtEncoder;
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
-  @MockitoBean SendEmailCommandHandler sendEmailCommandHandler;
+  @Autowired SentEmails sentEmails;
+  @Autowired JdbcTemplate jdbc;
 
   RestTestClient client;
   String alice;
@@ -59,8 +54,7 @@ class InvitationIntegrationTests {
   @BeforeEach
   void setUp() {
     client = RestTestClient.bindToServer().baseUrl("http://localhost:" + port + "/v1").build();
-    reset(sendEmailCommandHandler);
-    when(sendEmailCommandHandler.handle(any())).thenReturn(new SendEmailResult(true));
+    sentEmails.reset();
     alice = signUp("alice", true);
     bob = signUp("bob", true);
     carol = signUp("carol", true);
@@ -73,6 +67,7 @@ class InvitationIntegrationTests {
 
     var created = invite(alice, church.location, email(bob), usher, "Beto", "Pérez");
     assertThat(created.get("emailSent").asBoolean()).isTrue();
+    assertThat(created.get("invitation").get("emailStatus").asText()).isEqualTo("SENT");
     var token = lastToken();
     assertThat(json(alice, "/organizations/" + church.location + "/invitations").size())
         .isEqualTo(1);
@@ -231,6 +226,38 @@ class InvitationIntegrationTests {
     var foreign = createPosition(carol, other.id, "Ajeno", null);
 
     assertThat(inviteStatus(alice, church.location, email(bob), foreign)).isEqualTo(400);
+  }
+
+  @Test
+  void cancellingAnInvitationWhoseEmailHasNotLeftWithdrawsTheEmail() {
+    sentEmails.failWith(new IllegalStateException("503 from the provider"));
+    var created = invite(alice, church.location, email(bob), null, "Beto", "Pérez");
+    assertThat(emailStatusOf(email(bob))).isEqualTo("PENDING");
+
+    assertThat(
+            status(
+                alice,
+                HttpMethod.DELETE,
+                "/invitations/" + created.get("invitation").get("id").asText()))
+        .isEqualTo(204);
+
+    assertThat(emailStatusOf(email(bob))).isEqualTo("CANCELLED");
+  }
+
+  @Test
+  void invitingAgainWithdrawsTheEmailOfTheReplacedInvitation() {
+    sentEmails.failWith(new IllegalStateException("503 from the provider"));
+    invite(alice, church.location, email(bob), null, "Beto", "Pérez");
+    sentEmails.reset();
+
+    invite(alice, church.location, email(bob), null, "Beto", "Pérez");
+
+    assertThat(
+            jdbc.queryForList(
+                "select status from outbox_message where recipient = ? order by create_date",
+                String.class,
+                email(bob)))
+        .containsExactly("CANCELLED", "SENT");
   }
 
   @Test
@@ -431,13 +458,16 @@ class InvitationIntegrationTests {
 
   @Test
   void aFailedEmailIsReportedAndTheInvitationRemains() {
-    when(sendEmailCommandHandler.handle(any())).thenReturn(new SendEmailResult(false));
+    sentEmails.failWith(new IllegalStateException("403 from the provider"));
 
     var created = invite(alice, church.location, email(bob), null, "Beto", "Pérez");
 
     assertThat(created.get("emailSent").asBoolean()).isFalse();
-    assertThat(json(alice, "/organizations/" + church.location + "/invitations").size())
-        .isEqualTo(1);
+    // The email waits for its retry; the invitation shows it.
+    assertThat(created.get("invitation").get("emailStatus").asText()).isEqualTo("PENDING");
+    var pending = json(alice, "/organizations/" + church.location + "/invitations");
+    assertThat(pending.size()).isEqualTo(1);
+    assertThat(pending.get(0).get("emailStatus").asText()).isEqualTo("PENDING");
   }
 
   @Test
@@ -480,10 +510,16 @@ class InvitationIntegrationTests {
   }
 
   /** The token of the link in the last email sent. */
+  /** The outbox lives in another module: read its table, as an operator would. */
+  String emailStatusOf(String recipient) {
+    return jdbc.queryForObject(
+        "select status from outbox_message where recipient = ? order by create_date desc limit 1",
+        String.class,
+        recipient);
+  }
+
   String lastToken() {
-    var captor = ArgumentCaptor.forClass(SendEmailCommand.class);
-    verify(sendEmailCommandHandler, org.mockito.Mockito.atLeastOnce()).handle(captor.capture());
-    var matcher = LINK.matcher(captor.getValue().text());
+    var matcher = LINK.matcher(sentEmails.last().text());
     assertThat(matcher.find()).as("a link in the email").isTrue();
     return matcher.group(1);
   }

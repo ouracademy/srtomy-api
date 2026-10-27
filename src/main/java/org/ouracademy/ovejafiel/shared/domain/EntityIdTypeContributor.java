@@ -13,6 +13,7 @@ import org.ouracademy.ovejafiel.event.domain.EventShareId;
 import org.ouracademy.ovejafiel.iam.domain.IamRoleId;
 import org.ouracademy.ovejafiel.iam.domain.RoleBindingId;
 import org.ouracademy.ovejafiel.invitation.domain.InvitationId;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxMessageId;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.user.domain.UserId;
 import org.ouracademy.ovejafiel.user.domain.UserPersonLinkId;
@@ -40,5 +41,7 @@ public class EntityIdTypeContributor implements TypeContributor {
     javaTypeRegistry.addDescriptor(new EntityIdJavaType<>(EventShareId.class, EventShareId::new));
     javaTypeRegistry.addDescriptor(
         new EntityIdJavaType<>(EventRegistrationId.class, EventRegistrationId::new));
+    javaTypeRegistry.addDescriptor(
+        new EntityIdJavaType<>(OutboxMessageId.class, OutboxMessageId::new));
   }
 }

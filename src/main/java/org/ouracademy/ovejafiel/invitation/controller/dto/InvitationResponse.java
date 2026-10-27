@@ -17,7 +17,9 @@ public record InvitationResponse(
     String status,
     LocalDateTime expiresAt,
     String invitedByEmail,
-    LocalDateTime createDate) {
+    LocalDateTime createDate,
+    // PENDING (queued or retrying), SENT or FAILED; null for invitations from before the outbox.
+    String emailStatus) {
 
   public static InvitationResponse from(InvitationResult result) {
     return new InvitationResponse(
@@ -33,6 +35,7 @@ public record InvitationResponse(
         result.status().name(),
         result.expiresAt(),
         result.invitedByEmail(),
-        result.createDate());
+        result.createDate(),
+        result.emailStatus() == null ? null : result.emailStatus().name());
   }
 }

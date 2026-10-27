@@ -23,6 +23,7 @@ import org.ouracademy.ovejafiel.event.domain.EventShareId;
 import org.ouracademy.ovejafiel.iam.domain.IamRoleId;
 import org.ouracademy.ovejafiel.iam.domain.RoleBindingId;
 import org.ouracademy.ovejafiel.invitation.domain.InvitationId;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxMessageId;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.user.domain.UserId;
 import org.ouracademy.ovejafiel.user.domain.UserPersonLinkId;
@@ -41,7 +42,7 @@ class EntityIdTypeContributorTests {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<JavaType<?>> captor = ArgumentCaptor.forClass(JavaType.class);
-    verify(javaTypeRegistry, times(13)).addDescriptor(captor.capture());
+    verify(javaTypeRegistry, times(14)).addDescriptor(captor.capture());
 
     assertThat(captor.getAllValues())
         .<Class<?>>extracting(JavaType::getJavaTypeClass)
@@ -58,6 +59,7 @@ class EntityIdTypeContributorTests {
             UserId.class,
             UserPersonLinkId.class,
             IamRoleId.class,
-            RoleBindingId.class);
+            RoleBindingId.class,
+            OutboxMessageId.class);
   }
 }

@@ -52,6 +52,21 @@ public class TestSecurityConfig {
     return decoder;
   }
 
+  /** What Cloud Scheduler's token is checked against: its service account and this audience. */
+  public static final String SCHEDULER_EMAIL =
+      "api-scheduler@sr-tommy-test.iam.gserviceaccount.com";
+
+  public static final String INTERNAL_AUDIENCE = "https://api.srtommy.com/internal";
+
+  /** Same checks as production for {@code /v1/internal/**}, with the local key pair. */
+  @Bean
+  public InternalSecurityConfig.InternalJwtDecoder internalJwtDecoder(RSAKey rsaKey)
+      throws Exception {
+    var decoder = NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey()).build();
+    decoder.setJwtValidator(InternalSecurityConfig.validators(INTERNAL_AUDIENCE, SCHEDULER_EMAIL));
+    return new InternalSecurityConfig.InternalJwtDecoder(decoder);
+  }
+
   @Bean
   public JwtEncoder jwtEncoder(RSAKey rsaKey) {
     return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));
@@ -83,5 +98,26 @@ public class TestSecurityConfig {
             .build();
     var header = JwsHeader.with(SignatureAlgorithm.RS256).build();
     return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+  }
+
+  /** A Google ID token like the one Cloud Scheduler sends. */
+  public static String googleToken(
+      JwtEncoder encoder, String email, boolean emailVerified, String audience) {
+    var claims =
+        JwtClaimsSet.builder()
+            .issuer(InternalSecurityConfig.GOOGLE_ISSUER)
+            .subject("1234567890")
+            .audience(List.of(audience))
+            .claim("email", email)
+            .claim("email_verified", emailVerified)
+            .issuedAt(Instant.now())
+            .expiresAt(Instant.now().plusSeconds(60))
+            .build();
+    var header = JwsHeader.with(SignatureAlgorithm.RS256).build();
+    return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+  }
+
+  public static String schedulerToken(JwtEncoder encoder) {
+    return googleToken(encoder, SCHEDULER_EMAIL, true, INTERNAL_AUDIENCE);
   }
 }

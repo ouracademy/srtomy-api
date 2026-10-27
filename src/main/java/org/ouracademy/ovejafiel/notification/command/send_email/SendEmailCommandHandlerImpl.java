@@ -1,26 +1,42 @@
 package org.ouracademy.ovejafiel.notification.command.send_email;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.ouracademy.ovejafiel.notification.gateway.EmailGateway;
+import org.ouracademy.ovejafiel.outbox.command.enqueue_message.EnqueueMessageCommand;
+import org.ouracademy.ovejafiel.outbox.command.enqueue_message.EnqueueMessageCommandHandler;
+import org.ouracademy.ovejafiel.outbox.domain.OutboxChannel;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
+/**
+ * Queues the email in the caller's transaction (see the outbox): a task sends it soon after the
+ * commit and the queue retries it, so it exists if and only if the caller's change does.
+ */
 @Service
 @RequiredArgsConstructor
 class SendEmailCommandHandlerImpl implements SendEmailCommandHandler {
 
-  private final EmailGateway emailGateway;
+  private static final ObjectMapper JSON = new ObjectMapper();
+
+  private final EnqueueMessageCommandHandler enqueueMessageCommandHandler;
 
   @Override
+  @Transactional(propagation = Propagation.MANDATORY)
   public SendEmailResult handle(SendEmailCommand command) {
+    var content = new EmailContent(command.subject(), command.text());
     try {
-      emailGateway.send(command.to(), command.subject(), command.text());
-      return new SendEmailResult(true);
-    } catch (RuntimeException e) {
-      // The caller keeps its own work (the invitation exists and can be resent).
-      log.error("Could not send the email '{}' to {}", command.subject(), command.to(), e);
-      return new SendEmailResult(false);
+      var queued =
+          enqueueMessageCommandHandler.handle(
+              new EnqueueMessageCommand(
+                  OutboxChannel.EMAIL,
+                  command.type(),
+                  command.to(),
+                  JSON.writeValueAsString(content)));
+      return new SendEmailResult(queued.id());
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Could not write the email content", e);
     }
   }
 }
