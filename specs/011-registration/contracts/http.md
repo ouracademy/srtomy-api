@@ -20,3 +20,15 @@ Público y Mi espacio:
 | `POST /public/events/{slug}/registrations` | sin sesión (o con ella) | Body `{ticketTypeId, firstName, lastName, email, phoneNumber?}`; 201 `{alreadyRegistered, status, cancelCode}`; 403 si exige cuenta y no hay sesión, o no puede abrir el evento; 400 si está cerrada, fuera de ventana, agotada o falta algo. |
 | `DELETE /public/registrations/{cancelCode}` | sin sesión | 204; 404 si el código no existe. |
 | `GET /me/events` | sesión | Agrega por evento `registrationId`, `ticketName`, `registrationStatus`, `cancelCode`; `registered` es verdadero solo con inscripción activa. |
+
+Asistencia por QR (`ATTENDANCE_WRITE` salvo donde se indica):
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /events/{id}/attendance/qr` | `ATTENDANCE_WRITE` | `{token, url, expiresAt}`; el `url` es `/a/{token}` en la UI. |
+| `GET /public/attendance/{token}` | cualquiera | `{title, start, canMarkSelf}` para mostrar la pantalla de bienvenida; 404 si el token no es válido. |
+| `POST /public/attendance/{token}` | con o sin sesión | Body `{name?}`; con sesión marca a la persona vinculada. 200 `{kind: PERSON \| GUEST \| ANONYMOUS, alreadyMarked}`; 400 si venció o el evento no está en curso. |
+| `POST /events/{id}/attendance/check-in` | `ATTENDANCE_WRITE` | Body `{ticketCode}`; 200 `{registrationId, name, ticketName, alreadyCheckedIn, checkedInAt}`; 400 si no está confirmada. |
+| `PUT /events/{id}/registrations/{registrationId}/check-in` | `ATTENDANCE_WRITE` | Body `{checkedIn}`: marca o desmarca a mano. |
+| `PUT /events/{id}/attendance/guests` | `ATTENDANCE_WRITE` | Body `{guestCount, namedGuests[{name}]}`: visitantes de ese evento. |
+| `GET /me/events` | sesión | Agrega por evento `ticketCode` (para dibujar su QR) y `checkedIn`; `attended` une asistencia de persona e ingreso. |

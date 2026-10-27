@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-27
 
-**Status**: Plan (sin implementar). Pendiente de visto bueno del dueño del producto.
+**Status**: Plan (sin implementar). Incluye asistencia por QR (decisiones 15 a 21).
 
 **Input**: El dueño del producto revisó la 007 y la juzgó mal planteada: inscribirse era un *rol del enlace* (`REGISTRANT`, solo cursos) y solo guardaba nombre, correo y teléfono. Ahora la **inscripción es un proceso aparte** del compartir, como en Eventbrite o Meetup: el evento define si es gratis o tiene tipos de ticket, cupos y una ventana de venta. Diseño: [`docs/redesign.md`](../../docs/redesign.md) §7.
 
@@ -25,6 +25,14 @@
 12. **Compartir sin selectores de una sola opción (UI).** «Acceso general» queda en un select (Restringido / Toda la iglesia / Cualquiera con el enlace); el rol por persona (Lector/Editor) se mantiene. Se quita «Con el enlace». Un select de rol solo aparece si tiene dos valores con sentido.
 13. **Guardar explícito (UI).** El diálogo Compartir **nunca** guarda solo: acumula los cambios (personas agregadas o quitadas, acceso general) y un botón **Guardar**, deshabilitado hasta que algo cambie y con spinner mientras dura la petición (patrón `api-submit-button`), los aplica con los endpoints existentes. Sin cambios en el API para esto salvo quitar `linkRole`.
 14. **Crear/editar un evento** gana una sección «Inscripción»: Sin inscripción (por defecto), Gratis (cupo total opcional) o Con tipos de ticket. La UI guarda el evento y luego `PUT /events/{id}/registration`.
+
+15. **Asistencia sin inscripción sigue igual.** Un culto no tiene inscripción: se marca a las personas de la iglesia como hoy (`ATTENDANCE_WRITE`). La inscripción es opcional y la asistencia no la exige.
+16. **No se obliga a registrar a todo asistente.** La asistencia tiene tres niveles: **persona de la iglesia**, **visitante con nombre** (nombre opcional, sin cuenta ni ficha) y **visitantes sin nombre** (un contador, `event_attendance.guest_count`). «Hubo 5 personas nuevas» se anota con el contador. Guardar menos datos personales es deliberado; un visitante con nombre puede volverse persona después (deuda técnica, ítem 17).
+17. **Inscripción y asistencia se unen en el ingreso (*check-in*).** Una inscripción `CONFIRMED` puede marcarse como ingresada (`checked_in_at`, `check_in_source`). Si su cuenta está vinculada a una persona, también queda la asistencia de esa persona; si no, basta la marca en la inscripción. «Asistí» en Mi espacio une ambas.
+18. **Origen de cada marca**: `MANUAL` (pastor o ujier), `QR_EVENT`, `QR_TICKET`. Se guarda quién marcó (`marked_by`) y cuándo.
+19. **QR del evento** (se muestra en la puerta): token firmado con HMAC (`attendance.qr-secret`, secreto en Secret Manager) que cambia cada 5 minutos y solo vale entre 1 hora antes del inicio y 3 horas después del fin. Con sesión, marca a la persona vinculada a la cuenta; sin sesión, el visitante puede dejar un nombre (visitante con nombre) o entrar como visitante sin nombre. Repetir no duplica a la misma cuenta.
+20. **QR del ticket** (en el ticket del inscrito): lleva un `ticket_code` propio, distinto del `cancel_code` para que quien escanea no pueda cancelar. El ujier (`ATTENDANCE_WRITE`) lo escanea y la inscripción pasa a ingresada; escanear de nuevo responde «ya ingresó» con la hora, sin duplicar. Una inscripción en espera o cancelada no ingresa.
+21. **Quién marca**: el mismo permiso que hoy toma asistencia (`ATTENDANCE_WRITE`). El QR del evento lo genera quien tiene ese permiso; escanearlo no pide permiso (es la autoasistencia).
 
 ## User Scenarios & Testing
 
@@ -56,12 +64,34 @@ Los organizadores ven los inscritos con ticket y estado (`GET /events/{id}/regis
 
 `GET /me/events` devuelve inscripciones activas y asistencias con una marca por cada origen, y por cada inscripción su ticket, estado y código de cancelación. Una inscripción cancelada no cuenta como «registrado».
 
+### US6 — Culto sin inscripción (P1)
+
+1. **Given** un evento sin inscripción, **When** el pastor marca a 40 personas y anota 5 visitantes sin nombre, **Then** la asistencia guarda 40 personas y `guest_count = 5`.
+2. **Given** lo mismo, **Then** `GET /me/events` de una persona marcada lo lista en «Asistí».
+
+### US7 — QR del evento (P1)
+
+1. **Given** un evento en curso, **When** quien tiene `ATTENDANCE_WRITE` pide el QR, **Then** recibe un token que vence en 5 minutos.
+2. **Given** el token vigente y una cuenta vinculada a una persona, **When** escanea, **Then** la persona queda presente con origen `QR_EVENT`; repetir responde `alreadyMarked`.
+3. **Given** el token y sin sesión, **When** deja un nombre, **Then** queda un visitante con nombre; sin nombre, suma uno al contador.
+4. **Given** un token vencido o fuera de la ventana del evento, **Then** 400. **Given** un token alterado, **Then** 404.
+
+### US8 — QR del ticket (P1)
+
+1. **Given** una inscripción confirmada, **When** el ujier escanea su `ticket_code`, **Then** queda ingresada con origen `QR_TICKET`; **When** escanea otra vez, **Then** `alreadyCheckedIn` con la hora, sin duplicar.
+2. **Given** una inscripción en espera o cancelada o de otro evento, **Then** 400.
+3. **Given** quien no tiene `ATTENDANCE_WRITE`, **Then** 403.
+4. Los organizadores ven en la lista de inscritos quién ingresó y quién no, y pueden marcar o desmarcar a mano.
+
 ## Requirements
 
 - **FR-001**: La página pública MUST NOT exponer inscritos ni códigos de cancelación de otros.
 - **FR-002**: Las inscripciones simultáneas MUST NOT superar un cupo.
 - **FR-003**: El POST de inscripción MUST ser público y validar nombre, apellido, correo y ticket.
 - **FR-004**: Una inscripción por una cuenta con correo verificado MUST contar como propia aunque se hiciera sin sesión con ese correo.
+- **FR-006**: El token del QR del evento MUST NOT dar acceso a nada más que marcar asistencia de ese evento, y MUST expirar.
+- **FR-007**: El `ticket_code` MUST NOT permitir cancelar la inscripción ni verse en listas de otras personas.
+- **FR-008**: Marcar el ingreso MUST ser idempotente.
 - **FR-005**: Compartir (`PUT /events/{id}/sharing`) MUST NOT recibir ni devolver `linkRole`.
 
 ## Success Criteria
@@ -71,4 +101,4 @@ Los organizadores ven los inscritos con ticket y estado (`GET /events/{id}/regis
 
 ## Fuera de alcance (deuda técnica, `docs/redesign.md` §10)
 
-Pagos reales; correo de confirmación con el enlace de cancelación y aviso al pasar de la espera a confirmada (outbox); preguntas propias por evento; varios boletos por compra; convertir inscritos en personas de la iglesia (ítem 17); cancelar con un plazo.
+Pagos reales; reconocimiento de caras o validación de ubicación al escanear; correo de confirmación con el enlace de cancelación y aviso al pasar de la espera a confirmada (outbox); preguntas propias por evento; varios boletos por compra; convertir inscritos en personas de la iglesia (ítem 17); cancelar con un plazo.

@@ -11,6 +11,13 @@
 5. Cola de espera: `WaitlistPromotion` (helper en la raíz de `command/`) lo usan las dos formas de cancelar.
 6. `EventSharingController`: rutas nuevas y `SecurityConfig` abre `DELETE /v1/public/registrations/*`.
 
+## Asistencia por QR
+
+7. **Dominio** (`attendance`): `AttendanceSource`, `AttendanceGuest`; `EventAttendance` gana `guestCount`; `PersonEventAttendance` gana `source` y `markedBy`. En `event`: `EventRegistration` gana `ticketCode`, `checkedInAt`, `checkInSource`.
+8. **Token del QR**: `AttendanceQrToken` (HMAC-SHA256 de `eventId` y la ventana de 5 minutos; comparación en tiempo constante). El secreto se lee de `attendance.qr-secret` (Secret Manager en prod; valor fijo en pruebas).
+9. Comandos: `generate_attendance_qr` (consulta con ventana), `mark_self_attendance`, `check_in_with_ticket`, `set_registration_check_in`, `set_attendance_guests`. La unión inscripción↔persona usa `FindPersonLinkedToUser` del módulo `person`/`user` (sin tocar sus repositorios).
+10. `SecurityConfig` abre `GET`/`POST /v1/public/attendance/*`. Límite de peticiones por IP en el endpoint público (si no existe, deuda técnica).
+
 ## Constitution Check
 
 | Principio | Cómo |
