@@ -4,17 +4,31 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
 # Names must match exactly what application-prod.yml references via
-# ${sm@db-url}, ${sm@db-user}, ${sm@db-password}, ${sm@resend-api-key}.
+# ${sm@db-url}, ${sm@db-user}, ${sm@db-password}, ${sm@resend-api-key} and
+# ${sm@attendance-qr-secret}.
+
+# Signs the code in the attendance QR of an event. Generated here and kept in the state, so nobody
+# has to invent or pass it around; replacing the resource changes it (open QR codes stop working).
+resource "random_password" "attendance_qr_secret" {
+  length  = 48
+  special = false
+}
+
 locals {
   secrets = {
-    "db-url"         = var.jdbc_url
-    "db-user"        = var.database_user
-    "db-password"    = var.database_password
-    "resend-api-key" = var.resend_api_key
+    "db-url"               = var.jdbc_url
+    "db-user"              = var.database_user
+    "db-password"          = var.database_password
+    "resend-api-key"       = var.resend_api_key
+    "attendance-qr-secret" = random_password.attendance_qr_secret.result
   }
 }
 

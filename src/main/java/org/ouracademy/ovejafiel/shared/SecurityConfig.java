@@ -51,6 +51,8 @@ public class SecurityConfig {
               authorize
                   .requestMatchers(HttpMethod.DELETE, "/v1/public/registrations/*")
                   .permitAll();
+              // Marking your own attendance by scanning the QR of the event needs no account.
+              authorize.requestMatchers(HttpMethod.POST, "/v1/public/attendance/*").permitAll();
               // Swagger UI is only ever exposed locally — Cloud Run (dev and prod)
               // always runs with the "prod" profile, so this never opens it up there.
               if (local) {

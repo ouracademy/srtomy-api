@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import lombok.Getter;
 import org.ouracademy.ovejafiel.shared.domain.DomainObject;
 import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
@@ -104,7 +105,8 @@ public class EventRegistration extends DomainObject {
       throw new DomainValidationException("Solo una inscripción confirmada puede ingresar");
     }
     if (checkedInAt == null) {
-      this.checkedInAt = LocalDateTime.now();
+      // The database keeps microseconds: what we answer now must be what it will give back.
+      this.checkedInAt = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
       this.checkInSource = source;
     }
   }

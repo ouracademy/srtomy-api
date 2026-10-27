@@ -31,3 +31,6 @@ spring:
         enabled: false
 
 cors_origin: "*"
+
+attendance:
+  qr-secret: test-attendance-qr-secret

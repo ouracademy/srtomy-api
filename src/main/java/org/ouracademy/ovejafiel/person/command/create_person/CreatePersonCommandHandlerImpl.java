@@ -1,7 +1,6 @@
 package org.ouracademy.ovejafiel.person.command.create_person;
 
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.VISITOR;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -13,6 +12,7 @@ import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.Syn
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommandHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
+import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
 import org.springframework.stereotype.Service;
@@ -50,9 +50,18 @@ class CreatePersonCommandHandlerImpl implements CreatePersonCommandHandler {
     createAccountabilitiesCommandHandler.handle(
         new CreateAccountabilitiesCommand(
             List.of(
-                new CreateAccountabilityCommand(personId, organizationId, VISITOR),
+                new CreateAccountabilityCommand(
+                    personId, organizationId, stateOf(command).typeId()),
                 new CreateAccountabilityCommand(personId, organizationId, IS_PART_OF))));
 
     return new CreatePersonResult(personId);
+  }
+
+  /** Whoever holds a position is a member; otherwise the state asked for, or visitor. */
+  private static MemberState stateOf(CreatePersonCommand command) {
+    if (!command.positionIds().isEmpty()) {
+      return MemberState.MEMBER;
+    }
+    return command.memberState() == null ? MemberState.VISITOR : command.memberState();
   }
 }

@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
+import org.ouracademy.ovejafiel.person.domain.MemberState;
 
 @Getter
 @Setter
@@ -28,6 +29,12 @@ public class CreatePersonRequest {
   @PastOrPresent LocalDate birthdate;
 
   Boolean hasBeenBaptized;
+
+  /**
+   * How involved the person is: visitor, membership in progress or member. Optional (a new person
+   * is a visitor); whoever holds a position is a member whatever it says.
+   */
+  MemberState memberState;
 
   /** Ids of positions (cargos) of the church; others are ignored. */
   Set<UUID> positionIds = new HashSet<>();

@@ -20,7 +20,7 @@ public record PersonInfo(
   public void applyTo(Person person) {
     person.setFirstName(firstName);
     person.setLastName(lastName);
-    person.setName(firstName + " " + lastName);
+    person.setName((firstName + " " + (lastName == null ? "" : lastName)).trim());
     person.setPhoneNumber(phoneNumber);
     person.setEmail(email == null || email.isBlank() ? null : email.trim());
     person.setAge(age);

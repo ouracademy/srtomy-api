@@ -38,6 +38,17 @@ public final class EventFixtures {
     return event;
   }
 
+  /** A one-off event at the given times (tests about "now" need an event around now). */
+  public static Event eventBetween(
+      EventId id, String title, Organization organization, ZonedDateTime start, ZonedDateTime end) {
+    var event = new Event(title, start, end);
+    ReflectionTestUtils.setField(event, "id", id);
+    event.setOrganization(organization);
+    event.setAddress("Av. Siempre Viva 123");
+    event.setIsACourse(false);
+    return event;
+  }
+
   /** An event with an open registration; call {@code configure} again to change it. */
   public static EventRegistrationSetup registrationSetup(
       Event event, boolean waitlist, Integer capacity) {

@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.io.Serializable;
@@ -12,9 +14,11 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.ouracademy.ovejafiel.event.domain.CheckInSource;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.domain.Person;
+import org.ouracademy.ovejafiel.user.domain.AppUser;
 
 @Entity
 @Getter
@@ -45,12 +49,32 @@ public class PersonEventAttendance {
 
   LocalDateTime dateTime;
 
+  /** How they were marked as present. */
+  @Enumerated(EnumType.STRING)
+  CheckInSource source = CheckInSource.MANUAL;
+
+  /** Who marked them; null when they marked themselves. */
+  @ManyToOne
+  @JoinColumn(name = "marked_by")
+  AppUser markedBy;
+
   public PersonEventAttendance(
       EventAttendance eventAttendance, Person person, LocalDateTime dateTime) {
+    this(eventAttendance, person, dateTime, CheckInSource.MANUAL, null);
+  }
+
+  public PersonEventAttendance(
+      EventAttendance eventAttendance,
+      Person person,
+      LocalDateTime dateTime,
+      CheckInSource source,
+      AppUser markedBy) {
     this.eventAttendance = eventAttendance;
     this.person = person;
     this.id = new Id(this.eventAttendance.getId(), this.person.getId());
     this.dateTime = dateTime;
+    this.source = source;
+    this.markedBy = markedBy;
   }
 
   PersonEventAttendance() {

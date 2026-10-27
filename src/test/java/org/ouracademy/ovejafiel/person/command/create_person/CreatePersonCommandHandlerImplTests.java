@@ -7,6 +7,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
+import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
+import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBERSHIP_IN_PROGRESS;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.VISITOR;
 
 import java.time.LocalDate;
@@ -31,6 +33,7 @@ import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.F
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.command.PersonInfo;
+import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
 
@@ -58,7 +61,7 @@ class CreatePersonCommandHandlerImplTests {
   }
 
   @Test
-  void handleSavesThePersonSyncsPositionsAndMakesThemAVisitorThatIsPartOfTheOrganization() {
+  void handleSavesThePersonSyncsPositionsAndMakesThemAMemberThatIsPartOfTheOrganization() {
     var organizationId = PartyId.generate();
     var churchId = PartyId.generate();
     var pastor = AccountabilityTypeId.generate();
@@ -90,7 +93,70 @@ class CreatePersonCommandHandlerImplTests {
         .handle(
             new CreateAccountabilitiesCommand(
                 List.of(
+                    new CreateAccountabilityCommand(result.id(), organizationId, MEMBER),
+                    new CreateAccountabilityCommand(result.id(), organizationId, IS_PART_OF))));
+  }
+
+  private void churchOf(PartyId organizationId) {
+    when(findChurchOfOrganizationQueryHandler.handle(
+            new FindChurchOfOrganizationQuery(organizationId)))
+        .thenReturn(Optional.of(new FindChurchOfOrganizationResult(PartyId.generate())));
+    when(personRepository.save(any(Person.class))).thenAnswer(call -> call.getArgument(0));
+  }
+
+  @Test
+  void aNewPersonWithoutPositionsOrStateIsAVisitor() {
+    var organizationId = PartyId.generate();
+    churchOf(organizationId);
+
+    var result = handler.handle(new CreatePersonCommand("me", INFO, organizationId, Set.of()));
+
+    verify(createAccountabilitiesCommandHandler)
+        .handle(
+            new CreateAccountabilitiesCommand(
+                List.of(
                     new CreateAccountabilityCommand(result.id(), organizationId, VISITOR),
+                    new CreateAccountabilityCommand(result.id(), organizationId, IS_PART_OF))));
+  }
+
+  @Test
+  void theStateAskedForIsTheOneTheyStartWith() {
+    var organizationId = PartyId.generate();
+    churchOf(organizationId);
+
+    var result =
+        handler.handle(
+            new CreatePersonCommand(
+                "me", INFO, organizationId, Set.of(), MemberState.MEMBERSHIP_IN_PROGRESS));
+
+    verify(createAccountabilitiesCommandHandler)
+        .handle(
+            new CreateAccountabilitiesCommand(
+                List.of(
+                    new CreateAccountabilityCommand(
+                        result.id(), organizationId, MEMBERSHIP_IN_PROGRESS),
+                    new CreateAccountabilityCommand(result.id(), organizationId, IS_PART_OF))));
+  }
+
+  @Test
+  void aPositionMakesThemAMemberWhateverTheStateAsked() {
+    var organizationId = PartyId.generate();
+    churchOf(organizationId);
+
+    var result =
+        handler.handle(
+            new CreatePersonCommand(
+                "me",
+                INFO,
+                organizationId,
+                Set.of(AccountabilityTypeId.generate()),
+                MemberState.VISITOR));
+
+    verify(createAccountabilitiesCommandHandler)
+        .handle(
+            new CreateAccountabilitiesCommand(
+                List.of(
+                    new CreateAccountabilityCommand(result.id(), organizationId, MEMBER),
                     new CreateAccountabilityCommand(result.id(), organizationId, IS_PART_OF))));
   }
 

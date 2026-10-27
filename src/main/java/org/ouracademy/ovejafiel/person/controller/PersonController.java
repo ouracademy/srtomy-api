@@ -94,7 +94,8 @@ public class PersonController {
                 jwt.getSubject(),
                 info(request),
                 organizationId,
-                positionIds(request.getPositionIds())))
+                positionIds(request.getPositionIds()),
+                request.getMemberState()))
         .id()
         .value();
   }
@@ -118,7 +119,8 @@ public class PersonController {
                     new PartyId(id),
                     info(request),
                     organizationId,
-                    positionIds(request.getPositionIds())))
+                    positionIds(request.getPositionIds()),
+                    request.getMemberState()))
             .map(result -> result.id().value()));
   }
 
