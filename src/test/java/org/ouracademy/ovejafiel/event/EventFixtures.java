@@ -8,8 +8,12 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
+import org.ouracademy.ovejafiel.event.domain.EventRegistration;
+import org.ouracademy.ovejafiel.event.domain.EventRegistrationSetup;
 import org.ouracademy.ovejafiel.event.domain.EventSeries;
 import org.ouracademy.ovejafiel.event.domain.Recurrence;
+import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
+import org.ouracademy.ovejafiel.event.domain.TicketType;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -32,6 +36,25 @@ public final class EventFixtures {
     event.setDescription("Culto dominical");
     event.setIsACourse(false);
     return event;
+  }
+
+  /** An event with an open registration; call {@code configure} again to change it. */
+  public static EventRegistrationSetup registrationSetup(
+      Event event, boolean waitlist, Integer capacity) {
+    var setup = new EventRegistrationSetup(event);
+    setup.configure(true, false, waitlist, capacity);
+    return setup;
+  }
+
+  public static TicketType ticket(Event event, String name, Integer quantity) {
+    var ticket = new TicketType(event, 0);
+    ticket.describe(name, 0, "PEN", quantity, null, null);
+    return ticket;
+  }
+
+  public static EventRegistration registration(
+      Event event, TicketType ticket, String email, RegistrationStatus status) {
+    return new EventRegistration(event, ticket, null, "Lu", "Mora", email, null, status);
   }
 
   /** Mondays and Wednesdays, 3pm to 5pm UTC, from 2026-01-05 until 2026-01-14. */

@@ -2,7 +2,10 @@ package org.ouracademy.ovejafiel.event.query.list_my_events;
 
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.event.domain.EventRegistrationId;
+import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.ouracademy.ovejafiel.user.query.find_user_by_subject.FindUserBySubjectQuery;
 import org.ouracademy.ovejafiel.user.query.find_user_by_subject.FindUserBySubjectQueryHandler;
@@ -38,7 +41,17 @@ class ListMyEventsQueryHandlerImpl implements ListMyEventsQueryHandler {
                                 row.getOrganizationName(),
                                 row.getRegistered(),
                                 row.getAttended(),
-                                row.getSlug()))
+                                row.getSlug(),
+                                row.getRegistrationId() == null
+                                    ? null
+                                    : new EventRegistrationId(
+                                        UUID.fromString(row.getRegistrationId())),
+                                row.getTicketName(),
+                                row.getRegistrationStatus() == null
+                                    ? null
+                                    : RegistrationStatus.valueOf(row.getRegistrationStatus()),
+                                row.getCancelCode(),
+                                row.getTicketCode()))
                     .toList())
         .orElse(List.of());
   }

@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.event.query.list_event_registrations;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +16,9 @@ class ListEventRegistrationsQueryHandlerImpl implements ListEventRegistrationsQu
   @Override
   @Transactional(readOnly = true)
   public List<EventRegistrationResult> handle(ListEventRegistrationsQuery query) {
-    return eventRegistrationRepository.findByEventIdOrderByCreateDate(query.eventId()).stream()
+    return eventRegistrationRepository
+        .findByEventIdAndStatusNotOrderByCreateDate(query.eventId(), RegistrationStatus.CANCELLED)
+        .stream()
         .map(
             registration ->
                 new EventRegistrationResult(
@@ -25,7 +28,11 @@ class ListEventRegistrationsQueryHandlerImpl implements ListEventRegistrationsQu
                     registration.getEmail(),
                     registration.getPhoneNumber(),
                     registration.getUser() != null,
-                    registration.getCreateDate()))
+                    registration.getTicketType().getName(),
+                    registration.getStatus(),
+                    registration.getCreateDate(),
+                    registration.getCheckedInAt(),
+                    registration.getCheckInSource()))
         .toList();
   }
 }

@@ -18,8 +18,10 @@ import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.ovejafiel.complaint.domain.ComplaintId;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventRegistrationId;
+import org.ouracademy.ovejafiel.event.domain.EventRegistrationSetupId;
 import org.ouracademy.ovejafiel.event.domain.EventSeriesId;
 import org.ouracademy.ovejafiel.event.domain.EventShareId;
+import org.ouracademy.ovejafiel.event.domain.TicketTypeId;
 import org.ouracademy.ovejafiel.iam.domain.IamRoleId;
 import org.ouracademy.ovejafiel.iam.domain.RoleBindingId;
 import org.ouracademy.ovejafiel.invitation.domain.InvitationId;
@@ -42,7 +44,7 @@ class EntityIdTypeContributorTests {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<JavaType<?>> captor = ArgumentCaptor.forClass(JavaType.class);
-    verify(javaTypeRegistry, times(14)).addDescriptor(captor.capture());
+    verify(javaTypeRegistry, times(16)).addDescriptor(captor.capture());
 
     assertThat(captor.getAllValues())
         .<Class<?>>extracting(JavaType::getJavaTypeClass)
@@ -51,6 +53,8 @@ class EntityIdTypeContributorTests {
             InvitationId.class,
             EventShareId.class,
             EventRegistrationId.class,
+            EventRegistrationSetupId.class,
+            TicketTypeId.class,
             EventId.class,
             EventSeriesId.class,
             AccountabilityId.class,

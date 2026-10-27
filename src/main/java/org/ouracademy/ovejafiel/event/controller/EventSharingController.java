@@ -8,10 +8,16 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.ouracademy.ovejafiel.event.command.cancel_event_registration.CancelEventRegistrationCommand;
 import org.ouracademy.ovejafiel.event.command.cancel_event_registration.CancelEventRegistrationCommandHandler;
+import org.ouracademy.ovejafiel.event.command.cancel_registration_by_code.CancelRegistrationByCodeCommand;
+import org.ouracademy.ovejafiel.event.command.cancel_registration_by_code.CancelRegistrationByCodeCommandHandler;
 import org.ouracademy.ovejafiel.event.command.register_for_event.RegisterForEventCommand;
 import org.ouracademy.ovejafiel.event.command.register_for_event.RegisterForEventCommandHandler;
+import org.ouracademy.ovejafiel.event.command.remove_event_registration.RemoveEventRegistrationCommand;
+import org.ouracademy.ovejafiel.event.command.remove_event_registration.RemoveEventRegistrationCommandHandler;
 import org.ouracademy.ovejafiel.event.command.renew_event_link.RenewEventLinkCommand;
 import org.ouracademy.ovejafiel.event.command.renew_event_link.RenewEventLinkCommandHandler;
+import org.ouracademy.ovejafiel.event.command.set_event_registration.SetEventRegistrationCommand;
+import org.ouracademy.ovejafiel.event.command.set_event_registration.SetEventRegistrationCommandHandler;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingCommand;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingCommandHandler;
 import org.ouracademy.ovejafiel.event.command.share_event.ShareEventCommand;
@@ -21,6 +27,8 @@ import org.ouracademy.ovejafiel.event.command.unshare_event.UnshareEventCommandH
 import org.ouracademy.ovejafiel.event.controller.dto.EventLinkResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.EventRegistrationRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.EventRegistrationResponse;
+import org.ouracademy.ovejafiel.event.controller.dto.EventRegistrationSetupRequest;
+import org.ouracademy.ovejafiel.event.controller.dto.EventRegistrationSetupResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.EventSharingRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.EventSharingResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.MyEventResponse;
@@ -33,8 +41,11 @@ import org.ouracademy.ovejafiel.event.domain.AccessLevel;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventRegistrationId;
 import org.ouracademy.ovejafiel.event.domain.EventShareId;
+import org.ouracademy.ovejafiel.event.domain.TicketTypeId;
 import org.ouracademy.ovejafiel.event.query.authorize_event.AuthorizeEventQuery;
 import org.ouracademy.ovejafiel.event.query.authorize_event.AuthorizeEventQueryHandler;
+import org.ouracademy.ovejafiel.event.query.get_event_registration.GetEventRegistrationQuery;
+import org.ouracademy.ovejafiel.event.query.get_event_registration.GetEventRegistrationQueryHandler;
 import org.ouracademy.ovejafiel.event.query.get_event_sharing.GetEventSharingQuery;
 import org.ouracademy.ovejafiel.event.query.get_event_sharing.GetEventSharingQueryHandler;
 import org.ouracademy.ovejafiel.event.query.get_shared_event.GetSharedEventQuery;
@@ -80,6 +91,10 @@ public class EventSharingController {
   UnshareEventCommandHandler unshareEventCommandHandler;
   ListEventRegistrationsQueryHandler listEventRegistrationsQueryHandler;
   CancelEventRegistrationCommandHandler cancelEventRegistrationCommandHandler;
+  CancelRegistrationByCodeCommandHandler cancelRegistrationByCodeCommandHandler;
+  GetEventRegistrationQueryHandler getEventRegistrationQueryHandler;
+  SetEventRegistrationCommandHandler setEventRegistrationCommandHandler;
+  RemoveEventRegistrationCommandHandler removeEventRegistrationCommandHandler;
   GetSharedEventQueryHandler getSharedEventQueryHandler;
   RegisterForEventCommandHandler registerForEventCommandHandler;
   ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
@@ -102,7 +117,7 @@ public class EventSharingController {
       @RequestBody @Valid EventSharingRequest request) {
     manage(jwt, id);
     setEventSharingCommandHandler.handle(
-        new SetEventSharingCommand(new EventId(id), request.generalAccess(), request.linkRole()));
+        new SetEventSharingCommand(new EventId(id), request.generalAccess()));
     return sharing(jwt, id);
   }
 
@@ -146,6 +161,54 @@ public class EventSharingController {
     return ResponseEntity.noContent().build();
   }
 
+  /** How the event takes sign-ups: tickets, seats, waitlist. */
+  @GetMapping("events/{id}/registration")
+  public EventRegistrationSetupResponse registration(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    manage(jwt, id);
+    return getEventRegistrationQueryHandler
+        .handle(new GetEventRegistrationQuery(new EventId(id)))
+        .map(EventRegistrationSetupResponse::from)
+        .orElseThrow(() -> new NoSuchElementException("Event not found"));
+  }
+
+  @PutMapping("events/{id}/registration")
+  public EventRegistrationSetupResponse setRegistration(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid EventRegistrationSetupRequest request) {
+    manage(jwt, id);
+    setEventRegistrationCommandHandler.handle(
+        new SetEventRegistrationCommand(
+            new EventId(id),
+            request.open(),
+            request.requiresAccount(),
+            request.waitlistEnabled(),
+            request.capacity(),
+            request.tickets().stream()
+                .map(
+                    ticket ->
+                        new SetEventRegistrationCommand.Ticket(
+                            ticket.id() == null ? null : new TicketTypeId(ticket.id()),
+                            ticket.name(),
+                            ticket.priceCents(),
+                            ticket.currency(),
+                            ticket.quantity(),
+                            ticket.salesStart(),
+                            ticket.salesEnd()))
+                .toList()));
+    return registration(jwt, id);
+  }
+
+  @DeleteMapping("events/{id}/registration")
+  public ResponseEntity<Void> removeRegistration(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    manage(jwt, id);
+    removeEventRegistrationCommandHandler.handle(
+        new RemoveEventRegistrationCommand(new EventId(id)));
+    return ResponseEntity.noContent().build();
+  }
+
   @GetMapping("events/{id}/registrations")
   public List<EventRegistrationResponse> registrations(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -167,7 +230,9 @@ public class EventSharingController {
     return ResponseEntity.noContent().build();
   }
 
-  /** The events and courses the signed-in user signed up for or attended, most recent first. */
+  /**
+   * The events and courses where the signed-in user has a place or was present, most recent first.
+   */
   @GetMapping("me/events")
   public List<MyEventResponse> myEvents(@AuthenticationPrincipal Jwt jwt) {
     return listMyEventsQueryHandler.handle(new ListMyEventsQuery(jwt.getSubject())).stream()
@@ -195,7 +260,7 @@ public class EventSharingController {
         .orElseThrow(() -> new NoSuchElementException("Event not found"));
   }
 
-  /** Signs up for a course through its link; anyone can when the link is open to anyone. */
+  /** Signs up for an event or course with a ticket; anyone who can open its page can. */
   @PostMapping("public/events/{slug}/registrations")
   @ResponseStatus(HttpStatus.CREATED)
   public RegistrationOutcomeResponse register(
@@ -207,11 +272,19 @@ public class EventSharingController {
             new RegisterForEventCommand(
                 slug,
                 subjectOf(jwt),
+                new TicketTypeId(request.ticketTypeId()),
                 request.firstName(),
                 request.lastName(),
                 request.email(),
                 request.phoneNumber()));
-    return new RegistrationOutcomeResponse(result.alreadyRegistered());
+    return RegistrationOutcomeResponse.from(result);
+  }
+
+  /** Cancels a sign-up with the code its owner kept; no account needed. */
+  @DeleteMapping("public/registrations/{cancelCode}")
+  public ResponseEntity<Void> cancelWithCode(@PathVariable String cancelCode) {
+    cancelRegistrationByCodeCommandHandler.handle(new CancelRegistrationByCodeCommand(cancelCode));
+    return ResponseEntity.noContent().build();
   }
 
   private void manage(Jwt jwt, UUID eventId) {

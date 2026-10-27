@@ -1,12 +1,17 @@
 package org.ouracademy.ovejafiel.event.command.register_for_event;
 
 import jakarta.persistence.EntityManager;
+import java.time.ZonedDateTime;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.event.domain.EventRegistration;
+import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.query.EventAccess;
+import org.ouracademy.ovejafiel.event.query.Seats;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
+import org.ouracademy.ovejafiel.event.repository.EventRegistrationSetupRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
+import org.ouracademy.ovejafiel.event.repository.TicketTypeRepository;
 import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.ouracademy.ovejafiel.user.domain.AppUser;
 import org.springframework.security.access.AccessDeniedException;
@@ -18,8 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandler {
 
   private final EventRepository eventRepository;
+  private final EventRegistrationSetupRepository setupRepository;
+  private final TicketTypeRepository ticketTypeRepository;
   private final EventRegistrationRepository eventRegistrationRepository;
   private final EventAccess eventAccess;
+  private final Seats seats;
   private final EntityManager entityManager;
 
   @Override
@@ -29,28 +37,69 @@ class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandl
         eventRepository
             .findByShareSlug(command.slug())
             .orElseThrow(() -> new NoSuchElementException("Event not found"));
-    if (!eventAccess.canRegister(command.subject(), event)) {
-      throw new AccessDeniedException("La inscripción por este enlace no está abierta");
+    if (!eventAccess.canOpen(command.subject(), event)) {
+      throw new AccessDeniedException("No puede inscribirse en este evento");
     }
+    // The lock keeps two people from taking the last seat at the same time.
+    var setup =
+        setupRepository
+            .lockByEventId(event.getId())
+            .orElseThrow(() -> new DomainValidationException("Este evento no tiene inscripción"));
+    if (!setup.isOpen()) {
+      throw new DomainValidationException("La inscripción está cerrada");
+    }
+    var user = eventAccess.verifiedUser(command.subject());
+    if (setup.isRequiresAccount() && user == null) {
+      throw new AccessDeniedException("Inicie sesión con un correo verificado para inscribirse");
+    }
+
     var firstName = required(command.firstName(), "Indique su nombre");
     var lastName = required(command.lastName(), "Indique su apellido");
     var email = command.email() == null ? "" : command.email().trim().toLowerCase();
     if (!email.contains("@")) {
       throw new DomainValidationException("El correo no es válido");
     }
-    if (eventRegistrationRepository.existsByEventIdAndEmailIgnoreCase(event.getId(), email)) {
-      return new RegisterForEventResult(true);
+
+    var existing =
+        eventRegistrationRepository.findFirstByEventIdAndEmailIgnoreCaseAndStatusNot(
+            event.getId(), email, RegistrationStatus.CANCELLED);
+    if (existing.isPresent()) {
+      var found = existing.get();
+      return new RegisterForEventResult(
+          true, found.getStatus(), found.getCancelCode(), found.getTicketCode());
     }
-    var user = eventAccess.verifiedUser(command.subject());
-    eventRegistrationRepository.save(
-        new EventRegistration(
-            event,
-            user == null ? null : entityManager.getReference(AppUser.class, user.id()),
-            firstName,
-            lastName,
-            email,
-            blankToNull(command.phoneNumber())));
-    return new RegisterForEventResult(false);
+
+    var ticket =
+        ticketTypeRepository
+            .findById(command.ticketTypeId())
+            .filter(found -> found.getEvent().getId().equals(event.getId()))
+            .orElseThrow(() -> new DomainValidationException("Elija un ticket"));
+    if (!ticket.isOnSale(ZonedDateTime.now())) {
+      throw new DomainValidationException("La venta de este ticket no está abierta");
+    }
+
+    RegistrationStatus status;
+    if (seats.hasRoom(setup, ticket, seats.confirmedByTicket(event.getId()))) {
+      status = RegistrationStatus.CONFIRMED;
+    } else if (setup.isWaitlistEnabled()) {
+      status = RegistrationStatus.WAITLISTED;
+    } else {
+      throw new DomainValidationException("Se agotaron los lugares de este ticket");
+    }
+
+    var saved =
+        eventRegistrationRepository.save(
+            new EventRegistration(
+                event,
+                ticket,
+                user == null ? null : entityManager.getReference(AppUser.class, user.id()),
+                firstName,
+                lastName,
+                email,
+                blankToNull(command.phoneNumber()),
+                status));
+    return new RegisterForEventResult(
+        false, saved.getStatus(), saved.getCancelCode(), saved.getTicketCode());
   }
 
   private static String required(String value, String message) {

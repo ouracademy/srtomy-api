@@ -3,14 +3,12 @@ package org.ouracademy.ovejafiel.event.controller.dto;
 import java.util.List;
 import java.util.UUID;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
-import org.ouracademy.ovejafiel.event.domain.LinkRole;
 import org.ouracademy.ovejafiel.event.domain.ShareRole;
 import org.ouracademy.ovejafiel.event.query.EventSharingResult;
 
 /** How an event is shared; the link of the shared page is {@code /e/{slug}}. */
 public record EventSharingResponse(
     GeneralAccess generalAccess,
-    LinkRole linkRole,
     String slug,
     boolean isACourse,
     List<ShareResponse> shares,
@@ -30,7 +28,6 @@ public record EventSharingResponse(
   public static EventSharingResponse from(EventSharingResult result) {
     return new EventSharingResponse(
         result.generalAccess(),
-        result.linkRole(),
         result.slug(),
         result.isACourse(),
         result.shares().stream().map(ShareResponse::from).toList(),
