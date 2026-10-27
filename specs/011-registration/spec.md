@@ -27,12 +27,12 @@
 14. **Crear/editar un evento** gana una sección «Inscripción»: Sin inscripción (por defecto), Gratis (cupo total opcional) o Con tipos de ticket. La UI guarda el evento y luego `PUT /events/{id}/registration`.
 
 15. **Asistencia sin inscripción sigue igual.** Un culto no tiene inscripción: se marca a las personas de la iglesia como hoy (`ATTENDANCE_WRITE`). La inscripción es opcional y la asistencia no la exige.
-16. **No se obliga a registrar a todo asistente.** La asistencia tiene tres niveles: **persona de la iglesia**, **visitante con nombre** (nombre opcional, sin cuenta ni ficha) y **visitantes sin nombre** (un contador, `event_attendance.guest_count`). «Hubo 5 personas nuevas» se anota con el contador. Guardar menos datos personales es deliberado; un visitante con nombre puede volverse persona después (deuda técnica, ítem 17).
-17. **Inscripción y asistencia se unen en el ingreso (*check-in*).** Una inscripción `CONFIRMED` puede marcarse como ingresada (`checked_in_at`, `check_in_source`). Si su cuenta está vinculada a una persona, también queda la asistencia de esa persona; si no, basta la marca en la inscripción. «Asistí» en Mi espacio une ambas.
-18. **Origen de cada marca**: `MANUAL` (pastor o ujier), `QR_EVENT`, `QR_TICKET`. Se guarda quién marcó (`marked_by`) y cuándo.
-19. **QR del evento** (se muestra en la puerta): token firmado con HMAC (`attendance.qr-secret`, secreto en Secret Manager) que cambia cada 5 minutos y solo vale entre 1 hora antes del inicio y 3 horas después del fin. Con sesión, marca a la persona vinculada a la cuenta; sin sesión, el visitante puede dejar un nombre (visitante con nombre) o entrar como visitante sin nombre. Repetir no duplica a la misma cuenta.
-20. **QR del ticket** (en el ticket del inscrito): lleva un `ticket_code` propio, distinto del `cancel_code` para que quien escanea no pueda cancelar. El ujier (`ATTENDANCE_WRITE`) lo escanea y la inscripción pasa a ingresada; escanear de nuevo responde «ya ingresó» con la hora, sin duplicar. Una inscripción en espera o cancelada no ingresa.
-21. **Quién marca**: el mismo permiso que hoy toma asistencia (`ATTENDANCE_WRITE`). El QR del evento lo genera quien tiene ese permiso; escanearlo no pide permiso (es la autoasistencia).
+16. **El visitante es una persona con estado.** Quien llega por primera vez se registra como **persona** de la iglesia con un estado: `VISITOR` (visitante), `ATTENDEE` (asistente) o `MEMBER` (miembro); `person.church_status`, obligatorio, `MEMBER` para las personas que ya existen. Con eso el seguimiento es natural: marcado el visitante, el estado va subiendo cuando se involucra. **Tener un cargo implica ser miembro**: al asignar un cargo (pastor, ujier, líder...) el estado sube a `MEMBER` solo y no puede bajarse mientras lo tenga. Solo el nombre es obligatorio; teléfono y correo son opcionales. **Además hay un contador** (`event_attendance.guest_count`, «visitantes sin nombre»): hay quien no quiere dar su nombre o al ujier se le pasó anotarlo; el número real de asistentes se conserva igual. El visitante **no recibe acceso** por serlo: el piso de «Miembro» (008) se aplica solo a `ATTENDEE` y `MEMBER`.
+17. **Inscripción y asistencia se unen en el ingreso (*check-in*).** Una inscripción `CONFIRMED` puede marcarse como ingresada (`checked_in_at`, `check_in_source`). Si su cuenta está vinculada a una persona, también queda la asistencia de esa persona; si no, basta la marca en la inscripción. «Asistí» en Mi espacio une ambas. Quien tiene ticket puede marcar su ingreso de **dos maneras**, las mismas que usan Eventbrite y Meetup: el ujier **escanea su QR del ticket**, o la persona **escanea el QR del evento** que muestra el ujier (entonces su inscripción se encuentra por cuenta o correo verificado y también queda ingresada).
+18. **Origen de cada marca**: `MANUAL` (pastor o ujier), `QR_EVENT`, `QR_TICKET`. Se guarda quién marcó (`marked_by`, nulo si se marcó solo) y cuándo.
+19. **QR del evento** (el ujier lo muestra; la gente lo escanea): token firmado con HMAC (`attendance.qr-secret`, secreto en Secret Manager) que cambia cada 5 minutos y solo vale entre 1 hora antes del inicio y 3 horas después del fin. Con sesión, marca a la persona vinculada a la cuenta (y su inscripción, si la tiene). Sin sesión, el visitante puede dejar su **nombre** (se crea una persona `VISITOR` marcada presente) o **entrar sin nombre** (suma al contador). Repetir no duplica a la misma cuenta.
+20. **QR del ticket** (el asistente lo muestra; el ujier lo escanea): lleva un `ticket_code` propio, distinto del `cancel_code` para que quien escanea no pueda cancelar. El ujier (`ATTENDANCE_WRITE`) lo escanea y la inscripción pasa a ingresada; escanear de nuevo responde «ya ingresó» con la hora, sin duplicar. Una inscripción en espera o cancelada no ingresa.
+21. **Quién marca**: quien tiene `ATTENDANCE_WRITE` (pastor, ujier) marca a mano, escanea tickets, anota visitantes, sube el contador y **genera el QR del evento** que enseña a la gente. Escanear el QR del evento no pide permiso (es la autoasistencia que el ujier invita a hacer).
 
 ## User Scenarios & Testing
 
@@ -66,15 +66,17 @@ Los organizadores ven los inscritos con ticket y estado (`GET /events/{id}/regis
 
 ### US6 — Culto sin inscripción (P1)
 
-1. **Given** un evento sin inscripción, **When** el pastor marca a 40 personas y anota 5 visitantes sin nombre, **Then** la asistencia guarda 40 personas y `guest_count = 5`.
-2. **Given** lo mismo, **Then** `GET /me/events` de una persona marcada lo lista en «Asistí».
+1. **Given** un evento sin inscripción, **When** el pastor marca a 40 personas, anota a «Rosa Díaz» como visitante y suma 5 visitantes sin nombre, **Then** la asistencia guarda 41 personas (Rosa con estado `VISITOR`) y `guest_count = 5`.
+2. **Given** un visitante, **When** se le asigna un cargo, **Then** su estado pasa a `MEMBER` y ya no puede bajarse mientras lo tenga.
+3. **Given** lo mismo, **Then** `GET /me/events` de una persona marcada lo lista en «Asistí».
 
 ### US7 — QR del evento (P1)
 
 1. **Given** un evento en curso, **When** quien tiene `ATTENDANCE_WRITE` pide el QR, **Then** recibe un token que vence en 5 minutos.
 2. **Given** el token vigente y una cuenta vinculada a una persona, **When** escanea, **Then** la persona queda presente con origen `QR_EVENT`; repetir responde `alreadyMarked`.
-3. **Given** el token y sin sesión, **When** deja un nombre, **Then** queda un visitante con nombre; sin nombre, suma uno al contador.
-4. **Given** un token vencido o fuera de la ventana del evento, **Then** 400. **Given** un token alterado, **Then** 404.
+3. **Given** el token y sin sesión, **When** deja un nombre, **Then** se crea una persona `VISITOR` marcada presente; sin nombre, suma uno al contador.
+4. **Given** una cuenta con ticket, **When** escanea el QR del evento, **Then** queda ingresada su inscripción además de su asistencia.
+5. **Given** un token vencido o fuera de la ventana del evento, **Then** 400. **Given** un token alterado, **Then** 404.
 
 ### US8 — QR del ticket (P1)
 

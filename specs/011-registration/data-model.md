@@ -17,5 +17,5 @@ Migración `V1.10.0__registration.sql` (hacia adelante; no toca migraciones apli
 | `event_registration.ticket_code` | Único, aleatorio (96 bits); es el contenido del QR del ticket. |
 | `event_registration.checked_in_at`, `check_in_source` | Nulos hasta que ingresa; `check_in_source` en `MANUAL`/`QR_EVENT`/`QR_TICKET`. |
 | `event_attendance.guest_count` | Entero `>= 0`: visitantes sin nombre. |
-| `attendance_guest` | `id`, `event_id`, `name`, `source`, `marked_by` (nulo), `create_date`: visitante con nombre, sin ficha. |
+| `person.church_status` | `VISITOR`/`ATTENDEE`/`MEMBER` (CHECK), `NOT NULL`; las filas existentes quedan `MEMBER`. Asignar un cargo lo sube a `MEMBER`. |
 | `person_event_attendance.source`, `marked_by` | Origen de la marca (por defecto `MANUAL`) y quién la hizo. |

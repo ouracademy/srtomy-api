@@ -13,10 +13,10 @@
 
 ## Asistencia por QR
 
-- [ ] T011 Migración de asistencia: `ticket_code`, `checked_in_at`, `check_in_source`, `guest_count`, `attendance_guest`, origen en `person_event_attendance`.
+- [ ] T011 Migración de asistencia: `ticket_code`, `checked_in_at`, `check_in_source`, `guest_count`, `person.church_status`, origen en `person_event_attendance`.
 - [ ] T012 `AttendanceQrToken` (firma, ventana, expiración) y su configuración.
 - [ ] T013 `generate_attendance_qr`, `mark_self_attendance` (cuenta, visitante con nombre, anónimo) con idempotencia.
-- [ ] T014 `check_in_with_ticket`, `set_registration_check_in`, `set_attendance_guests`.
+- [ ] T014 `check_in_with_ticket`, `set_registration_check_in`, `set_attendance_guests`, `add_visitor` y el estado de la persona (`set_church_status`, sube a `MEMBER` con un cargo; `user_access` excluye a `VISITOR`).
 - [ ] T015 `GET /me/events` con `ticketCode`/`checkedIn` y «Asistí» unificado.
 - [ ] T016 Pruebas unitarias por handler y de integración (token vencido, alterado, doble escaneo, espera/cancelada, sin permiso).
 

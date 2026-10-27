@@ -27,8 +27,10 @@ Asistencia por QR (`ATTENDANCE_WRITE` salvo donde se indica):
 | --- | --- | --- |
 | `GET /events/{id}/attendance/qr` | `ATTENDANCE_WRITE` | `{token, url, expiresAt}`; el `url` es `/a/{token}` en la UI. |
 | `GET /public/attendance/{token}` | cualquiera | `{title, start, canMarkSelf}` para mostrar la pantalla de bienvenida; 404 si el token no es válido. |
-| `POST /public/attendance/{token}` | con o sin sesión | Body `{name?}`; con sesión marca a la persona vinculada. 200 `{kind: PERSON \| GUEST \| ANONYMOUS, alreadyMarked}`; 400 si venció o el evento no está en curso. |
+| `POST /public/attendance/{token}` | con o sin sesión | Body `{name?}`; con sesión marca a la persona vinculada (y su inscripción). Sin sesión, con nombre crea una persona `VISITOR`; sin nombre suma al contador. 200 `{kind: PERSON \| VISITOR \| ANONYMOUS, alreadyMarked}`; 400 si venció o el evento no está en curso. |
 | `POST /events/{id}/attendance/check-in` | `ATTENDANCE_WRITE` | Body `{ticketCode}`; 200 `{registrationId, name, ticketName, alreadyCheckedIn, checkedInAt}`; 400 si no está confirmada. |
 | `PUT /events/{id}/registrations/{registrationId}/check-in` | `ATTENDANCE_WRITE` | Body `{checkedIn}`: marca o desmarca a mano. |
-| `PUT /events/{id}/attendance/guests` | `ATTENDANCE_WRITE` | Body `{guestCount, namedGuests[{name}]}`: visitantes de ese evento. |
+| `POST /events/{id}/attendance/visitors` | `ATTENDANCE_WRITE` | Body `{name, phone?, email?}`: crea una persona `VISITOR` en el nodo del evento y la marca presente. |
+| `PUT /events/{id}/attendance/guests` | `ATTENDANCE_WRITE` | Body `{guestCount}`: visitantes sin nombre de ese evento. |
+| `PUT /people/{id}/church-status` | `people.write` | Body `{status}`; 400 si baja de `MEMBER` a alguien con cargo. |
 | `GET /me/events` | sesión | Agrega por evento `ticketCode` (para dibujar su QR) y `checkedIn`; `attended` une asistencia de persona e ingreso. |
