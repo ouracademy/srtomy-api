@@ -48,13 +48,13 @@ class AttemptDeliveryCommandHandlerImplTests {
   }
 
   @Test
-  void aMessageThatIsNotThereMeansTheEnqueuingTransactionDidNotCommit() {
+  void aMessageThatIsNotThereYetAsksTheQueueToCallAgain() {
     var unknown = new OutboxMessage(OutboxChannel.EMAIL, "X", "b@x.org", "{}");
 
     var result = handler.handle(new AttemptDeliveryCommand(unknown.getId()));
 
     assertThat(result.outcome()).isEqualTo(Outcome.NOT_FOUND);
-    assertThat(result.shouldRetry()).isFalse();
+    assertThat(result.shouldRetry()).isTrue();
   }
 
   @Test

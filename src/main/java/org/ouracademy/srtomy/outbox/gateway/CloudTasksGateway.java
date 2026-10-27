@@ -1,5 +1,7 @@
 package org.ouracademy.srtomy.outbox.gateway;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ class CloudTasksGateway implements TaskGateway {
   private final String targetUrl;
   private final String serviceAccountEmail;
   private final String audience;
+  private final Duration delay;
 
   CloudTasksGateway(
       String apiUrl,
@@ -33,12 +36,14 @@ class CloudTasksGateway implements TaskGateway {
       String location,
       String targetUrl,
       String serviceAccountEmail,
-      String audience) {
+      String audience,
+      Duration delay) {
     this.project = project;
     this.location = location;
     this.targetUrl = targetUrl.replaceAll("/+$", "");
     this.serviceAccountEmail = serviceAccountEmail;
     this.audience = audience;
+    this.delay = delay;
     this.restClient =
         RestClient.builder()
             .baseUrl(apiUrl)
@@ -65,6 +70,10 @@ class CloudTasksGateway implements TaskGateway {
         Map.of(
             "name",
             taskName,
+            // A few seconds ahead, so the transaction that enqueues the message has committed
+            // when the task arrives.
+            "scheduleTime",
+            Instant.now().plus(delay).toString(),
             "httpRequest",
             Map.of(
                 "httpMethod",

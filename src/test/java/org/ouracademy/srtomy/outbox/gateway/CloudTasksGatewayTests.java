@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +55,8 @@ class CloudTasksGatewayTests {
         "southamerica-west1",
         "https://api.example.run.app/",
         "api-scheduler@sr-tommy-dev.iam.gserviceaccount.com",
-        "https://api.srtommy.com/internal");
+        "https://api.srtommy.com/internal",
+        Duration.ofSeconds(5));
   }
 
   @Test
@@ -74,6 +77,17 @@ class CloudTasksGatewayTests {
             "\"url\":\"https://api.example.run.app/v1/internal/outbox/" + id.value() + "/attempt\"")
         .contains("\"serviceAccountEmail\":\"api-scheduler@sr-tommy-dev.iam.gserviceaccount.com\"")
         .contains("\"audience\":\"https://api.srtommy.com/internal\"");
+  }
+
+  @Test
+  void theTaskIsScheduledAFewSecondsAheadSoTheCommitIsDoneWhenItArrives() {
+    var before = Instant.now();
+
+    gateway().schedule(id, OutboxChannel.EMAIL);
+
+    var scheduled =
+        Instant.parse(body.get().replaceAll("(?s).*\"scheduleTime\":\"([^\"]+)\".*", "$1"));
+    assertThat(scheduled).isBetween(before.plusSeconds(4), Instant.now().plusSeconds(6));
   }
 
   @Test

@@ -3,6 +3,7 @@ package org.ouracademy.srtomy.outbox.gateway;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,8 @@ class TaskGatewayConfig {
       @Value("${tasks.target-url:}") String targetUrl,
       @Value("${tasks.api-url:https://cloudtasks.googleapis.com}") String apiUrl,
       @Value("${internal.scheduler-email:}") String serviceAccountEmail,
-      @Value("${internal.audience:https://api.srtommy.com/internal}") String audience) {
+      @Value("${internal.audience:https://api.srtommy.com/internal}") String audience,
+      @Value("${tasks.delay-seconds:5}") long delaySeconds) {
     if (project.isBlank() || targetUrl.isBlank() || serviceAccountEmail.isBlank()) {
       log.warn(
           "Cloud Tasks is not configured: messages are delivered once, right after the commit,"
@@ -35,7 +37,14 @@ class TaskGatewayConfig {
       return new LocalTaskGateway(attemptDeliveryCommandHandler);
     }
     return new CloudTasksGateway(
-        apiUrl, googleAccessToken(), project, location, targetUrl, serviceAccountEmail, audience);
+        apiUrl,
+        googleAccessToken(),
+        project,
+        location,
+        targetUrl,
+        serviceAccountEmail,
+        audience,
+        Duration.ofSeconds(delaySeconds));
   }
 
   /** The runtime service account's token (Cloud Run supplies it), refreshed when it expires. */
