@@ -133,10 +133,10 @@ class OutboxIntegrationTests {
   }
 
   @Test
-  void aMessageThatDoesNotExistEndsTheTask() {
+  void aMessageNotVisibleYetAnswers503SoTheQueueCallsAgain() {
     post("/v1/internal/outbox/" + java.util.UUID.randomUUID() + "/attempt", scheduler())
         .expectStatus()
-        .isOk();
+        .isEqualTo(503);
   }
 
   @Test

@@ -82,6 +82,16 @@ public class OutboxMessage extends DomainObject {
     payload = null;
   }
 
+  /** Withdraws it if it still waits; returns whether it did. */
+  public boolean cancel() {
+    if (status != OutboxStatus.PENDING) {
+      return false;
+    }
+    status = OutboxStatus.CANCELLED;
+    payload = null;
+    return true;
+  }
+
   private static String truncated(String error) {
     return error == null ? null : error.substring(0, Math.min(error.length(), MAX_ERROR_LENGTH));
   }

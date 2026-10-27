@@ -35,7 +35,10 @@ public class OutboxController {
   AttemptDeliveryCommandHandler attemptDeliveryCommandHandler;
   DispatchPendingCommandHandler dispatchPendingCommandHandler;
 
-  /** 503 asks Cloud Tasks to call again later; any other answer ends the task. */
+  /**
+   * 503 asks Cloud Tasks to call again later (a failed attempt, or a message that is not visible
+   * yet); any other answer ends the task.
+   */
   @PostMapping("internal/outbox/{id}/attempt")
   public ResponseEntity<AttemptDeliveryResult> attempt(@PathVariable UUID id) {
     var result =
