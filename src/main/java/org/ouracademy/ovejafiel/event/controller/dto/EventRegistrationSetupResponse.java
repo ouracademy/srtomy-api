@@ -18,9 +18,9 @@ public record EventRegistrationSetupResponse(
     long confirmed,
     long waitlisted,
     long checkedIn,
-    List<Ticket> tickets) {
+    List<TicketSetup> tickets) {
 
-  public record Ticket(
+  public record TicketSetup(
       UUID id,
       String name,
       int priceCents,
@@ -43,7 +43,7 @@ public record EventRegistrationSetupResponse(
         result.tickets().stream()
             .map(
                 ticket ->
-                    new Ticket(
+                    new TicketSetup(
                         ticket.id().value(),
                         ticket.name(),
                         ticket.priceCents(),

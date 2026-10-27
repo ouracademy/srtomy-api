@@ -18,9 +18,9 @@ public record EventRegistrationSetupRequest(
     boolean requiresAccount,
     boolean waitlistEnabled,
     @Min(1) Integer capacity,
-    @NotEmpty @Valid List<Ticket> tickets) {
+    @NotEmpty @Valid List<TicketRequest> tickets) {
 
-  public record Ticket(
+  public record TicketRequest(
       UUID id,
       @NotBlank @Size(max = 100) String name,
       @Min(0) int priceCents,
