@@ -80,7 +80,7 @@ heredan hacia abajo por `organization.parent_id`, como en IAM de GCP. Ver
 
 1. El handler guarda su cambio **y** encola un mensaje (`EnqueueMessageCommandHandler`, obligatoriamente dentro de la misma transacción). Para correo basta `SendEmailCommandHandler`, que encola un mensaje `EMAIL` y devuelve su id.
 2. Al confirmarse la transacción se intenta enviar de inmediato (`DrainOnCommit`, mejor esfuerzo, sin afectar la respuesta).
-3. Lo que falle se reintenta con espera creciente (10 min, 30 min, 2 h, 6 h, 12 h; luego `FAILED`) cuando **Cloud Scheduler** llama cada 10 minutos a `POST /v1/internal/outbox/drain`.
+3. Lo que falle se reintenta con espera creciente (1 min, 5 min, 30 min, 2 h, 12 h; luego `FAILED`) cuando **Cloud Scheduler** llama cada minuto a `POST /v1/internal/outbox/drain`.
 4. Quien necesite mostrar el estado guarda el id del mensaje y lo consulta con `FindOutboxStatusesQueryHandler` (`PENDING`, `SENT`, `FAILED`). La invitación lo muestra y permite reenviar.
 
 Para otro tipo de trabajo, un módulo implementa `OutboxMessageHandler` (su `type()` y un `handle(id, payload)`), que debe poder repetirse sin efecto doble: se entrega **al menos una vez**, y el id del mensaje sirve de clave de idempotencia con el proveedor (Resend la recibe como `Idempotency-Key`).

@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Called by Cloud Scheduler (never by the web app) every 10 minutes to retry the messages that are
- * due. Only the scheduler's service account may call it: see {@code InternalSecurityConfig}.
+ * Called by Cloud Scheduler (never by the web app) every minute to retry the messages that are due.
+ * Only the scheduler's service account may call it: see {@code InternalSecurityConfig}.
  */
 @RestController
 @AllArgsConstructor

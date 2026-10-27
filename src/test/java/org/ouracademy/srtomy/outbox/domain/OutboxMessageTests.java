@@ -31,10 +31,10 @@ class OutboxMessageTests {
   void eachFailureWaitsLongerBeforeTheNextAttempt() {
     var waits =
         new Duration[] {
-          Duration.ofMinutes(10),
+          Duration.ofMinutes(1),
+          Duration.ofMinutes(5),
           Duration.ofMinutes(30),
           Duration.ofHours(2),
-          Duration.ofHours(6),
           Duration.ofHours(12)
         };
     for (var wait : waits) {

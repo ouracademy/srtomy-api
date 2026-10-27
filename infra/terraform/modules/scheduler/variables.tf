@@ -30,7 +30,7 @@ variable "jobs" {
   default = {
     "drain-outbox" = {
       description = "Retries the emails that did not leave right after their commit (the first attempt is immediate, so this is only the safety net)."
-      schedule    = "*/10 * * * *"
+      schedule    = "* * * * *"
       path        = "/v1/internal/outbox/drain"
     }
     "extend-event-series" = {
