@@ -15,8 +15,8 @@ import org.ouracademy.ovejafiel.iam.query.get_effective_permissions.GetEffective
 import org.ouracademy.ovejafiel.iam.query.get_effective_permissions.GetEffectivePermissionsQueryHandler;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
-import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
+import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
 import org.ouracademy.ovejafiel.user.command.sync_current_user.SyncCurrentUserCommand;
 import org.ouracademy.ovejafiel.user.command.sync_current_user.SyncCurrentUserCommandHandler;

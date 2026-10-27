@@ -46,8 +46,8 @@ import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberSta
 import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberStateQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.get_member_state.MemberStateResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
-import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
+import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
