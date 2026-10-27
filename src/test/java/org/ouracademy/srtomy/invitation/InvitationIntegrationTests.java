@@ -1,10 +1,6 @@
 package org.ouracademy.srtomy.invitation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,11 +10,9 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.ouracademy.srtomy.iam.domain.PredefinedRoles;
-import org.ouracademy.srtomy.notification.command.send_email.SendEmailCommand;
-import org.ouracademy.srtomy.notification.command.send_email.SendEmailCommandHandler;
-import org.ouracademy.srtomy.notification.command.send_email.SendEmailResult;
+import org.ouracademy.srtomy.notification.SentEmails;
+import org.ouracademy.srtomy.notification.TestEmailConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
 import org.ouracademy.srtomy.shared.TestSecurityConfig;
 import org.ouracademy.srtomy.user.command.sync_current_user.SyncCurrentUserCommand;
@@ -31,7 +25,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
@@ -39,7 +32,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
  * accepting does (links the user to a person and gives the position) and the ways it is refused.
  */
 @SpringBootTest(classes = SrtomyApplication.class, webEnvironment = WebEnvironment.RANDOM_PORT)
-@Import(TestSecurityConfig.class)
+@Import({TestSecurityConfig.class, TestEmailConfig.class})
 class InvitationIntegrationTests {
 
   static final ObjectMapper JSON = new ObjectMapper();
@@ -48,7 +41,7 @@ class InvitationIntegrationTests {
   @LocalServerPort int port;
   @Autowired JwtEncoder jwtEncoder;
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
-  @MockitoBean SendEmailCommandHandler sendEmailCommandHandler;
+  @Autowired SentEmails sentEmails;
 
   RestTestClient client;
   String alice;
@@ -59,8 +52,7 @@ class InvitationIntegrationTests {
   @BeforeEach
   void setUp() {
     client = RestTestClient.bindToServer().baseUrl("http://localhost:" + port + "/v1").build();
-    reset(sendEmailCommandHandler);
-    when(sendEmailCommandHandler.handle(any())).thenReturn(new SendEmailResult(true));
+    sentEmails.reset();
     alice = signUp("alice", true);
     bob = signUp("bob", true);
     carol = signUp("carol", true);
@@ -73,6 +65,7 @@ class InvitationIntegrationTests {
 
     var created = invite(alice, church.location, email(bob), usher, "Beto", "Pérez");
     assertThat(created.get("emailSent").asBoolean()).isTrue();
+    assertThat(created.get("invitation").get("emailStatus").asText()).isEqualTo("SENT");
     var token = lastToken();
     assertThat(json(alice, "/organizations/" + church.location + "/invitations").size())
         .isEqualTo(1);
@@ -431,13 +424,16 @@ class InvitationIntegrationTests {
 
   @Test
   void aFailedEmailIsReportedAndTheInvitationRemains() {
-    when(sendEmailCommandHandler.handle(any())).thenReturn(new SendEmailResult(false));
+    sentEmails.failWith(new IllegalStateException("403 from the provider"));
 
     var created = invite(alice, church.location, email(bob), null, "Beto", "Pérez");
 
     assertThat(created.get("emailSent").asBoolean()).isFalse();
-    assertThat(json(alice, "/organizations/" + church.location + "/invitations").size())
-        .isEqualTo(1);
+    // The email waits for its retry; the invitation shows it.
+    assertThat(created.get("invitation").get("emailStatus").asText()).isEqualTo("PENDING");
+    var pending = json(alice, "/organizations/" + church.location + "/invitations");
+    assertThat(pending.size()).isEqualTo(1);
+    assertThat(pending.get(0).get("emailStatus").asText()).isEqualTo("PENDING");
   }
 
   @Test
@@ -481,9 +477,7 @@ class InvitationIntegrationTests {
 
   /** The token of the link in the last email sent. */
   String lastToken() {
-    var captor = ArgumentCaptor.forClass(SendEmailCommand.class);
-    verify(sendEmailCommandHandler, org.mockito.Mockito.atLeastOnce()).handle(captor.capture());
-    var matcher = LINK.matcher(captor.getValue().text());
+    var matcher = LINK.matcher(sentEmails.last().text());
     assertThat(matcher.find()).as("a link in the email").isTrue();
     return matcher.group(1);
   }

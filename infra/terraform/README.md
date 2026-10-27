@@ -14,6 +14,11 @@ image tag is more trouble than it's worth for a service this size.
 
 - `modules/cicd/` — WIF, Artifact Registry, the GitHub Actions deploy service account.
 - `modules/neon/` — one Neon project (database + branch + role) per environment.
+- `modules/scheduler/` — Cloud Scheduler jobs that call the API's internal endpoints (`POST /v1/internal/...`) with an ID
+  token of the `api-scheduler` service account: extend the event series and sweep the outbox, both
+  daily. Add a job in `var.jobs` for any new calendar work.
+- `modules/tasks/` — the Cloud Tasks queues of the outbox (`outbox-email`, ...), the retry policy, and the
+  permissions the API needs to create tasks.
 - `modules/db-secrets/` — wires the Neon module's outputs straight into Secret Manager,
   so the actual DB password never has to pass through a person's hands or a chat.
 - `environments/dev/` — `sr-tommy-dev`.
@@ -50,6 +55,17 @@ your shell before running Terraform:
 export NEON_API_KEY="..."
 export TF_VAR_resend_api_key="re_..."   # Resend API key (invitation and sharing emails)
 ```
+
+## Cloud Scheduler and Cloud Tasks
+
+After the first `terraform apply` (dev or prod):
+
+1. Copy the `api_url` output into the GitHub repository variable `DEV_API_URL` (or `PROD_API_URL`): the deploy workflow passes it to the API as `TASKS_TARGET_URL`. Without it the API delivers each message once, right after the commit, and never retries.
+2. Redeploy the API, so Cloud Run gets `INTERNAL_SCHEDULER_EMAIL` (the API only accepts ID tokens of that account), `TASKS_PROJECT` and `TASKS_TARGET_URL`.
+
+`modules/scheduler/` creates the `api-scheduler` service account and one job per entry of `var.jobs`. The jobs live in `southamerica-east1` because Cloud Scheduler does not exist in `southamerica-west1`; they still call the API in Santiago.
+`modules/tasks/` creates one queue per channel, in `southamerica-east1` for the same reason (`TASKS_LOCATION` in the deploy workflows must match); its `max_attempts` must equal `outbox.max-attempts` in
+`application-prod.yml`.
 
 ## Day to day
 

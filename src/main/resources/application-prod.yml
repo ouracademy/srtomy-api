@@ -14,3 +14,24 @@ spring:
 # Resend (https://resend.com) delivers the invitation emails. Without the key they are only logged.
 resend:
   api-key: ${sm@resend-api-key:}
+  # Must belong to a domain verified in Resend, or it only delivers to the account owner.
+  from: ${RESEND_FROM:Sr. Tommy <invitaciones@ovejafiel.com>}
+  reply-to: ${RESEND_REPLY_TO:}
+
+# Cloud Tasks delivers the outbox messages (emails): one task per message calls
+# POST /v1/internal/outbox/{id}/attempt on this service. Without the project and the URL messages
+# are delivered once, right after the commit, and never retried (local runs).
+tasks:
+  project: ${TASKS_PROJECT:}
+  location: ${TASKS_LOCATION:southamerica-east1}
+  target-url: ${TASKS_TARGET_URL:}
+
+# Attempts before a message is given up: the same number as max_attempts of the queues in
+# infra/terraform/modules/tasks.
+outbox:
+  max-attempts: 10
+
+# Cloud Scheduler and Cloud Tasks call /v1/internal/** with a Google ID token of this service account (Terraform:
+# modules/scheduler). With no account set, every call is refused.
+internal:
+  scheduler-email: ${INTERNAL_SCHEDULER_EMAIL:}

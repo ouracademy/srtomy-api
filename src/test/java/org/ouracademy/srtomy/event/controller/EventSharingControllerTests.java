@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,6 +47,10 @@ import org.ouracademy.srtomy.event.query.list_event_registrations.ListEventRegis
 import org.ouracademy.srtomy.event.query.list_events_shared_with.ListEventsSharedWithQueryHandler;
 import org.ouracademy.srtomy.event.query.list_events_shared_with.SharedWithMeResult;
 import org.ouracademy.srtomy.event.query.list_my_events.ListMyEventsQueryHandler;
+import org.ouracademy.srtomy.outbox.domain.OutboxMessageId;
+import org.ouracademy.srtomy.outbox.domain.OutboxStatus;
+import org.ouracademy.srtomy.outbox.query.find_outbox_statuses.FindOutboxStatusesQueryHandler;
+import org.ouracademy.srtomy.outbox.query.find_outbox_statuses.FindOutboxStatusesResult;
 import org.ouracademy.srtomy.shared.SecurityConfig;
 import org.ouracademy.srtomy.shared.SrtomyApplication;
 import org.ouracademy.srtomy.shared.TestSecurityConfig;
@@ -80,6 +85,7 @@ class EventSharingControllerTests {
   @MockitoBean RegisterForEventCommandHandler registerForEventCommandHandler;
   @MockitoBean ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
   @MockitoBean ListMyEventsQueryHandler listMyEventsQueryHandler;
+  @MockitoBean FindOutboxStatusesQueryHandler findOutboxStatusesQueryHandler;
 
   UUID id = UUID.randomUUID();
 
@@ -194,7 +200,11 @@ class EventSharingControllerTests {
         .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
     var share =
         new EventSharingResult.Share(EventShareId.generate(), "ana@x.org", ShareRole.VIEWER);
-    given(shareEventCommandHandler.handle(any())).willReturn(new ShareEventResult(share, true));
+    var messageId = OutboxMessageId.generate();
+    given(shareEventCommandHandler.handle(any()))
+        .willReturn(new ShareEventResult(share, messageId));
+    given(findOutboxStatusesQueryHandler.handle(any()))
+        .willReturn(new FindOutboxStatusesResult(Map.of(messageId, OutboxStatus.SENT)));
 
     var body =
         assertThat(
@@ -206,6 +216,7 @@ class EventSharingControllerTests {
             .hasStatus(201)
             .bodyJson();
     body.extractingPath("$.emailSent").isEqualTo(true);
+    body.extractingPath("$.emailStatus").isEqualTo("SENT");
     body.extractingPath("$.share.email").isEqualTo("ana@x.org");
     verify(shareEventCommandHandler)
         .handle(new ShareEventCommand("test-user", new EventId(id), "ana@x.org", ShareRole.VIEWER));

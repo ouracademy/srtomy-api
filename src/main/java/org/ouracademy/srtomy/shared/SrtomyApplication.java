@@ -3,7 +3,6 @@ package org.ouracademy.srtomy.shared;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Application entry point.
@@ -24,7 +23,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(scanBasePackages = SrtomyApplication.BASE_PACKAGE)
 @AutoConfigurationPackage(basePackages = SrtomyApplication.BASE_PACKAGE)
-@EnableScheduling
 public class SrtomyApplication {
 
   static final String BASE_PACKAGE = "org.ouracademy.srtomy";

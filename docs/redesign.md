@@ -187,14 +187,14 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 16  | Rol Editor de un evento compartido                   | API      | `PUT /events/{id}` aún no edita nada (`EditEventCommandHandler` es un TODO), así que compartir como Editor ya se guarda y se exige, pero todavía no permite cambiar nada. | Implementar la edición de eventos (la 007 solo deja listo el control de acceso).                                                                             | Pendiente (consultar) |
 | 17  | Inscritos de un curso que no son personas            | API y UI | La inscripción por enlace guarda nombre, correo y teléfono, pero no crea la persona de la iglesia ni toma asistencia con ellos.                                          | Un botón «Agregar a la iglesia» que cree la persona desde la inscripción y la una al nodo del curso.                                                         | Pendiente (consultar) |
 | 18  | Compartir una ocurrencia de una serie                | API y UI | Cada ocurrencia de una serie es un evento con identidad propia (desde la 010), pero el compartido todavía se hace evento por evento: no se comparte la serie completa de una vez. | Decidir si compartir una ocurrencia debe poder extenderse a toda la serie.                                                                                   | Pendiente (consultar) |
-| 19  | Extender series sin fin en Cloud Run                 | API      | `ExtendEventSeriesJob` usa `@Scheduled` dentro de la app; Cloud Run puede escalar a cero y no correrlo. Hoy cada serie recibe un año de ocurrencias al crearse.        | Disparar `ExtendEventSeriesCommand` desde Cloud Scheduler (endpoint interno) o dejar una instancia mínima con CPU siempre asignada.                          | Pendiente (consultar) |
+| 19  | Extender series sin fin en Cloud Run                 | API      | Era `ExtendEventSeriesJob` con `@Scheduled` dentro de la app; Cloud Run puede escalar a cero y no correrlo. | Hecho: `POST /v1/internal/events/extend-series`, llamado a diario (03:30 UTC) por Cloud Scheduler (`infra/terraform/modules/scheduler`). | Resuelta |
 | 20  | Zona horaria de la organización                      | API y UI | La zona de una serie se toma del navegador de quien la crea; no existe una zona por iglesia.                                                                              | Guardar la zona en la organización y usarla como valor por defecto al crear eventos.                                                                         | Pendiente (consultar) |
 
 ## 11. Trabajo futuro: centro de notificaciones (campana)
 
 No se construye en 005-009; queda documentado para no perder la idea. Una campana en la cabecera de la app, **genérica**: no pensada solo para invitaciones, sino para cualquier aviso dirigido a un usuario.
 
-- **Modelo**: tabla `app_notification` (`id`, `user_id`, `type`, `payload` JSON, `created_at`, `read_at`), con tipo y datos mínimos para armar el texto y el enlace en la UI. El módulo `notification` (hoy solo el `EmailGateway`) crece con un `NotificationGateway` por canal: campana, correo y, más adelante, push.
+- **Modelo**: tabla `app_notification` (`id`, `user_id`, `type`, `payload` JSON, `created_at`, `read_at`), con tipo y datos mínimos para armar el texto y el enlace en la UI. Cada aviso que salga de la app (correo, WhatsApp) se entrega por el outbox (§12); la campana es un canal más, que escribe en `app_notification`.
 - **API**: `GET /v1/me/notifications` (paginado, con contador de no leídas), `POST /v1/me/notifications/{id}/read` y `POST /v1/me/notifications/read-all`. La UI consulta el contador con SWR (polling suave) y abre un menú con la lista.
 - **Tipos iniciales**:
   - Invitación aceptada: avisa a quien invitó ("Ana aceptó tu invitación a la sede X").
@@ -204,6 +204,15 @@ No se construye en 005-009; queda documentado para no perder la idea. Una campan
   - Otros candidatos: evento compartido contigo (007), inscripción nueva a un curso, cargo asignado o retirado.
 - **Preferencias**: pantalla para elegir qué tipos recibir y por qué canal; los avisos del sistema no se pueden silenciar.
 - **Decisiones abiertas**: retención (p. ej. 90 días), si el cumpleaños se genera al vuelo (sin guardar filas) y si hace falta tiempo real (SSE) o basta el polling.
+
+## 12. Trabajo futuro: mensajería multicanal y agentes en WhatsApp
+
+La entrega de mensajes ya está resuelta para correo (módulo `outbox`, ver «Trabajo programado y sistemas externos» en `docs/code-style.md`). Lo que sigue se apoya en el mismo contrato (la tabla `outbox_message` y un `OutboxMessageHandler` por canal), sin cambiar a quien encola.
+
+- **Envíos programados**: cumpleaños (desde `person.birthdate`) e invitaciones a cursos y eventos. Un job diario de Cloud Scheduler recorre los nodos, inserta los mensajes con `dispatchNow = false` y programa las tareas en lotes; el barrido diario recoge las que falten.
+- **Canal WhatsApp** (`WhatsAppOutboxHandler`, cola `outbox-whatsapp` con su propio límite de velocidad por los límites de Meta): plantillas aprobadas para escribir primero, ventana de 24 horas para responder libremente y **consentimiento previo** del destinatario (un dato nuevo en la persona o el usuario). El estado de la fila ganaría `DELIVERED` y `READ`, y `provider_message_id` casa los avisos del proveedor.
+- **Mensajes entrantes (agentes)**: cada webhook se guarda primero en un **inbox** (tabla con el id del mensaje del proveedor como clave única, para que un reintento del webhook no ejecute dos veces la misma acción) y se procesa con una tarea de Cloud Tasks. El agente ejecuta los mismos comandos del API con la identidad del usuario vinculado a ese número, y responde por el outbox.
+- **Si crece el volumen o aparecen otros servicios** (un MCP en Python, por ejemplo): leer la tabla con Debezium o Datastream y publicar en Pub/Sub, sin tocar a quien encola.
 
 ## Archivos clave
 
