@@ -1,12 +1,12 @@
 # Estructura por módulos de dominio
 
-El código vive bajo `org.ouracademy.srtomy.<modulo>`. Los módulos actuales son:
+El código vive bajo `org.ouracademy.ovejafiel.<modulo>`. Los módulos actuales son:
 `party`, `person`, `organization`, `accountability`, `event`, `attendance`,
 `complaint`, `user`, `iam`, `invitation`, `notification`, `directory`, y `shared` (no es un módulo de dominio, ver más abajo).
 
 Son paquetes Java dentro del mismo proyecto Maven/JAR — no hay `module-info.java`
 ni multi-módulo Maven. La regla de aislamiento entre módulos no la impone el
-compilador: la impone `src/test/java/org/ouracademy/srtomy/ArchitectureTests.java`
+compilador: la impone `src/test/java/org/ouracademy/ovejafiel/ArchitectureTests.java`
 (ArchUnit), que corre como parte de `./mvnw test`. Esa clase es la fuente de
 verdad ejecutable de las reglas de este documento — si algo acá y el test
 difieren, gana el test (y hay que corregir uno de los dos).
@@ -160,7 +160,7 @@ test, con un comentario de qué paso la resuelve — nunca queda implícita.
   `EntityIdJavaType`, `EntityIdTypeContributor`) van en `shared/domain/`.
 - Configuración global de Spring y manejo global de excepciones van en
   `shared/` (ej. `SecurityConfig`, `GlobalExceptionHandler`,
-  `WebConfiguration`, `SrtomyApplication`).
+  `WebConfiguration`, `OvejafielApplication`).
 - `shared` no es un módulo de dominio: no tiene `command`/`query`/
   `controller` propios con reglas de aislamiento — es la base que todos los
   módulos pueden importar libremente.
@@ -171,8 +171,8 @@ Cada entidad JPA tiene su propia clase de id tipada (un `record implements
 EntityId`, ej. `PartyId`, `EventId`), no un `UUID`/`Long` crudo ni un id
 genérico compartido entre entidades no relacionadas. La clase de id vive
 junto a su entidad, en `<modulo>/domain/`, no en un paquete compartido. Ver
-`org.ouracademy.srtomy.party.domain.PartyId` (y su entidad `Party`) para el
-patrón, y `org.ouracademy.srtomy.shared.domain` para el plumbing compartido
+`org.ouracademy.ovejafiel.party.domain.PartyId` (y su entidad `Party`) para el
+patrón, y `org.ouracademy.ovejafiel.shared.domain` para el plumbing compartido
 (`EntityId`, `IdGenerator`, `EntityIdJavaType`, `EntityIdTypeContributor`)
 del que depende cada tipo de id. Todos los ids son UUIDv7, generados en Java
 vía un field initializer `@Id XxxId id = XxxId.generate();` — sin

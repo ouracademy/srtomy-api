@@ -1,0 +1,23 @@
+package org.ouracademy.ovejafiel.organization.command.edit_organization;
+
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.organization.command.OrganizationWriter;
+import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+class EditOrganizationCommandHandlerImpl implements EditOrganizationCommandHandler {
+
+  private final OrganizationWriter organizationWriter;
+
+  @Override
+  @Transactional
+  public Optional<EditOrganizationResult> handle(EditOrganizationCommand command) {
+    return organizationWriter
+        .editInfo(command.id(), command.info())
+        .map(organization -> new EditOrganizationResult(FindOrganizationResult.from(organization)));
+  }
+}

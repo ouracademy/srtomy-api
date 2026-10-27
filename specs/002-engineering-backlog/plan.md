@@ -27,7 +27,7 @@ requested directly (drop `recurring`, drop App Engine, keep dependencies current
     (item 1); close.
 - `grep -rn "net.logicsquad" --include=*.java .` returns **zero** matches outside
   `pom.xml`. The dependency is dead weight — `RecurrentEvent`
-  (`src/main/java/org/ouracademy/srtomy/event/RecurrentEvent.java`) is this project's own
+  (`src/main/java/org/ouracademy/ovejafiel/event/RecurrentEvent.java`) is this project's own
   class, not from that library.
 
 ## Work items, in order
