@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.time.Duration;
@@ -67,7 +68,9 @@ public class Event extends DomainObject {
   @ManyToOne EventSeries series;
 
   /** The container this event belongs to (one level only); null for a standalone or a container. */
-  @ManyToOne Event parent;
+  @ManyToOne
+  @JoinColumn(name = "parent_event_id")
+  Event parent;
 
   /** How a child is entered; ignored while there is no parent. */
   @Setter

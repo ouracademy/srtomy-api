@@ -148,6 +148,15 @@ Son tres cosas distintas, cada una con su propio mecanismo (`specs/007-sharing`,
 - **QR del ticket**: el ujier lo escanea y la inscripción pasa a ingresada (una sola vez); si la cuenta es una persona de la iglesia, también queda en la asistencia.
 - Cada marca guarda su origen (`MANUAL`, `QR_EVENT`, `QR_TICKET`) y quién la hizo.
 
+### Eventos compuestos (un mega evento con sub-eventos y cursos) — 012
+
+- Un evento puede contener otros (`event.parent_event_id`): un mega evento de varios días con eventos cortos y cursos dentro. **Un solo nivel**: un sub-evento no tiene sub-eventos. Los cursos son sub-eventos con `isACourse`.
+- **Inscripción heredada.** Se inscriben al mega evento y los sub-eventos aceptan ese ticket (`registrationMode = INHERIT`, el valor por defecto). Un sub-evento puede sobrescribirlo: `OWN` (su propia inscripción y cupos) u `OPEN` (libre, sin inscripción). `EffectiveRegistration` dice qué evento rige la inscripción de otro.
+- **Asistencia por sub-evento.** La lista de cada uno es suya. Escanear el ticket del mega evento en un sub-evento `INHERIT` marca a la persona en ese sub-evento y **no** toca la inscripción del mega evento; en uno `OWN` responde 400. Si la inscripción no tiene una persona de la iglesia vinculada, responde 400 («anótela como visitante»): no hay a quién marcar.
+- **Compartir** no se hereda: al crear un sub-evento se copia `general_access` del padre y desde ahí se comparte por su cuenta. Agregar un sub-evento pide poder editar el mega evento.
+- Un sub-evento queda dentro de las fechas del padre y de la misma sede o una descendiente. Ni el padre ni un sub-evento pueden repetirse (serie). Borrar el mega evento borra sus sub-eventos.
+- La página pública del mega evento lista el programa (los sub-eventos que el visitante puede abrir y si entran con su ticket); la de un sub-evento muestra la inscripción vigente y un enlace al mega evento. En «Mis eventos» aparecen los sub-eventos heredados con el nombre del mega evento; en el calendario `.ics`, con el nombre del padre.
+
 ## 8. Migración de datos
 
 El usuario confirmó que **no hay datos reales**, así que hay libertad para limpiar:
@@ -220,6 +229,10 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 27 | Visitantes sin diferenciar en el nivel «Miembro» | API | Toda persona vinculada a un usuario obtiene «Miembro» en su nodo (008) aunque sea visitante, porque hoy todas nacen visitantes. | Decidir si un visitante vinculado debe tener menos acceso y, de ser así, excluirlo de la rama `MEMBER` de `user_access` y promover a quienes ya están. | Pendiente (consultar) |
 | 28 | Preguntas propias y varios boletos por compra | API y UI | La inscripción pide solo nombre, apellido, correo y teléfono, y un boleto por inscripción. | Preguntas configurables por evento y cantidad de boletos por compra. | Pendiente (consultar) |
 | 29 | Historial al quitar la inscripción de un evento | API | Quitar la inscripción borra también las filas canceladas (solo guardaban historial). | Decidir si ese historial debe conservarse (por ejemplo, desactivar en vez de borrar). | Pendiente (consultar) |
+| 30 | Editar eventos y validar sus sub-eventos | API y UI | `PUT /events/{id}` sigue sin implementarse. Al cambiar las fechas de un mega evento habrá que validar que sus sub-eventos sigan dentro (`Event.attachTo` ya valida al crear). | Implementar la edición y esa regla. |
+| 31 | Repetir un mega evento y más de un nivel | API y UI | En la 012 ni el mega evento ni sus sub-eventos pueden ser una serie, y no hay sub-eventos de sub-eventos (mega evento → curso → sesiones). Repetirlo cada año se hace duplicándolo. | Definir cómo se replican los hijos en una serie y si hace falta un segundo nivel. |
+| 32 | Check-in de un ticket del mega evento sin persona vinculada | API | Marcar la entrada a un sub-evento `INHERIT` con el ticket del mega evento solo funciona si la cuenta es una persona de la iglesia; si no, responde 400. Una inscripción sin cuenta no tiene a quién marcar en la lista del sub-evento. | Guardar el ingreso por (inscripción, sub-evento), o crear el visitante a partir de la inscripción. |
+| 33 | Tickets por sub-evento y asistencia consolidada del mega evento | API y UI | Un ticket del mega evento vale en todos los sub-eventos `INHERIT`; no hay tickets que den acceso solo a algunos, ni un resumen de a cuántos sub-eventos fue cada inscrito. | Decidirlo con el dueño del producto. |
 
 ## 11. Trabajo futuro: centro de notificaciones (campana)
 
