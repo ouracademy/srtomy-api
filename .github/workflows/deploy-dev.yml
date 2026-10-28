@@ -45,7 +45,7 @@ jobs:
 
       - name: Build image with Cloud Native Buildpacks
         run: |
-          ./mvnw -q -B -DskipTests spring-boot:build-image \
+          ./mvnw -B -DskipTests spring-boot:build-image \
             -Dspring-boot.build-image.imageName=${{ vars.DEV_ARTIFACT_REGISTRY_URL }}:${{ github.sha }} \
             -Dspring-boot.build-image.builder=gcr.io/buildpacks/builder
 
