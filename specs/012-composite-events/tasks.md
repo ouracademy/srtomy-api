@@ -19,7 +19,7 @@
 - [x] T010 Check-in por ticket heredado (y `OWN` sin ticket propio → 400).
 
 ## Pública y Mi espacio
-- [ ] T011 `program` en la página pública.
+- [x] T011 `program` en la página pública.
 - [ ] T012 Hijos heredados en `me/events` y título con el padre en el feed `.ics`.
 
 ## Cierre
