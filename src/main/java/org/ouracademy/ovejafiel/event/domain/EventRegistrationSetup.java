@@ -21,19 +21,30 @@ public class EventRegistrationSetup extends DomainObject {
 
   boolean requiresAccount;
 
+  /** Not offered any more: kept for the sign-ups that already wait. */
   boolean waitlistEnabled;
 
-  /** Total seats; null is unlimited. */
+  /** Not offered any more: the seats are the quantity of each ticket. Kept for old setups. */
   Integer capacity;
 
   protected EventRegistrationSetup() {
     // jpa only
   }
 
+  /** A new registration is open. */
   public EventRegistrationSetup(Event event) {
     this.event = event;
+    this.open = true;
   }
 
+  public void configure(boolean requiresAccount) {
+    this.requiresAccount = requiresAccount;
+  }
+
+  /**
+   * All of it, including the waitlist and the total of seats, which are no longer offered but still
+   * apply to the setups that have them.
+   */
   public void configure(
       boolean open, boolean requiresAccount, boolean waitlistEnabled, Integer capacity) {
     if (capacity != null && capacity < 1) {
@@ -43,5 +54,10 @@ public class EventRegistrationSetup extends DomainObject {
     this.requiresAccount = requiresAccount;
     this.waitlistEnabled = waitlistEnabled;
     this.capacity = capacity;
+  }
+
+  /** Closed, nobody can sign up; the setup and the sign-ups are kept. */
+  public void setOpen(boolean open) {
+    this.open = open;
   }
 }

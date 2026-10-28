@@ -2,7 +2,10 @@ package org.ouracademy.ovejafiel.event.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -31,6 +34,8 @@ import org.ouracademy.ovejafiel.event.command.set_event_registration.SetEventReg
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingCommand;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingCommandHandler;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingResult;
+import org.ouracademy.ovejafiel.event.command.set_registration_open.SetRegistrationOpenCommand;
+import org.ouracademy.ovejafiel.event.command.set_registration_open.SetRegistrationOpenCommandHandler;
 import org.ouracademy.ovejafiel.event.command.share_event.ShareEventCommand;
 import org.ouracademy.ovejafiel.event.command.share_event.ShareEventCommandHandler;
 import org.ouracademy.ovejafiel.event.command.share_event.ShareEventResult;
@@ -57,6 +62,7 @@ import org.ouracademy.ovejafiel.event.query.list_event_registrations.ListEventRe
 import org.ouracademy.ovejafiel.event.query.list_events_shared_with.ListEventsSharedWithQueryHandler;
 import org.ouracademy.ovejafiel.event.query.list_events_shared_with.SharedWithMeResult;
 import org.ouracademy.ovejafiel.event.query.list_my_events.ListMyEventsQueryHandler;
+import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.outbox.domain.OutboxMessageId;
 import org.ouracademy.ovejafiel.outbox.domain.OutboxStatus;
 import org.ouracademy.ovejafiel.outbox.query.find_outbox_statuses.FindOutboxStatusesQueryHandler;
@@ -94,6 +100,8 @@ class EventSharingControllerTests {
   @MockitoBean GetEventRegistrationQueryHandler getEventRegistrationQueryHandler;
   @MockitoBean SetEventRegistrationCommandHandler setEventRegistrationCommandHandler;
   @MockitoBean RemoveEventRegistrationCommandHandler removeEventRegistrationCommandHandler;
+  @MockitoBean SetRegistrationOpenCommandHandler setRegistrationOpenCommandHandler;
+  @MockitoBean EventRegistrationAuthorization registrationAuthorization;
   @MockitoBean GetSharedEventQueryHandler getSharedEventQueryHandler;
   @MockitoBean RegisterForEventCommandHandler registerForEventCommandHandler;
   @MockitoBean ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
@@ -152,14 +160,10 @@ class EventSharingControllerTests {
     for (var request :
         List.of(
             mvc.get().uri("/v1/events/" + id + "/sharing"),
-            mvc.get().uri("/v1/events/" + id + "/registrations"),
             mvc.post().uri("/v1/events/" + id + "/sharing/link/renew"))) {
       assertThat(request.header("Authorization", bearer())).hasStatus(403);
     }
-    verifyNoInteractions(
-        getEventSharingQueryHandler,
-        listEventRegistrationsQueryHandler,
-        renewEventLinkCommandHandler);
+    verifyNoInteractions(getEventSharingQueryHandler, renewEventLinkCommandHandler);
   }
 
   @Test
@@ -267,6 +271,7 @@ class EventSharingControllerTests {
     verify(unshareEventCommandHandler)
         .handle(new UnshareEventCommand(new EventId(id), new EventShareId(other)));
     verify(cancelEventRegistrationCommandHandler).handle(any(CancelEventRegistrationCommand.class));
+    verify(registrationAuthorization).require(any(), eq(id), eq(Permission.REGISTRATIONS_REMOVE));
   }
 
   @Test
@@ -400,8 +405,6 @@ class EventSharingControllerTests {
 
   @Test
   void organizersReadHowTheEventTakesSignUps() {
-    given(authorizeEventQueryHandler.handle(any()))
-        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
     given(getEventRegistrationQueryHandler.handle(any()))
         .willReturn(
             Optional.of(
@@ -409,8 +412,6 @@ class EventSharingControllerTests {
                     true,
                     true,
                     false,
-                    true,
-                    50,
                     3,
                     1,
                     2,
@@ -426,15 +427,16 @@ class EventSharingControllerTests {
             .hasStatusOk()
             .bodyJson();
     body.extractingPath("$.enabled").isEqualTo(true);
-    body.extractingPath("$.capacity").isEqualTo(50);
+    // The total of seats and the waitlist are not part of the setup any more.
+    body.doesNotHavePath("$.capacity");
+    body.doesNotHavePath("$.waitlistEnabled");
     body.extractingPath("$.tickets[0].sold").isEqualTo(3);
     body.extractingPath("$.checkedIn").isEqualTo(2);
+    verify(registrationAuthorization).require(any(), eq(id), eq(Permission.REGISTRATIONS_READ));
   }
 
   @Test
   void organizersSetTheRegistrationWithItsTickets() {
-    given(authorizeEventQueryHandler.handle(any()))
-        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
     given(getEventRegistrationQueryHandler.handle(any()))
         .willReturn(Optional.of(GetEventRegistrationResult.disabled()));
 
@@ -444,40 +446,36 @@ class EventSharingControllerTests {
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":true,\"capacity\":30,"
+                    "{\"requiresAccount\":true,"
                         + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0,\"quantity\":30}]}"))
         .hasStatusOk();
 
     var command = ArgumentCaptor.forClass(SetEventRegistrationCommand.class);
     verify(setEventRegistrationCommandHandler).handle(command.capture());
     assertThat(command.getValue().eventId()).isEqualTo(new EventId(id));
-    assertThat(command.getValue().open()).isTrue();
-    assertThat(command.getValue().waitlistEnabled()).isTrue();
-    assertThat(command.getValue().capacity()).isEqualTo(30);
+    assertThat(command.getValue().requiresAccount()).isTrue();
     assertThat(command.getValue().tickets())
         .extracting(SetEventRegistrationCommand.Ticket::name)
         .containsExactly("General");
+    verify(registrationAuthorization)
+        .require(any(), eq(id), eq(Permission.REGISTRATIONS_CONFIGURE));
   }
 
   @Test
   void aRegistrationWithoutTicketsIsABadRequest() {
-    given(authorizeEventQueryHandler.handle(any()))
-        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
 
     assertThat(
             mvc.put()
                 .uri("/v1/events/" + id + "/registration")
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"open\":true,\"tickets\":[]}"))
+                .content("{\"requiresAccount\":false,\"tickets\":[]}"))
         .hasStatus(400);
     verifyNoInteractions(setEventRegistrationCommandHandler);
   }
 
   @Test
   void organizersTakeTheRegistrationAway() {
-    given(authorizeEventQueryHandler.handle(any()))
-        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
 
     assertThat(
             mvc.delete()
@@ -486,24 +484,70 @@ class EventSharingControllerTests {
         .hasStatus(204);
     verify(removeEventRegistrationCommandHandler)
         .handle(new RemoveEventRegistrationCommand(new EventId(id)));
+    verify(registrationAuthorization)
+        .require(any(), eq(id), eq(Permission.REGISTRATIONS_CONFIGURE));
   }
 
   @Test
-  void managingTheRegistrationNeedsToManageTheEvent() {
-    given(authorizeEventQueryHandler.handle(any())).willThrow(new AccessDeniedException("no"));
+  void organizersCloseAndReopenTheRegistration() {
+    given(getEventRegistrationQueryHandler.handle(any()))
+        .willReturn(Optional.of(GetEventRegistrationResult.disabled()));
 
+    for (var open : List.of(false, true)) {
+      assertThat(
+              mvc.put()
+                  .uri("/v1/events/" + id + "/registration/open")
+                  .header("Authorization", bearer())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"open\":" + open + "}"))
+          .hasStatusOk();
+      verify(setRegistrationOpenCommandHandler)
+          .handle(new SetRegistrationOpenCommand(new EventId(id), open));
+    }
+    verify(registrationAuthorization, times(2))
+        .require(any(), eq(id), eq(Permission.REGISTRATIONS_CLOSE));
+  }
+
+  @Test
+  void closingTheRegistrationNeedsAnOpenFlag() {
     assertThat(
-            mvc.get().uri("/v1/events/" + id + "/registration").header("Authorization", bearer()))
-        .hasStatus(403);
+            mvc.put()
+                .uri("/v1/events/" + id + "/registration/open")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .hasStatus(400);
+    verifyNoInteractions(setRegistrationOpenCommandHandler);
+  }
+
+  @Test
+  void eachThingYouDoWithTheRegistrationNeedsItsOwnPermission() {
+    doThrow(new AccessDeniedException("no"))
+        .when(registrationAuthorization)
+        .require(any(), any(), any());
+
+    for (var request :
+        List.of(
+            mvc.get().uri("/v1/events/" + id + "/registration"),
+            mvc.get().uri("/v1/events/" + id + "/registrations"),
+            mvc.delete().uri("/v1/events/" + id + "/registration"),
+            mvc.delete().uri("/v1/events/" + id + "/registrations/" + UUID.randomUUID()))) {
+      assertThat(request.header("Authorization", bearer())).hasStatus(403);
+    }
     assertThat(
-            mvc.delete()
-                .uri("/v1/events/" + id + "/registration")
-                .header("Authorization", bearer()))
+            mvc.put()
+                .uri("/v1/events/" + id + "/registration/open")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"open\":false}"))
         .hasStatus(403);
     verifyNoInteractions(
         getEventRegistrationQueryHandler,
+        listEventRegistrationsQueryHandler,
         setEventRegistrationCommandHandler,
-        removeEventRegistrationCommandHandler);
+        removeEventRegistrationCommandHandler,
+        cancelEventRegistrationCommandHandler,
+        setRegistrationOpenCommandHandler);
   }
 
   @Test

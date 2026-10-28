@@ -57,8 +57,6 @@ class GetEventRegistrationQueryHandlerImplTests {
 
     assertThat(result.enabled()).isTrue();
     assertThat(result.open()).isTrue();
-    assertThat(result.waitlistEnabled()).isTrue();
-    assertThat(result.capacity()).isEqualTo(40);
     assertThat(result.confirmed()).isEqualTo(7);
     assertThat(result.waitlisted()).isEqualTo(2);
     assertThat(result.checkedIn()).isEqualTo(5);

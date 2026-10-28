@@ -1,14 +1,15 @@
 # HTTP contract: Inscripción
 
-Administrar (`MANAGER`: `events.write` en el nodo del evento):
+Administrar. Cada ruta pide su permiso en el nodo del evento (`registrations.read`, `.configure`, `.close`, `.remove`; el ingreso, `attendance.write`):
 
 | Método y ruta | Descripción |
 | --- | --- |
-| `GET /events/{id}/registration` | `{enabled, open, requiresAccount, waitlistEnabled, capacity, confirmed, waitlisted, tickets[{id, name, priceCents, currency, quantity, salesStart, salesEnd, sold}]}`; `enabled=false` si no hay inscripción. |
-| `PUT /events/{id}/registration` | Body `{open, requiresAccount, waitlistEnabled, capacity?, tickets[{id?, name, priceCents, currency, quantity?, salesStart?, salesEnd?}]}`. Un ticket con `id` se actualiza, sin `id` se crea, y uno que ya no viene se borra (400 si tiene inscripciones). Devuelve lo mismo que el GET. |
-| `DELETE /events/{id}/registration` | 204. Quita la inscripción; 400 si hay inscripciones activas. |
-| `GET /events/{id}/registrations` | `[{id, firstName, lastName, email, phoneNumber, hasAccount, ticketName, status, registeredAt}]`. |
-| `DELETE /events/{id}/registrations/{registrationId}` | 204. La pasa a `CANCELLED` y llena el lugar desde la espera. |
+| `GET /events/{id}/registration` (`registrations.read`) | `{enabled, open, requiresAccount, confirmed, waitlisted, tickets[{id, name, priceCents, currency, quantity, salesStart, salesEnd, sold}]}`; `enabled=false` si no hay inscripción. |
+| `PUT /events/{id}/registration` (`registrations.configure`) | Body `{requiresAccount, tickets[{id?, name, priceCents, currency, quantity?, salesStart?, salesEnd?}]}`. Un ticket con `id` se actualiza, sin `id` se crea, y uno que ya no viene se borra (400 si tiene inscripciones). Los cupos son la `quantity` de cada ticket. Una configuración nueva nace abierta; cerrarla es la ruta siguiente. Devuelve lo mismo que el GET. |
+| `PUT /events/{id}/registration/open` (`registrations.close`) | Body `{open}`: cierra o reabre. 404 si el evento no tiene inscripción. Devuelve lo mismo que el GET. |
+| `DELETE /events/{id}/registration` (`registrations.configure`) | 204. Quita la inscripción; 400 si hay inscripciones activas. |
+| `GET /events/{id}/registrations` (`registrations.read`) | `[{id, firstName, lastName, email, phoneNumber, hasAccount, ticketName, status, registeredAt}]`. |
+| `DELETE /events/{id}/registrations/{registrationId}` (`registrations.remove`) | 204. La pasa a `CANCELLED` y llena el lugar desde la espera. |
 
 Compartir (`PUT /events/{id}/sharing`): body y respuesta `{generalAccess}` (sin `linkRole`).
 

@@ -231,8 +231,7 @@ class MySpaceIntegrationTests {
         alice,
         HttpMethod.PUT,
         "/events/" + courseId + "/registration",
-        "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":false,\"tickets\":["
-            + "{\"name\":\"General\",\"priceCents\":0}]}");
+        "{\"requiresAccount\":false,\"tickets\":[" + "{\"name\":\"General\",\"priceCents\":0}]}");
   }
 
   void register(String subject, String email) {

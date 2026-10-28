@@ -11,14 +11,12 @@ import java.util.UUID;
 
 /**
  * How the event takes sign-ups. {@code tickets} is the whole list: one with an {@code id} updates
- * that ticket, one without creates it, one left out is removed. The price is informational.
+ * that ticket, one without creates it, one left out is removed. The seats are the quantity of each
+ * ticket (null: unlimited) and the price is informational. Closing the registration is another
+ * call.
  */
 public record EventRegistrationSetupRequest(
-    boolean open,
-    boolean requiresAccount,
-    boolean waitlistEnabled,
-    @Min(1) Integer capacity,
-    @NotEmpty @Valid List<TicketRequest> tickets) {
+    boolean requiresAccount, @NotEmpty @Valid List<TicketRequest> tickets) {
 
   public record TicketRequest(
       UUID id,

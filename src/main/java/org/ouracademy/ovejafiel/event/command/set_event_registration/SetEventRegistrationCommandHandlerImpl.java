@@ -41,8 +41,7 @@ class SetEventRegistrationCommandHandlerImpl implements SetEventRegistrationComm
         setupRepository
             .lockByEventId(event.getId())
             .orElseGet(() -> setupRepository.save(new EventRegistrationSetup(event)));
-    setup.configure(
-        command.open(), command.requiresAccount(), command.waitlistEnabled(), command.capacity());
+    setup.configure(command.requiresAccount());
 
     var existing =
         ticketTypeRepository.findByEventIdOrderByPosition(event.getId()).stream()
@@ -83,9 +82,9 @@ class SetEventRegistrationCommandHandlerImpl implements SetEventRegistrationComm
               ticketTypeRepository.delete(ticket);
             });
 
-    // A larger limit, or a reopened registration, may free seats for whoever is waiting.
+    // A larger limit may free seats for whoever is waiting.
     ticketTypeRepository.flush();
-    if (command.open()) {
+    if (setup.isOpen()) {
       waitlistPromotion.promote(setup);
     }
     return new SetEventRegistrationResult();

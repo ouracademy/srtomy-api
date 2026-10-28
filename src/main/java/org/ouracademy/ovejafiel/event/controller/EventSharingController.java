@@ -20,6 +20,8 @@ import org.ouracademy.ovejafiel.event.command.set_event_registration.SetEventReg
 import org.ouracademy.ovejafiel.event.command.set_event_registration.SetEventRegistrationCommandHandler;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingCommand;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingCommandHandler;
+import org.ouracademy.ovejafiel.event.command.set_registration_open.SetRegistrationOpenCommand;
+import org.ouracademy.ovejafiel.event.command.set_registration_open.SetRegistrationOpenCommandHandler;
 import org.ouracademy.ovejafiel.event.command.share_event.ShareEventCommand;
 import org.ouracademy.ovejafiel.event.command.share_event.ShareEventCommandHandler;
 import org.ouracademy.ovejafiel.event.command.unshare_event.UnshareEventCommand;
@@ -32,6 +34,7 @@ import org.ouracademy.ovejafiel.event.controller.dto.EventRegistrationSetupRespo
 import org.ouracademy.ovejafiel.event.controller.dto.EventSharingRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.EventSharingResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.MyEventResponse;
+import org.ouracademy.ovejafiel.event.controller.dto.RegistrationOpenRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.RegistrationOutcomeResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.ShareEventRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.ShareEventResponse;
@@ -56,6 +59,7 @@ import org.ouracademy.ovejafiel.event.query.list_events_shared_with.ListEventsSh
 import org.ouracademy.ovejafiel.event.query.list_events_shared_with.ListEventsSharedWithQueryHandler;
 import org.ouracademy.ovejafiel.event.query.list_my_events.ListMyEventsQuery;
 import org.ouracademy.ovejafiel.event.query.list_my_events.ListMyEventsQueryHandler;
+import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.outbox.domain.OutboxStatus;
 import org.ouracademy.ovejafiel.outbox.query.find_outbox_statuses.FindOutboxStatusesQuery;
 import org.ouracademy.ovejafiel.outbox.query.find_outbox_statuses.FindOutboxStatusesQueryHandler;
@@ -95,6 +99,8 @@ public class EventSharingController {
   GetEventRegistrationQueryHandler getEventRegistrationQueryHandler;
   SetEventRegistrationCommandHandler setEventRegistrationCommandHandler;
   RemoveEventRegistrationCommandHandler removeEventRegistrationCommandHandler;
+  SetRegistrationOpenCommandHandler setRegistrationOpenCommandHandler;
+  EventRegistrationAuthorization registrationAuthorization;
   GetSharedEventQueryHandler getSharedEventQueryHandler;
   RegisterForEventCommandHandler registerForEventCommandHandler;
   ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
@@ -165,7 +171,12 @@ public class EventSharingController {
   @GetMapping("events/{id}/registration")
   public EventRegistrationSetupResponse registration(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-    manage(jwt, id);
+    registrationAuthorization.require(jwt, id, Permission.REGISTRATIONS_READ);
+    return currentRegistration(id);
+  }
+
+  /** What the registration is now, for whoever has just changed it (so it needs no read access). */
+  private EventRegistrationSetupResponse currentRegistration(UUID id) {
     return getEventRegistrationQueryHandler
         .handle(new GetEventRegistrationQuery(new EventId(id)))
         .map(EventRegistrationSetupResponse::from)
@@ -177,14 +188,11 @@ public class EventSharingController {
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable UUID id,
       @RequestBody @Valid EventRegistrationSetupRequest request) {
-    manage(jwt, id);
+    registrationAuthorization.require(jwt, id, Permission.REGISTRATIONS_CONFIGURE);
     setEventRegistrationCommandHandler.handle(
         new SetEventRegistrationCommand(
             new EventId(id),
-            request.open(),
             request.requiresAccount(),
-            request.waitlistEnabled(),
-            request.capacity(),
             request.tickets().stream()
                 .map(
                     ticket ->
@@ -197,13 +205,25 @@ public class EventSharingController {
                             ticket.salesStart(),
                             ticket.salesEnd()))
                 .toList()));
-    return registration(jwt, id);
+    return currentRegistration(id);
+  }
+
+  /** Closes the registration (nobody else can sign up) or opens it again. */
+  @PutMapping("events/{id}/registration/open")
+  public EventRegistrationSetupResponse setRegistrationOpen(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid RegistrationOpenRequest request) {
+    registrationAuthorization.require(jwt, id, Permission.REGISTRATIONS_CLOSE);
+    setRegistrationOpenCommandHandler.handle(
+        new SetRegistrationOpenCommand(new EventId(id), request.open()));
+    return currentRegistration(id);
   }
 
   @DeleteMapping("events/{id}/registration")
   public ResponseEntity<Void> removeRegistration(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-    manage(jwt, id);
+    registrationAuthorization.require(jwt, id, Permission.REGISTRATIONS_CONFIGURE);
     removeEventRegistrationCommandHandler.handle(
         new RemoveEventRegistrationCommand(new EventId(id)));
     return ResponseEntity.noContent().build();
@@ -212,7 +232,7 @@ public class EventSharingController {
   @GetMapping("events/{id}/registrations")
   public List<EventRegistrationResponse> registrations(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-    manage(jwt, id);
+    registrationAuthorization.require(jwt, id, Permission.REGISTRATIONS_READ);
     return listEventRegistrationsQueryHandler
         .handle(new ListEventRegistrationsQuery(new EventId(id)))
         .stream()
@@ -223,7 +243,7 @@ public class EventSharingController {
   @DeleteMapping("events/{id}/registrations/{registrationId}")
   public ResponseEntity<Void> cancelRegistration(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @PathVariable UUID registrationId) {
-    manage(jwt, id);
+    registrationAuthorization.require(jwt, id, Permission.REGISTRATIONS_REMOVE);
     cancelEventRegistrationCommandHandler.handle(
         new CancelEventRegistrationCommand(
             new EventId(id), new EventRegistrationId(registrationId)));

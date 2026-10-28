@@ -24,6 +24,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -42,6 +43,7 @@ class AttendanceQrIntegrationTests {
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
   @Autowired LinkUserToPersonCommandHandler linkUserToPersonCommandHandler;
   @Autowired SentEmails sentEmails;
+  @Autowired JdbcTemplate jdbc;
 
   RestTestClient client;
   String alice;
@@ -248,8 +250,12 @@ class AttendanceQrIntegrationTests {
         alice,
         HttpMethod.PUT,
         "/events/" + course + "/registration",
-        "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":true,\"capacity\":1,"
-            + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0}]}");
+        "{\"requiresAccount\":false,"
+            + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0,\"quantity\":1}]}");
+    // The waitlist is no longer offered, but whoever already waits keeps the place.
+    jdbc.update(
+        "UPDATE event_registration_setup SET waitlist_enabled = true WHERE event_id = ?::uuid",
+        course);
     var ticket =
         json(alice, "/events/" + course + "/registration").get("tickets").get(0).get("id").asText();
     var mine =
@@ -319,8 +325,7 @@ class AttendanceQrIntegrationTests {
         alice,
         HttpMethod.PUT,
         "/events/" + course + "/registration",
-        "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":false,"
-            + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0}]}");
+        "{\"requiresAccount\":false," + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0}]}");
     var ticket =
         json(alice, "/events/" + course + "/registration").get("tickets").get(0).get("id").asText();
     bodyAs(
@@ -348,8 +353,7 @@ class AttendanceQrIntegrationTests {
         alice,
         HttpMethod.PUT,
         "/events/" + course + "/registration",
-        "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":false,"
-            + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0}]}");
+        "{\"requiresAccount\":false," + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0}]}");
     var ticket =
         json(alice, "/events/" + course + "/registration").get("tickets").get(0).get("id").asText();
     postPublic(

@@ -62,20 +62,20 @@ class SetEventRegistrationCommandHandlerImplTests {
     return new SetEventRegistrationCommand.Ticket(null, name, price, "PEN", quantity, null, null);
   }
 
-  SetEventRegistrationCommand command(
-      Integer capacity, SetEventRegistrationCommand.Ticket... tickets) {
-    return new SetEventRegistrationCommand(id, true, false, true, capacity, List.of(tickets));
+  SetEventRegistrationCommand command(SetEventRegistrationCommand.Ticket... tickets) {
+    return new SetEventRegistrationCommand(id, false, List.of(tickets));
   }
 
   @Test
   void turnsOnTheRegistrationWithItsTicketsInOrder() {
-    handler.handle(command(40, newTicket("General", 0, 30), newTicket("VIP", 2000, 10)));
+    handler.handle(command(newTicket("General", 0, 30), newTicket("VIP", 2000, 10)));
 
     var setup = ArgumentCaptor.forClass(EventRegistrationSetup.class);
     verify(setups).save(setup.capture());
     assertThat(setup.getValue().isOpen()).isTrue();
-    assertThat(setup.getValue().isWaitlistEnabled()).isTrue();
-    assertThat(setup.getValue().getCapacity()).isEqualTo(40);
+    assertThat(setup.getValue().isRequiresAccount()).isFalse();
+    assertThat(setup.getValue().isWaitlistEnabled()).isFalse();
+    assertThat(setup.getValue().getCapacity()).isNull();
     var saved = ArgumentCaptor.forClass(TicketType.class);
     verify(tickets, org.mockito.Mockito.times(2)).save(saved.capture());
     assertThat(saved.getAllValues())
@@ -95,7 +95,6 @@ class SetEventRegistrationCommandHandlerImplTests {
 
     handler.handle(
         command(
-            null,
             new SetEventRegistrationCommand.Ticket(
                 general.getId(), "Entrada", 1500, "usd", 8, null, null)));
 
@@ -117,7 +116,6 @@ class SetEventRegistrationCommandHandlerImplTests {
 
     handler.handle(
         command(
-            null,
             new SetEventRegistrationCommand.Ticket(
                 kept.getId(), "General", 0, "PEN", 5, null, null)));
 
@@ -137,7 +135,6 @@ class SetEventRegistrationCommandHandlerImplTests {
             () ->
                 handler.handle(
                     command(
-                        null,
                         new SetEventRegistrationCommand.Ticket(
                             kept.getId(), "General", 0, "PEN", 5, null, null))))
         .isInstanceOf(DomainValidationException.class)
@@ -147,7 +144,7 @@ class SetEventRegistrationCommandHandlerImplTests {
 
   @Test
   void needsAtLeastOneTicket() {
-    assertThatThrownBy(() -> handler.handle(command(null)))
+    assertThatThrownBy(() -> handler.handle(command()))
         .isInstanceOf(DomainValidationException.class);
     verify(setups, never()).save(any());
   }
@@ -155,9 +152,7 @@ class SetEventRegistrationCommandHandlerImplTests {
   @Test
   void ticketNamesCannotRepeatIgnoringCase() {
     assertThatThrownBy(
-            () ->
-                handler.handle(
-                    command(null, newTicket("General", 0, 1), newTicket(" general", 0, 1))))
+            () -> handler.handle(command(newTicket("General", 0, 1), newTicket(" general", 0, 1))))
         .isInstanceOf(DomainValidationException.class)
         .hasMessageContaining("general");
   }
@@ -168,36 +163,46 @@ class SetEventRegistrationCommandHandlerImplTests {
             () ->
                 handler.handle(
                     command(
-                        null,
                         new SetEventRegistrationCommand.Ticket(
                             TicketTypeId.generate(), "Ajeno", 0, "PEN", 1, null, null))))
         .isInstanceOf(NoSuchElementException.class);
   }
 
   @Test
-  void anInvalidTicketOrCapacityIsRefused() {
-    assertThatThrownBy(() -> handler.handle(command(null, newTicket(" ", 0, 1))))
+  void anInvalidTicketIsRefused() {
+    assertThatThrownBy(() -> handler.handle(command(newTicket(" ", 0, 1))))
         .isInstanceOf(DomainValidationException.class);
-    assertThatThrownBy(() -> handler.handle(command(null, newTicket("General", -1, 1))))
+    assertThatThrownBy(() -> handler.handle(command(newTicket("General", -1, 1))))
         .isInstanceOf(DomainValidationException.class);
-    assertThatThrownBy(() -> handler.handle(command(0, newTicket("General", 0, 1))))
+    assertThatThrownBy(() -> handler.handle(command(newTicket("General", 0, 0))))
         .isInstanceOf(DomainValidationException.class);
   }
 
   @Test
   void aClosedRegistrationPromotesNobody() {
-    handler.handle(
-        new SetEventRegistrationCommand(
-            id, false, false, true, null, List.of(newTicket("General", 0, null))));
+    var setup = registrationSetup(event, false, null);
+    setup.setOpen(false);
+    when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
 
+    handler.handle(command(newTicket("General", 0, null)));
+
+    assertThat(setup.isOpen()).isFalse();
     verify(promotion, never()).promote(any());
+  }
+
+  @Test
+  void savingTheSetupKeepsItOpenOrClosedAsItWas() {
+    var setup = registrationSetup(event, false, null);
+    when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
+    handler.handle(command(newTicket("General", 0, null)));
+    assertThat(setup.isOpen()).isTrue();
   }
 
   @Test
   void anUnknownEventIsNotFound() {
     when(events.findById(id)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> handler.handle(command(null, newTicket("General", 0, 1))))
+    assertThatThrownBy(() -> handler.handle(command(newTicket("General", 0, 1))))
         .isInstanceOf(NoSuchElementException.class);
   }
 }

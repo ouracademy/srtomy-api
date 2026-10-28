@@ -63,7 +63,7 @@ Tablas:
 - Vista `user_access` (004b): junta los bindings directos, los cargos de la persona vinculada y el liderazgo de grupos. Todas las consultas de permisos leen esta vista.
 
 Permisos (strings, estilo GCP `recurso.acción`):
-`org.read`, `org.update`, `org.create_child`, `org.delete`, `members.read`, `members.write`, `events.read`, `events.write`, `attendance.write`, `iam.read`, `iam.manage`, `invitations.send`.
+`org.read`, `org.update`, `org.create_child`, `org.delete`, `members.read`, `members.write`, `events.read`, `events.write`, `attendance.write`, `registrations.read`, `registrations.configure`, `registrations.close`, `registrations.remove`, `iam.read`, `iam.manage`, `invitations.send`.
 
 Roles predefinidos:
 
@@ -132,7 +132,9 @@ Son tres cosas distintas, cada una con su propio mecanismo (`specs/007-sharing`,
 
 ### Inscripción (quién tiene un lugar)
 
-- Es **opcional**: un evento nace sin inscripción (un culto no la usa). Quien administra (`events.write`) la activa con una configuración: abierta o cerrada, si exige cuenta, lista de espera, cupo total y **tipos de ticket** (nombre, precio, cantidad, ventana de venta). «Gratis» es un ticket de precio 0. **El precio es informativo: no se cobra** (deuda técnica).
+- Es **opcional**: un evento nace sin inscripción (un culto no la usa). Se activa con una configuración muy corta: **cupos** (la cantidad del ticket; vacío es sin límite) y **precio** informativo. En «Más opciones»: exigir cuenta y varios **tipos de ticket** (nombre, precio, cantidad, ventana de venta). **El precio es informativo: no se cobra** (deuda técnica). **Cerrar y reabrir** las inscripciones es una acción aparte (`PUT /events/{id}/registration/open`), no un campo.
+- **Un permiso por acción**: `registrations.read` (ver configuración e inscritos), `registrations.configure` (activar, cambiar, quitar), `registrations.close` (cerrar y reabrir) y `registrations.remove` (quitar a un inscrito); marcar el ingreso es `attendance.write`. Quien tenía `events.write` recibió los cuatro nuevos al migrar.
+- Sin lista de espera por ahora (nadie avisa al liberarse un lugar): al llenarse dice «Agotado». Quien ya esperaba conserva su lugar.
 - Tablas `event_registration_setup`, `ticket_type` y `event_registration` (estado `CONFIRMED`, `WAITLISTED` o `CANCELLED`). Los cupos se cuentan bajo un bloqueo de la configuración; al cancelar, entra a quien más esperó y le quepa.
 - Cada inscripción tiene un `cancel_code` (para cancelar sin cuenta) y un `ticket_code` (el QR del ticket; no sirve para cancelar).
 - Quien puede abrir la página pública se inscribe en `POST /v1/public/events/{slug}/registrations`.
@@ -218,6 +220,7 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 27 | Visitantes sin diferenciar en el nivel «Miembro» | API | Toda persona vinculada a un usuario obtiene «Miembro» en su nodo (008) aunque sea visitante, porque hoy todas nacen visitantes. | Decidir si un visitante vinculado debe tener menos acceso y, de ser así, excluirlo de la rama `MEMBER` de `user_access` y promover a quienes ya están. | Pendiente (consultar) |
 | 28 | Preguntas propias y varios boletos por compra | API y UI | La inscripción pide solo nombre, apellido, correo y teléfono, y un boleto por inscripción. | Preguntas configurables por evento y cantidad de boletos por compra. | Pendiente (consultar) |
 | 29 | Historial al quitar la inscripción de un evento | API | Quitar la inscripción borra también las filas canceladas (solo guardaban historial). | Decidir si ese historial debe conservarse (por ejemplo, desactivar en vez de borrar). | Pendiente (consultar) |
+| 30 | Lista de espera apagada y cupo total sin uso | API | La 011b dejó de ofrecer la lista de espera (no hay aviso por correo) y el cupo total del evento; las columnas `waitlist_enabled` y `capacity` de `event_registration_setup` y el código que las usa siguen para las inscripciones antiguas. | Con los avisos por correo (§11), volver a ofrecer la espera y borrar `capacity`. | Pendiente (consultar) |
 
 ## 11. Trabajo futuro: centro de notificaciones (campana)
 

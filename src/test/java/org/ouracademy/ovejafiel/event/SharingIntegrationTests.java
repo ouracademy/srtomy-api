@@ -24,6 +24,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -42,6 +43,7 @@ class SharingIntegrationTests {
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
   @Autowired LinkUserToPersonCommandHandler linkUserToPersonCommandHandler;
   @Autowired SentEmails sentEmails;
+  @Autowired JdbcTemplate jdbc;
 
   RestTestClient client;
   String alice;
@@ -248,27 +250,51 @@ class SharingIntegrationTests {
                 bob,
                 HttpMethod.PUT,
                 "/events/" + eventId + "/registration",
-                "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":false,"
-                    + "\"tickets\":[{\"name\":\"X\",\"priceCents\":0}]}"))
+                "{\"requiresAccount\":false," + "\"tickets\":[{\"name\":\"X\",\"priceCents\":0}]}"))
         .isEqualTo(403);
+  }
+
+  @Test
+  void eachThingYouDoWithTheRegistrationHasItsOwnPermission() {
+    openRegistration(courseId, false, null, 5);
+    var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
+    setSharing(courseId, "ANYONE_WITH_LINK");
+    var ticket = ticketOf(courseId);
+    var signUp = register(slug, ticket, "Ana", "Paz", "ana@example.org", null);
+    var signUpId = json(alice, "/events/" + courseId + "/registrations").get(0).get("id").asText();
+    var path = "/events/" + courseId + "/registration";
+
+    // Someone who only sees the sign-ups: the others are refused.
+    var reader = role("registrations.read");
+    holdAccess(bob, group, reader);
+    assertThat(status(bob, HttpMethod.GET, path)).isEqualTo(200);
+    assertThat(status(bob, HttpMethod.GET, path + "s")).isEqualTo(200);
+    assertThat(status(bob, HttpMethod.PUT, path + "/open", "{\"open\":false}")).isEqualTo(403);
+    assertThat(status(bob, HttpMethod.DELETE, path)).isEqualTo(403);
+    assertThat(status(bob, HttpMethod.DELETE, path + "s/" + signUpId)).isEqualTo(403);
+
+    // Closing and reopening, and nothing else.
+    var closer = role("registrations.close");
+    holdAccess(carol, group, closer);
+    assertThat(status(carol, HttpMethod.PUT, path + "/open", "{\"open\":false}")).isEqualTo(200);
+    assertThat(status(carol, HttpMethod.PUT, path + "/open", "{\"open\":true}")).isEqualTo(200);
+    assertThat(status(carol, HttpMethod.GET, path + "s")).isEqualTo(403);
+    assertThat(status(carol, HttpMethod.DELETE, path + "s/" + signUpId)).isEqualTo(403);
+
+    assertThat(signUp.get("status").asText()).isEqualTo("CONFIRMED");
   }
 
   @Test
   void aRegistrationNeedsAtLeastOneTicketAndDistinctNames() {
     var path = "/events/" + eventId + "/registration";
-    assertThat(
-            status(
-                alice,
-                HttpMethod.PUT,
-                path,
-                "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":false,\"tickets\":[]}"))
+    assertThat(status(alice, HttpMethod.PUT, path, "{\"requiresAccount\":false,\"tickets\":[]}"))
         .isEqualTo(400);
     assertThat(
             status(
                 alice,
                 HttpMethod.PUT,
                 path,
-                "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":false,\"tickets\":["
+                "{\"requiresAccount\":false,\"tickets\":["
                     + "{\"name\":\"A\",\"priceCents\":0},{\"name\":\"a\",\"priceCents\":0}]}"))
         .isEqualTo(400);
   }
@@ -482,7 +508,7 @@ class SharingIntegrationTests {
   }
 
   @Test
-  void theTotalCapacityLimitsEveryTicket() {
+  void anOldTotalOfSeatsStillLimitsEveryTicket() {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "ANYONE_WITH_LINK");
     var ticket = openRegistration(courseId, false, 1, null);
@@ -530,7 +556,7 @@ class SharingIntegrationTests {
                 alice,
                 HttpMethod.PUT,
                 "/events/" + courseId + "/registration",
-                "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":false,\"tickets\":["
+                "{\"requiresAccount\":false,\"tickets\":["
                     + "{\"name\":\"Nuevo\",\"priceCents\":0}]}"))
         .isEqualTo(400);
     assertThat(status(alice, HttpMethod.DELETE, "/events/" + courseId + "/registration"))
@@ -587,6 +613,11 @@ class SharingIntegrationTests {
     return setRegistration(id, true, false, waitlist, capacity, quantity);
   }
 
+  /**
+   * Sets the registration with one ticket "General". The waitlist and the total of seats are not
+   * offered any more, but the setups that already have them keep working: they are set in the
+   * database.
+   */
   String setRegistration(
       String id,
       boolean open,
@@ -596,18 +627,30 @@ class SharingIntegrationTests {
       Integer quantity) {
     var tickets = json(alice, "/events/" + id + "/registration").get("tickets");
     var existing = tickets.isEmpty() ? "" : "\"id\":\"" + tickets.get(0).get("id").asText() + "\",";
-    return read(body(
-            alice,
-            HttpMethod.PUT,
-            "/events/" + id + "/registration",
-            ("{\"open\":%s,\"requiresAccount\":%s,\"waitlistEnabled\":%s,\"capacity\":%s,"
-                    + "\"tickets\":[{%s\"name\":\"General\",\"priceCents\":0,\"currency\":\"PEN\","
-                    + "\"quantity\":%s}]}")
-                .formatted(open, requiresAccount, waitlist, capacity, existing, quantity)))
-        .get("tickets")
-        .get(0)
-        .get("id")
-        .asText();
+    var ticket =
+        read(body(
+                alice,
+                HttpMethod.PUT,
+                "/events/" + id + "/registration",
+                ("{\"requiresAccount\":%s,"
+                        + "\"tickets\":[{%s\"name\":\"General\",\"priceCents\":0,"
+                        + "\"currency\":\"PEN\",\"quantity\":%s}]}")
+                    .formatted(requiresAccount, existing, quantity)))
+            .get("tickets")
+            .get(0)
+            .get("id")
+            .asText();
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/events/" + id + "/registration/open",
+        "{\"open\":%s}".formatted(open));
+    jdbc.update(
+        "UPDATE event_registration_setup SET waitlist_enabled = ?, capacity = ? WHERE event_id = ?::uuid",
+        waitlist,
+        capacity,
+        id);
+    return ticket;
   }
 
   String ticketOf(String id) {
@@ -702,6 +745,31 @@ class SharingIntegrationTests {
   }
 
   /** Gives {@code subject} a position with {@code roleId} on {@code nodeId}, through a person. */
+  final java.util.List<UUID> createdRoles = new java.util.ArrayList<>();
+
+  /** The roles of a test are left out of the lists of the next ones. */
+  @org.junit.jupiter.api.AfterEach
+  void dropRoles() {
+    createdRoles.forEach(
+        id -> jdbc.update("UPDATE iam_role SET deleted_time = now() WHERE id = ?", id));
+    createdRoles.clear();
+  }
+
+  /** A role with just these permissions (and the basics to see the node and its events). */
+  UUID role(String... permissions) {
+    var id = UUID.randomUUID();
+    createdRoles.add(id);
+    var all = new java.util.ArrayList<>(java.util.List.of("org.read", "events.read"));
+    all.addAll(java.util.List.of(permissions));
+    jdbc.update(
+        "INSERT INTO iam_role (id, name, description, permissions, create_date, last_modified_date)"
+            + " VALUES (?, ?, '', ?, now(), now())",
+        id,
+        "Rol " + id,
+        all.toArray(new String[0]));
+    return id;
+  }
+
   void holdAccess(String subject, String nodeId, Object roleId) {
     var position =
         read(body(
