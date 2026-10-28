@@ -18,6 +18,10 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
 
   List<Event> findBySeries(EventSeries series);
 
+  List<Event> findByParentOrderByStart(Event parent);
+
+  boolean existsByParent(Event parent);
+
   List<Event> findBySeriesAndStartGreaterThanEqual(EventSeries series, ZonedDateTime start);
 
   // t: -----|----|----
