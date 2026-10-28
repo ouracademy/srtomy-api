@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -18,6 +19,7 @@ import org.ouracademy.ovejafiel.attendance.command.register_attendance.RegisterA
 import org.ouracademy.ovejafiel.attendance.query.get_attendance.GetAttendanceQuery;
 import org.ouracademy.ovejafiel.attendance.query.get_attendance.GetAttendanceQueryHandler;
 import org.ouracademy.ovejafiel.attendance.query.get_attendance.GetAttendanceResult;
+import org.ouracademy.ovejafiel.event.domain.CheckInSource;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.query.find_event_organization.EventOrganizationResult;
 import org.ouracademy.ovejafiel.event.query.find_event_organization.FindEventOrganizationQueryHandler;
@@ -40,7 +42,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 @WebMvcTest(AttendanceController.class)
 @ContextConfiguration(classes = OvejafielApplication.class)
-@Import({TestSecurityConfig.class, SecurityConfig.class})
+@Import({TestSecurityConfig.class, SecurityConfig.class, EventAuthorization.class})
 class AttendanceControllerTests {
 
   @Autowired MockMvcTester mvc;
@@ -81,7 +83,17 @@ class AttendanceControllerTests {
     var eventId = EventId.generate();
     var personId = PartyId.generate();
     given(getAttendanceQueryHandler.handle(new GetAttendanceQuery(eventId)))
-        .willReturn(Optional.of(new GetAttendanceResult(eventId, List.of(personId))));
+        .willReturn(
+            Optional.of(
+                new GetAttendanceResult(
+                    eventId,
+                    List.of(personId),
+                    4,
+                    List.of(
+                        new GetAttendanceResult.Mark(
+                            personId,
+                            CheckInSource.QR_EVENT,
+                            LocalDateTime.parse("2026-01-05T10:00:00"))))));
 
     var response =
         assertThat(
@@ -91,6 +103,8 @@ class AttendanceControllerTests {
 
     response.hasStatusOk();
     response.bodyJson().extractingPath("$.personIds[0]").isEqualTo(personId.value().toString());
+    response.bodyJson().extractingPath("$.guestCount").isEqualTo(4);
+    response.bodyJson().extractingPath("$.marks[0].source").isEqualTo("QR_EVENT");
   }
 
   @Test

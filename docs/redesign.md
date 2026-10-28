@@ -118,14 +118,33 @@ Qué muestra la vista pública (decidido con el usuario):
 - **Grupo o ministerio**: información básica, **líderes destacados** y luego los miembros. De todos solo nombre y apellido, **sin edad, fecha de nacimiento, teléfono ni dirección**. Nunca lista a menores de 18 (protección de datos según la constitución del API).
 - **Iglesia o sede**: además, un **organigrama**: el árbol de sedes, ministerios y grupos con sus líderes, y los cargos ministeriales (pastor, etc.). Lo controla `organization.show_org_chart`, **activado por defecto**. Solo incluye los nodos hijos que no sean `LEADERS`. Página pública: `GET /v1/public/organizations/{slug}` (sin JWT, con slug no adivinable) y la ruta UI `/g/{slug}`.
 
-## 7. Eventos y cursos compartidos como Drive
+## 7. Eventos y cursos: compartir, inscribirse y asistir
+
+Son tres cosas distintas, cada una con su propio mecanismo (`specs/007-sharing`, `specs/011-registration`).
+
+### Compartir (quién puede abrir el evento)
 
 - Por defecto heredan el acceso del nodo al que pertenecen.
-- **Acceso general** (`event.general_access`): `RESTRICTED` (solo quien tiene acceso por la jerarquía o compartido directo), `CHURCH` (cualquier usuario de la iglesia) o `ANYONE_WITH_LINK`.
-- **Rol del enlace** (`event.link_role`): `VIEWER` (ve la información) o `REGISTRANT` (puede inscribirse; para cursos).
-- **Compartido directo**: tabla `event_share` (`event_id`, `user_id` o `email`, `role` VIEWER/EDITOR). Si es un email sin cuenta, se crea una invitación.
+- **Acceso general** (`event.general_access`): `RESTRICTED` (solo quien tiene acceso por la jerarquía o compartido directo), `CHURCH` (cualquier usuario de la iglesia) o `ANYONE_WITH_LINK`. El enlace solo deja **ver**: ya no hay «rol del enlace» (se quitó `event.link_role` y `REGISTRANT`).
+- **Compartido directo**: tabla `event_share` (`event_id`, `email`, `role` VIEWER/EDITOR). Aplica al correo verificado, tenga cuenta ya o no.
 - Enlace: `share_slug` aleatorio, regenerable para revocar. Ruta pública `/e/{slug}` y `GET /v1/public/events/{slug}`.
-- UI: diálogo "Compartir" con la misma forma que el de Drive: personas con acceso, acceso general, "Copiar enlace".
+- UI: diálogo «Compartir» con un único botón **Guardar** (nunca guarda solo): personas con acceso, acceso general y «Copiar enlace».
+
+### Inscripción (quién tiene un lugar)
+
+- Es **opcional**: un evento nace sin inscripción (un culto no la usa). Quien administra (`events.write`) la activa con una configuración: abierta o cerrada, si exige cuenta, lista de espera, cupo total y **tipos de ticket** (nombre, precio, cantidad, ventana de venta). «Gratis» es un ticket de precio 0. **El precio es informativo: no se cobra** (deuda técnica).
+- Tablas `event_registration_setup`, `ticket_type` y `event_registration` (estado `CONFIRMED`, `WAITLISTED` o `CANCELLED`). Los cupos se cuentan bajo un bloqueo de la configuración; al cancelar, entra a quien más esperó y le quepa.
+- Cada inscripción tiene un `cancel_code` (para cancelar sin cuenta) y un `ticket_code` (el QR del ticket; no sirve para cancelar).
+- Quien puede abrir la página pública se inscribe en `POST /v1/public/events/{slug}/registrations`.
+- Mi espacio: **«Mis eventos y cursos»** = lo que tengo con lugar (confirmado o en espera, con botón para cancelar) y lo que asistí; **«Compartidos contigo»** = lo que otra persona o la iglesia me dejó ver y todavía no es mío por inscripción ni asistencia. Cada tarjeta dice por qué aparece.
+
+### Asistencia (quién estuvo)
+
+- Es independiente de la inscripción. Un culto marca personas de la iglesia, como siempre (`ATTENDANCE_WRITE`).
+- **Visitantes**: quien llega por primera vez es una persona con estado `VISITOR` (luego `MEMBERSHIP_IN_PROGRESS` y `MEMBER`; son las relaciones de estado de siempre y un cargo implica `MEMBER`). Quien no quiere dar su nombre, o a quien el ujier no alcanzó a anotar, se suma al contador `event_attendance.guest_count`.
+- **QR del evento**: el ujier lo muestra; la gente lo escanea y queda marcada (con cuenta, la persona vinculada y su ticket; sin cuenta, un visitante si da su nombre o un conteo si no). El código se firma con HMAC, cambia cada 5 minutos y solo vale alrededor del evento.
+- **QR del ticket**: el ujier lo escanea y la inscripción pasa a ingresada (una sola vez); si la cuenta es una persona de la iglesia, también queda en la asistencia.
+- Cada marca guarda su origen (`MANUAL`, `QR_EVENT`, `QR_TICKET`) y quién la hizo.
 
 ## 8. Migración de datos
 
@@ -152,7 +171,8 @@ El usuario confirmó que **no hay datos reales**, así que hay libertad para lim
 6. **007-sharing**: compartir eventos y cursos, enlaces, inscripción por enlace.
 7. **008-my-space**: la vista del miembro común y el nivel Miembro (cuenta sin cargo).
 8. **010-recurring-events-calendar-sync**: eventos recurrentes estilo Google Calendar (cada N, días, fin nunca/fecha/cantidad) y calendario privado `.ics` para suscribirse desde Google Calendar o Apple Calendar.
-9. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
+9. **011-registration**: inscripción como proceso aparte (tickets, cupos, lista de espera), asistencia con QR del evento y del ticket, visitantes y rediseño de Mi espacio. Reemplaza el «rol del enlace» de la 007.
+10. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
 
 Alcance acordado para este branch (`claude/app-flow-redesign-nq6j60`, en ambos repos):
 
@@ -185,11 +205,19 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 14  | Variable `APP_URL` en prod                           | API      | El deploy de dev ya define `APP_URL=https://srtommy-ui-test.vercel.app`; el de prod no, y por defecto es `http://localhost:3000`. | Definir `APP_URL` en `deploy-prod.yml` con el origen de la UI de prod. | Pendiente (consultar) |
 | 15  | Correo de los líderes ya guardados                   | API y UI | La lista de miembros de un grupo no trae el correo; al editar un grupo solo se invita a los líderes elegidos en esa sesión.                              | Agregar `email` a la respuesta de miembros del grupo y ofrecer «Invitar» también a los líderes guardados.                                                    | Pendiente (consultar) |
 | 16  | Rol Editor de un evento compartido                   | API      | `PUT /events/{id}` aún no edita nada (`EditEventCommandHandler` es un TODO), así que compartir como Editor ya se guarda y se exige, pero todavía no permite cambiar nada. | Implementar la edición de eventos (la 007 solo deja listo el control de acceso).                                                                             | Pendiente (consultar) |
-| 17  | Inscritos de un curso que no son personas            | API y UI | La inscripción por enlace guarda nombre, correo y teléfono, pero no crea la persona de la iglesia ni toma asistencia con ellos.                                          | Un botón «Agregar a la iglesia» que cree la persona desde la inscripción y la una al nodo del curso.                                                         | Pendiente (consultar) |
+| 17  | Inscritos de un curso que no son personas            | API y UI | La inscripción por enlace guarda nombre, correo y teléfono, pero no crea la persona de la iglesia ni toma asistencia con ellos.                                          | Un botón «Agregar a la iglesia» que cree la persona desde la inscripción y la una al nodo del curso. (011: quien ingresa con su ticket ya cuenta como asistente aunque no sea persona; los visitantes que se anotan en la puerta sí son personas con estado `VISITOR`.)                                                         | Pendiente (consultar) |
 | 18  | Compartir una ocurrencia de una serie                | API y UI | Cada ocurrencia de una serie es un evento con identidad propia (desde la 010), pero el compartido todavía se hace evento por evento: no se comparte la serie completa de una vez. | Decidir si compartir una ocurrencia debe poder extenderse a toda la serie.                                                                                   | Pendiente (consultar) |
 | 19  | Extender series sin fin en Cloud Run                 | API      | Era `ExtendEventSeriesJob` con `@Scheduled` dentro de la app; Cloud Run puede escalar a cero y no correrlo. | Hecho: `POST /v1/internal/events/extend-series`, llamado a diario (03:30 UTC) por Cloud Scheduler (`infra/terraform/modules/scheduler`). | Resuelta |
 | 20  | Zona horaria de la organización                      | API y UI | La zona de una serie se toma del navegador de quien la crea; no existe una zona por iglesia.                                                                              | Guardar la zona en la organización y usarla como valor por defecto al crear eventos.                                                                         | Pendiente (consultar) |
 | 21  | Política de reintentos y límites de la cola `outbox-email` | API (Terraform) | `infra/terraform/modules/tasks` creó la cola con valores por defecto sin medirlos: 10 intentos, espera de 60 s a 3600 s (5 duplicaciones), 12 h de duración máxima, 10 envíos por segundo y 5 concurrentes. Diez intentos parecen demasiados para un correo (los errores permanentes de Resend ya fallan de inmediato), y 10 por segundo probablemente supera el límite de Resend (del orden de 2 por segundo; confirmar en su documentación), lo que daría 429 y reintentos inútiles. | Revisar con datos reales de dev: tasa de fallos, cuánto duran las caídas de Resend y cuántos 429 hay. Candidato inicial: 5 intentos en cerca de una hora, `max_dispatches_per_second` por debajo del límite de Resend, y `max_retry_duration` bien por debajo de 24 h (Resend recuerda la clave de idempotencia 24 h). Cambiar `max_attempts` en el módulo `tasks` y `outbox.max-attempts` en `application-prod.yml` a la vez. | Pendiente (consultar) |
+| 22 | Pagos reales en la inscripción | API y UI | La 011 guarda el precio del ticket solo como dato: no se cobra ni hay pasarela. | Elegir pasarela (Stripe o Mercado Pago), estado de pago en la inscripción, webhooks y reembolsos. El modelo ya tiene el precio por ticket. | Pendiente (consultar) |
+| 23 | Correos de la inscripción | API | El código para cancelar solo se muestra al inscribirse y en Mi espacio; no se envía un correo de confirmación ni se avisa a quien pasa de la espera a confirmado. | Encolar el correo por el outbox (`SendEmailCommandHandler`) al inscribirse y al promover desde la espera, con el enlace de cancelación. | Pendiente (consultar) |
+| 24 | Límite de peticiones en los endpoints públicos | API (infra) | La inscripción y el QR del evento aceptan peticiones sin cuenta: alguien podría crear muchas inscripciones o muchos visitantes. | Límite por IP en Cloud Run o Cloud Armor, y revisar si el QR sin cuenta debería pedir un captcha. | Pendiente (consultar) |
+| 25 | Aplicar Terraform: `attendance-qr-secret` | API (infra) | El módulo `db-secrets` ahora genera el secreto que firma el QR de asistencia. Hasta aplicarlo, en dev y prod el QR responde error (el secreto está vacío) pero el resto de la API funciona. No se pudo validar con `terraform` desde el entorno de desarrollo. | Correr `terraform apply` en dev y en prod antes de usar el QR; rotar el secreto invalida los QR abiertos. | Pendiente (consultar) |
+| 26 | Guardar la lista de asistencia puede quitar marcas hechas por QR | API y UI | `PUT /events/{id}/attendance` reemplaza la lista completa: si alguien se marca por QR mientras el ujier tiene la pantalla abierta, su marca se pierde al guardar. | Que la UI vuelva a leer antes de guardar (o refresque sola), o un endpoint que solo agregue y quite diferencias. | Pendiente (consultar) |
+| 27 | Visitantes sin diferenciar en el nivel «Miembro» | API | Toda persona vinculada a un usuario obtiene «Miembro» en su nodo (008) aunque sea visitante, porque hoy todas nacen visitantes. | Decidir si un visitante vinculado debe tener menos acceso y, de ser así, excluirlo de la rama `MEMBER` de `user_access` y promover a quienes ya están. | Pendiente (consultar) |
+| 28 | Preguntas propias y varios boletos por compra | API y UI | La inscripción pide solo nombre, apellido, correo y teléfono, y un boleto por inscripción. | Preguntas configurables por evento y cantidad de boletos por compra. | Pendiente (consultar) |
+| 29 | Historial al quitar la inscripción de un evento | API | Quitar la inscripción borra también las filas canceladas (solo guardaban historial). | Decidir si ese historial debe conservarse (por ejemplo, desactivar en vez de borrar). | Pendiente (consultar) |
 
 ## 11. Trabajo futuro: centro de notificaciones (campana)
 

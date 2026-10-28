@@ -1,7 +1,6 @@
 package org.ouracademy.ovejafiel.event.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.ouracademy.ovejafiel.event.EventFixtures.singleEvent;
 import static org.ouracademy.ovejafiel.organization.OrganizationFixtures.organization;
 
@@ -9,7 +8,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
-import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 
 class EventSharingTests {
 
@@ -30,32 +28,27 @@ class EventSharingTests {
     var second = event(false);
 
     assertThat(first.getGeneralAccess()).isEqualTo(GeneralAccess.RESTRICTED);
-    assertThat(first.getLinkRole()).isEqualTo(LinkRole.VIEWER);
     assertThat(first.getShareSlug())
         .matches("[A-Za-z0-9_-]{16}")
         .isNotEqualTo(second.getShareSlug());
   }
 
   @Test
-  void anyEventCanBeOpenedToTheLinkAsViewer() {
+  void anyEventCanBeOpenedToTheLink() {
     var event = event(false);
 
-    event.shareVia(GeneralAccess.ANYONE_WITH_LINK, LinkRole.VIEWER);
+    event.shareVia(GeneralAccess.ANYONE_WITH_LINK);
 
     assertThat(event.getGeneralAccess()).isEqualTo(GeneralAccess.ANYONE_WITH_LINK);
   }
 
   @Test
-  void onlyACourseCanOpenItsRegistration() {
+  void aCourseIsSharedLikeAnyOtherEvent() {
     var course = event(true);
-    course.shareVia(GeneralAccess.ANYONE_WITH_LINK, LinkRole.REGISTRANT);
-    assertThat(course.getLinkRole()).isEqualTo(LinkRole.REGISTRANT);
 
-    var plain = event(false);
-    assertThatThrownBy(() -> plain.shareVia(GeneralAccess.CHURCH, LinkRole.REGISTRANT))
-        .isInstanceOf(DomainValidationException.class)
-        .hasMessageContaining("curso");
-    assertThat(plain.getGeneralAccess()).isEqualTo(GeneralAccess.RESTRICTED);
+    course.shareVia(GeneralAccess.CHURCH);
+
+    assertThat(course.getGeneralAccess()).isEqualTo(GeneralAccess.CHURCH);
   }
 
   @Test

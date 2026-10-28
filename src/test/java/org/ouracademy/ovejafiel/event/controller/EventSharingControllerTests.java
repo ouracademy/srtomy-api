@@ -13,14 +13,21 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.ouracademy.ovejafiel.event.command.cancel_event_registration.CancelEventRegistrationCommand;
 import org.ouracademy.ovejafiel.event.command.cancel_event_registration.CancelEventRegistrationCommandHandler;
+import org.ouracademy.ovejafiel.event.command.cancel_registration_by_code.CancelRegistrationByCodeCommand;
+import org.ouracademy.ovejafiel.event.command.cancel_registration_by_code.CancelRegistrationByCodeCommandHandler;
 import org.ouracademy.ovejafiel.event.command.register_for_event.RegisterForEventCommand;
 import org.ouracademy.ovejafiel.event.command.register_for_event.RegisterForEventCommandHandler;
 import org.ouracademy.ovejafiel.event.command.register_for_event.RegisterForEventResult;
+import org.ouracademy.ovejafiel.event.command.remove_event_registration.RemoveEventRegistrationCommand;
+import org.ouracademy.ovejafiel.event.command.remove_event_registration.RemoveEventRegistrationCommandHandler;
 import org.ouracademy.ovejafiel.event.command.renew_event_link.RenewEventLinkCommand;
 import org.ouracademy.ovejafiel.event.command.renew_event_link.RenewEventLinkCommandHandler;
 import org.ouracademy.ovejafiel.event.command.renew_event_link.RenewEventLinkResult;
+import org.ouracademy.ovejafiel.event.command.set_event_registration.SetEventRegistrationCommand;
+import org.ouracademy.ovejafiel.event.command.set_event_registration.SetEventRegistrationCommandHandler;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingCommand;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingCommandHandler;
 import org.ouracademy.ovejafiel.event.command.set_event_sharing.SetEventSharingResult;
@@ -33,12 +40,15 @@ import org.ouracademy.ovejafiel.event.domain.AccessLevel;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventShareId;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
-import org.ouracademy.ovejafiel.event.domain.LinkRole;
+import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.domain.ShareRole;
+import org.ouracademy.ovejafiel.event.domain.TicketTypeId;
 import org.ouracademy.ovejafiel.event.query.EventSharingResult;
 import org.ouracademy.ovejafiel.event.query.authorize_event.AuthorizeEventQuery;
 import org.ouracademy.ovejafiel.event.query.authorize_event.AuthorizeEventQueryHandler;
 import org.ouracademy.ovejafiel.event.query.authorize_event.AuthorizeEventResult;
+import org.ouracademy.ovejafiel.event.query.get_event_registration.GetEventRegistrationQueryHandler;
+import org.ouracademy.ovejafiel.event.query.get_event_registration.GetEventRegistrationResult;
 import org.ouracademy.ovejafiel.event.query.get_event_sharing.GetEventSharingQueryHandler;
 import org.ouracademy.ovejafiel.event.query.get_shared_event.GetSharedEventQuery;
 import org.ouracademy.ovejafiel.event.query.get_shared_event.GetSharedEventQueryHandler;
@@ -54,7 +64,6 @@ import org.ouracademy.ovejafiel.outbox.query.find_outbox_statuses.FindOutboxStat
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
-import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -81,6 +90,10 @@ class EventSharingControllerTests {
   @MockitoBean UnshareEventCommandHandler unshareEventCommandHandler;
   @MockitoBean ListEventRegistrationsQueryHandler listEventRegistrationsQueryHandler;
   @MockitoBean CancelEventRegistrationCommandHandler cancelEventRegistrationCommandHandler;
+  @MockitoBean CancelRegistrationByCodeCommandHandler cancelRegistrationByCodeCommandHandler;
+  @MockitoBean GetEventRegistrationQueryHandler getEventRegistrationQueryHandler;
+  @MockitoBean SetEventRegistrationCommandHandler setEventRegistrationCommandHandler;
+  @MockitoBean RemoveEventRegistrationCommandHandler removeEventRegistrationCommandHandler;
   @MockitoBean GetSharedEventQueryHandler getSharedEventQueryHandler;
   @MockitoBean RegisterForEventCommandHandler registerForEventCommandHandler;
   @MockitoBean ListEventsSharedWithQueryHandler listEventsSharedWithQueryHandler;
@@ -88,6 +101,7 @@ class EventSharingControllerTests {
   @MockitoBean FindOutboxStatusesQueryHandler findOutboxStatusesQueryHandler;
 
   UUID id = UUID.randomUUID();
+  static final TicketTypeId TICKET = TicketTypeId.generate();
 
   String bearer() {
     return "Bearer " + TestSecurityConfig.validToken(jwtEncoder);
@@ -96,12 +110,17 @@ class EventSharingControllerTests {
   EventSharingResult sharing() {
     return new EventSharingResult(
         GeneralAccess.CHURCH,
-        LinkRole.VIEWER,
         "abc",
         false,
         List.of(
             new EventSharingResult.Share(EventShareId.generate(), "ana@x.org", ShareRole.EDITOR)),
         2);
+  }
+
+  String signUpBody() {
+    return "{\"ticketTypeId\":\""
+        + TICKET.value()
+        + "\",\"firstName\":\"Lu\",\"lastName\":\"Mora\",\"email\":\"lu@x.org\"}";
   }
 
   GetSharedEventResult page(boolean canRegister) {
@@ -114,8 +133,16 @@ class EventSharingControllerTests {
         true,
         "Jóvenes",
         null,
+        canRegister
+            ? new GetSharedEventResult.Registration(
+                true,
+                false,
+                true,
+                false,
+                List.of(new GetSharedEventResult.Ticket(TICKET, "General", 2000, "PEN", true, 5)))
+            : null,
         canRegister,
-        false);
+        null);
   }
 
   @Test
@@ -154,7 +181,7 @@ class EventSharingControllerTests {
   }
 
   @Test
-  void changesTheGeneralAccessAndTheLinkRole() {
+  void changesTheGeneralAccess() {
     given(authorizeEventQueryHandler.handle(any()))
         .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
     given(setEventSharingCommandHandler.handle(any())).willReturn(new SetEventSharingResult());
@@ -165,33 +192,25 @@ class EventSharingControllerTests {
                 .uri("/v1/events/" + id + "/sharing")
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"generalAccess\":\"CHURCH\",\"linkRole\":\"VIEWER\"}"))
+                .content("{\"generalAccess\":\"CHURCH\"}"))
         .hasStatusOk();
     verify(setEventSharingCommandHandler)
-        .handle(new SetEventSharingCommand(new EventId(id), GeneralAccess.CHURCH, LinkRole.VIEWER));
+        .handle(new SetEventSharingCommand(new EventId(id), GeneralAccess.CHURCH));
   }
 
   @Test
-  void aRefusedLinkRoleIsABadRequest() {
+  void aSharingWithoutGeneralAccessIsABadRequest() {
     given(authorizeEventQueryHandler.handle(any()))
         .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
-    given(setEventSharingCommandHandler.handle(any()))
-        .willThrow(new DomainValidationException("Solo se puede abrir la inscripción de un curso"));
 
     assertThat(
             mvc.put()
                 .uri("/v1/events/" + id + "/sharing")
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"generalAccess\":\"CHURCH\",\"linkRole\":\"REGISTRANT\"}"))
+                .content("{}"))
         .hasStatus(400);
-    assertThat(
-            mvc.put()
-                .uri("/v1/events/" + id + "/sharing")
-                .header("Authorization", bearer())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"generalAccess\":\"CHURCH\"}"))
-        .hasStatus(400);
+    verifyNoInteractions(setEventSharingCommandHandler);
   }
 
   @Test
@@ -275,6 +294,8 @@ class EventSharingControllerTests {
     var body = assertThat(mvc.get().uri("/v1/public/events/abc")).hasStatusOk().bodyJson();
     body.extractingPath("$.title").isEqualTo("Curso");
     body.extractingPath("$.canRegister").isEqualTo(true);
+    body.extractingPath("$.registration.tickets[0].name").isEqualTo("General");
+    body.extractingPath("$.registration.tickets[0].remaining").isEqualTo(5);
   }
 
   @Test
@@ -296,7 +317,8 @@ class EventSharingControllerTests {
   @Test
   void anyoneSignsUpWithoutASession() {
     given(registerForEventCommandHandler.handle(any()))
-        .willReturn(new RegisterForEventResult(false));
+        .willReturn(
+            new RegisterForEventResult(false, RegistrationStatus.CONFIRMED, "cancel", "ticket"));
 
     var body =
         assertThat(
@@ -304,38 +326,47 @@ class EventSharingControllerTests {
                     .uri("/v1/public/events/abc/registrations")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
-                        "{\"firstName\":\"Lu\",\"lastName\":\"Mora\",\"email\":\"lu@x.org\","
+                        "{\"ticketTypeId\":\""
+                            + TICKET.value()
+                            + "\",\"firstName\":\"Lu\","
+                            + "\"lastName\":\"Mora\",\"email\":\"lu@x.org\","
                             + "\"phoneNumber\":\"999\"}"))
             .hasStatus(201)
             .bodyJson();
     body.extractingPath("$.alreadyRegistered").isEqualTo(false);
+    body.extractingPath("$.status").isEqualTo("CONFIRMED");
+    body.extractingPath("$.cancelCode").isEqualTo("cancel");
+    body.extractingPath("$.ticketCode").isEqualTo("ticket");
     verify(registerForEventCommandHandler)
-        .handle(new RegisterForEventCommand("abc", null, "Lu", "Mora", "lu@x.org", "999"));
+        .handle(new RegisterForEventCommand("abc", null, TICKET, "Lu", "Mora", "lu@x.org", "999"));
   }
 
   @Test
   void aSignUpWithATokenKeepsTheUser() {
     given(registerForEventCommandHandler.handle(any()))
-        .willReturn(new RegisterForEventResult(true));
+        .willReturn(
+            new RegisterForEventResult(true, RegistrationStatus.WAITLISTED, "cancel", "ticket"));
 
     assertThat(
             mvc.post()
                 .uri("/v1/public/events/abc/registrations")
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"firstName\":\"Lu\",\"lastName\":\"Mora\",\"email\":\"lu@x.org\"}"))
+                .content(signUpBody()))
         .hasStatus(201);
     verify(registerForEventCommandHandler)
-        .handle(new RegisterForEventCommand("abc", "test-user", "Lu", "Mora", "lu@x.org", null));
+        .handle(
+            new RegisterForEventCommand(
+                "abc", "test-user", TICKET, "Lu", "Mora", "lu@x.org", null));
   }
 
   @Test
   void aBadSignUpIsRejectedBeforeTheHandler() {
     for (var body :
         List.of(
-            "{\"firstName\":\"\",\"lastName\":\"Mora\",\"email\":\"lu@x.org\"}",
-            "{\"firstName\":\"Lu\",\"lastName\":\"Mora\",\"email\":\"nope\"}",
-            "{\"firstName\":\"Lu\",\"lastName\":\"Mora\"}")) {
+            signUpBody().replace("\"Lu\"", "\"\""),
+            signUpBody().replace("lu@x.org", "nope"),
+            "{\"firstName\":\"Lu\",\"lastName\":\"Mora\",\"email\":\"lu@x.org\"}")) {
       assertThat(
               mvc.post()
                   .uri("/v1/public/events/abc/registrations")
@@ -347,11 +378,11 @@ class EventSharingControllerTests {
   }
 
   @Test
-  void aLinkThatDoesNotAllowSigningUpIsForbiddenOrNotFound() {
+  void aSignUpTheVisitorCannotMakeIsForbiddenOrNotFound() {
     given(registerForEventCommandHandler.handle(any()))
         .willThrow(new AccessDeniedException("cerrada"))
         .willThrow(new NoSuchElementException());
-    var body = "{\"firstName\":\"Lu\",\"lastName\":\"Mora\",\"email\":\"lu@x.org\"}";
+    var body = signUpBody();
 
     assertThat(
             mvc.post()
@@ -368,9 +399,134 @@ class EventSharingControllerTests {
   }
 
   @Test
+  void organizersReadHowTheEventTakesSignUps() {
+    given(authorizeEventQueryHandler.handle(any()))
+        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
+    given(getEventRegistrationQueryHandler.handle(any()))
+        .willReturn(
+            Optional.of(
+                new GetEventRegistrationResult(
+                    true,
+                    true,
+                    false,
+                    true,
+                    50,
+                    3,
+                    1,
+                    2,
+                    List.of(
+                        new GetEventRegistrationResult.Ticket(
+                            TICKET, "General", 0, "PEN", 20, null, null, 3)))));
+
+    var body =
+        assertThat(
+                mvc.get()
+                    .uri("/v1/events/" + id + "/registration")
+                    .header("Authorization", bearer()))
+            .hasStatusOk()
+            .bodyJson();
+    body.extractingPath("$.enabled").isEqualTo(true);
+    body.extractingPath("$.capacity").isEqualTo(50);
+    body.extractingPath("$.tickets[0].sold").isEqualTo(3);
+    body.extractingPath("$.checkedIn").isEqualTo(2);
+  }
+
+  @Test
+  void organizersSetTheRegistrationWithItsTickets() {
+    given(authorizeEventQueryHandler.handle(any()))
+        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
+    given(getEventRegistrationQueryHandler.handle(any()))
+        .willReturn(Optional.of(GetEventRegistrationResult.disabled()));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + id + "/registration")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":true,\"capacity\":30,"
+                        + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0,\"quantity\":30}]}"))
+        .hasStatusOk();
+
+    var command = ArgumentCaptor.forClass(SetEventRegistrationCommand.class);
+    verify(setEventRegistrationCommandHandler).handle(command.capture());
+    assertThat(command.getValue().eventId()).isEqualTo(new EventId(id));
+    assertThat(command.getValue().open()).isTrue();
+    assertThat(command.getValue().waitlistEnabled()).isTrue();
+    assertThat(command.getValue().capacity()).isEqualTo(30);
+    assertThat(command.getValue().tickets())
+        .extracting(SetEventRegistrationCommand.Ticket::name)
+        .containsExactly("General");
+  }
+
+  @Test
+  void aRegistrationWithoutTicketsIsABadRequest() {
+    given(authorizeEventQueryHandler.handle(any()))
+        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + id + "/registration")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"open\":true,\"tickets\":[]}"))
+        .hasStatus(400);
+    verifyNoInteractions(setEventRegistrationCommandHandler);
+  }
+
+  @Test
+  void organizersTakeTheRegistrationAway() {
+    given(authorizeEventQueryHandler.handle(any()))
+        .willReturn(new AuthorizeEventResult(AccessLevel.MANAGER));
+
+    assertThat(
+            mvc.delete()
+                .uri("/v1/events/" + id + "/registration")
+                .header("Authorization", bearer()))
+        .hasStatus(204);
+    verify(removeEventRegistrationCommandHandler)
+        .handle(new RemoveEventRegistrationCommand(new EventId(id)));
+  }
+
+  @Test
+  void managingTheRegistrationNeedsToManageTheEvent() {
+    given(authorizeEventQueryHandler.handle(any())).willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.get().uri("/v1/events/" + id + "/registration").header("Authorization", bearer()))
+        .hasStatus(403);
+    assertThat(
+            mvc.delete()
+                .uri("/v1/events/" + id + "/registration")
+                .header("Authorization", bearer()))
+        .hasStatus(403);
+    verifyNoInteractions(
+        getEventRegistrationQueryHandler,
+        setEventRegistrationCommandHandler,
+        removeEventRegistrationCommandHandler);
+  }
+
+  @Test
+  void anyoneCancelsWithTheCodeTheyKept() {
+    assertThat(mvc.delete().uri("/v1/public/registrations/the-code")).hasStatus(204);
+
+    verify(cancelRegistrationByCodeCommandHandler)
+        .handle(new CancelRegistrationByCodeCommand("the-code"));
+  }
+
+  @Test
+  void anUnknownCancelCodeIsNotFound() {
+    given(cancelRegistrationByCodeCommandHandler.handle(any()))
+        .willThrow(new NoSuchElementException());
+
+    assertThat(mvc.delete().uri("/v1/public/registrations/nope")).hasStatus(404);
+  }
+
+  @Test
   void theOtherPublicRoutesStayClosedWithoutASession() {
     assertThat(mvc.get().uri("/v1/me/shared-events")).hasStatus(401);
     assertThat(mvc.get().uri("/v1/events/" + id + "/registrations")).hasStatus(401);
+    assertThat(mvc.get().uri("/v1/events/" + id + "/registration")).hasStatus(401);
     assertThat(
             mvc.post()
                 .uri("/v1/events/" + id + "/shares")

@@ -18,6 +18,11 @@ resend:
   from: ${RESEND_FROM:Sr. Tommy <invitaciones@ovejafiel.com>}
   reply-to: ${RESEND_REPLY_TO:}
 
+# Signs the code in the attendance QR of an event (Terraform generates the secret). Without it the
+# QR cannot be made.
+attendance:
+  qr-secret: ${sm@attendance-qr-secret:}
+
 # Cloud Tasks delivers the outbox messages (emails): one task per message calls
 # POST /v1/internal/outbox/{id}/attempt on this service. Without the project and the URL messages
 # are delivered once, right after the commit, and never retried (local runs).

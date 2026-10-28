@@ -18,7 +18,6 @@ import org.hibernate.annotations.SQLRestriction;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.shared.domain.DomainObject;
-import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.ouracademy.ovejafiel.shared.domain.RandomSlugs;
 
 @Entity
@@ -54,10 +53,6 @@ public class Event extends DomainObject {
   @Setter
   @Enumerated(EnumType.STRING)
   GeneralAccess generalAccess = GeneralAccess.RESTRICTED;
-
-  @Setter
-  @Enumerated(EnumType.STRING)
-  LinkRole linkRole = LinkRole.VIEWER;
 
   /** Address of the shared page ({@code /e/{slug}}); a new one revokes the old link. */
   @Column(nullable = false)
@@ -104,16 +99,9 @@ public class Event extends DomainObject {
     this.deletedTime = LocalDateTime.now();
   }
 
-  /**
-   * Changes who can open the event through its link. Signing up through the link is only for
-   * courses.
-   */
-  public void shareVia(GeneralAccess generalAccess, LinkRole linkRole) {
-    if (linkRole == LinkRole.REGISTRANT && !Boolean.TRUE.equals(isACourse)) {
-      throw new DomainValidationException("Solo se puede abrir la inscripción de un curso");
-    }
+  /** Changes who can open the event through its link. Signing up is a separate process. */
+  public void shareVia(GeneralAccess generalAccess) {
     this.generalAccess = generalAccess;
-    this.linkRole = linkRole;
   }
 
   /** Revokes the current link: the old address stops working. */

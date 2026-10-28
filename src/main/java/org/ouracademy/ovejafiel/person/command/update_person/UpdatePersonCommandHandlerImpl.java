@@ -3,10 +3,13 @@ package org.ouracademy.ovejafiel.person.command.update_person;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.accountability.command.set_member_state.SetMemberStateCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_member_state.SetMemberStateCommandHandler;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommand;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommandHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
+import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +21,7 @@ class UpdatePersonCommandHandlerImpl implements UpdatePersonCommandHandler {
   private final PersonRepository personRepository;
   private final SyncPersonPositionsCommandHandler syncPersonPositionsCommandHandler;
   private final FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
+  private final SetMemberStateCommandHandler setMemberStateCommandHandler;
 
   @Override
   @Transactional
@@ -42,6 +46,13 @@ class UpdatePersonCommandHandlerImpl implements UpdatePersonCommandHandler {
                       command.organizationId(),
                       churchId,
                       command.positionIds()));
+              var state =
+                  command.positionIds().isEmpty() ? command.memberState() : MemberState.MEMBER;
+              if (state != null) {
+                setMemberStateCommandHandler.handle(
+                    new SetMemberStateCommand(
+                        person.getId(), command.organizationId(), state.typeId()));
+              }
               return new UpdatePersonResult(personRepository.save(person).getId());
             });
   }

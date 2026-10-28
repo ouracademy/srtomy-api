@@ -5,13 +5,14 @@ import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventShare;
 import org.ouracademy.ovejafiel.event.domain.EventShareId;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
-import org.ouracademy.ovejafiel.event.domain.LinkRole;
 import org.ouracademy.ovejafiel.event.domain.ShareRole;
 
-/** How an event is shared: its general access and link, the people it is shared with. */
+/**
+ * How an event is shared: its general access and link, the people it is shared with, and how many
+ * hold or wait for a seat.
+ */
 public record EventSharingResult(
     GeneralAccess generalAccess,
-    LinkRole linkRole,
     String slug,
     boolean isACourse,
     List<Share> shares,
@@ -27,7 +28,6 @@ public record EventSharingResult(
   public static EventSharingResult of(Event event, List<EventShare> shares, long registrations) {
     return new EventSharingResult(
         event.getGeneralAccess(),
-        event.getLinkRole(),
         event.getShareSlug(),
         Boolean.TRUE.equals(event.getIsACourse()),
         shares.stream().map(Share::from).toList(),

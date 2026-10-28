@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.event.domain.AccessLevel;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
-import org.ouracademy.ovejafiel.event.domain.LinkRole;
 import org.ouracademy.ovejafiel.event.repository.EventShareRepository;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.query.find_accessible_organizations.FindAccessibleOrganizationsQuery;
@@ -48,18 +47,13 @@ public class EventAccess {
   }
 
   /**
-   * Whether {@code subject} (null: not signed in) can sign up through the link: the link allows it
-   * (a course with the registrant role) and the general access reaches them.
+   * Whether {@code subject} (null: not signed in) can open the shared page of the event: the link
+   * is open to anyone, or the subject has at least viewer access by the tree, a share or the
+   * church.
    */
-  public boolean canRegister(String subject, Event event) {
-    if (event.getLinkRole() != LinkRole.REGISTRANT || !Boolean.TRUE.equals(event.getIsACourse())) {
-      return false;
-    }
-    return switch (event.getGeneralAccess()) {
-      case ANYONE_WITH_LINK -> true;
-      case CHURCH -> subject != null && isChurchMember(subject, event);
-      case RESTRICTED -> false;
-    };
+  public boolean canOpen(String subject, Event event) {
+    return event.getGeneralAccess() == GeneralAccess.ANYONE_WITH_LINK
+        || levelOn(subject, event).atLeast(AccessLevel.VIEWER);
   }
 
   /** The signed-in user, if they have verified an email. */

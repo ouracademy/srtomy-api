@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.event.query.get_event_sharing;
 
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.query.EventSharingResult;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
@@ -27,6 +28,7 @@ class GetEventSharingQueryHandlerImpl implements GetEventSharingQueryHandler {
                 EventSharingResult.of(
                     event,
                     eventShareRepository.findByEventIdOrderByCreateDate(event.getId()),
-                    eventRegistrationRepository.countByEventId(event.getId())));
+                    eventRegistrationRepository.countByEventIdAndStatusNot(
+                        event.getId(), RegistrationStatus.CANCELLED)));
   }
 }

@@ -11,6 +11,14 @@
 5. Cola de espera: `WaitlistPromotion` (helper en la raíz de `command/`) lo usan las dos formas de cancelar.
 6. `EventSharingController`: rutas nuevas y `SecurityConfig` abre `DELETE /v1/public/registrations/*`.
 
+## Asistencia por QR
+
+7. **Dominio**: `CheckInSource` (en `event`); `EventAttendance` gana `guestCount` y `markPresent`; `PersonEventAttendance` gana `source` y `markedBy`; `setPeople` conserva el origen de quienes siguen. En `event`: `EventRegistration` gana `ticketCode`, `checkedInAt`, `checkInSource`.
+8. **Token del QR**: `AttendanceQrToken` (HMAC-SHA256 de `eventId` y la ventana de 5 minutos, comparación en tiempo constante, cuenta la ventana vigente y la anterior). El secreto es `attendance.qr-secret` (Secret Manager en prod, generado por Terraform; valor fijo en local y pruebas). Sin secreto no se puede emitir ni verificar.
+9. **Comandos** (`attendance`): `mark_person_present`, `mark_user_present` (la persona vinculada a una cuenta en la iglesia del evento), `set_attendance_guests`, `add_visitor` (crea la persona `VISITOR` con `create_person` y la marca), `mark_self_attendance` (el escaneo del QR). **Consultas**: `get_attendance_qr`, `get_attendance_welcome`. En `event`: `check_in_registration_by_ticket`, `set_registration_check_in`, `check_in_user_registration`. Los módulos se hablan solo por handlers.
+10. **Estado de la persona**: `set_member_state` (en `accountability`) deja un único estado por persona y nodo; `create_person` y `update_person` aceptan `memberState` y fuerzan `MEMBER` con cargos.
+11. `AttendanceCheckInController` (rutas públicas del QR y de marcado) y `SecurityConfig` abre `POST /v1/public/attendance/*`. El contador de visitantes sin nombre suma con un `UPDATE` atómico, no leyendo y escribiendo.
+
 ## Constitution Check
 
 | Principio | Cómo |

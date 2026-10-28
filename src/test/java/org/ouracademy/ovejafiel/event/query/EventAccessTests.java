@@ -18,7 +18,6 @@ import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventShare;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
-import org.ouracademy.ovejafiel.event.domain.LinkRole;
 import org.ouracademy.ovejafiel.event.domain.ShareRole;
 import org.ouracademy.ovejafiel.event.repository.EventShareRepository;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
@@ -81,7 +80,7 @@ class EventAccessTests {
 
   @Test
   void someoneNotSignedInGetsNothingFromThePermissions() {
-    event.shareVia(GeneralAccess.CHURCH, LinkRole.VIEWER);
+    event.shareVia(GeneralAccess.CHURCH);
 
     assertThat(access.levelOn(null, event)).isEqualTo(AccessLevel.NONE);
   }
@@ -118,7 +117,7 @@ class EventAccessTests {
 
   @Test
   void aChurchEventIsViewedByWhoBelongsToTheChurch() {
-    event.shareVia(GeneralAccess.CHURCH, LinkRole.VIEWER);
+    event.shareVia(GeneralAccess.CHURCH);
     assertThat(access.levelOn("me", event)).isEqualTo(AccessLevel.NONE);
 
     inChurch();
@@ -133,27 +132,26 @@ class EventAccessTests {
   }
 
   @Test
-  void signingUpNeedsTheRegistrantRoleOnACourseAndAGeneralAccessThatReachesTheVisitor() {
-    event.setIsACourse(true);
-    event.shareVia(GeneralAccess.ANYONE_WITH_LINK, LinkRole.REGISTRANT);
-    assertThat(access.canRegister(null, event)).isTrue();
+  void anyoneWithTheLinkCanOpenTheSharedPage() {
+    event.shareVia(GeneralAccess.ANYONE_WITH_LINK);
 
-    event.shareVia(GeneralAccess.CHURCH, LinkRole.REGISTRANT);
-    assertThat(access.canRegister(null, event)).isFalse();
-    assertThat(access.canRegister("me", event)).isFalse();
-    inChurch();
-    assertThat(access.canRegister("me", event)).isTrue();
-
-    event.shareVia(GeneralAccess.RESTRICTED, LinkRole.REGISTRANT);
-    assertThat(access.canRegister("me", event)).isFalse();
+    assertThat(access.canOpen(null, event)).isTrue();
+    assertThat(access.canOpen("me", event)).isTrue();
   }
 
   @Test
-  void aViewerLinkNeverAllowsSigningUp() {
-    event.setIsACourse(true);
-    event.shareVia(GeneralAccess.ANYONE_WITH_LINK, LinkRole.VIEWER);
+  void aChurchEventOpensOnlyForTheChurch() {
+    event.shareVia(GeneralAccess.CHURCH);
 
-    assertThat(access.canRegister(null, event)).isFalse();
+    assertThat(access.canOpen(null, event)).isFalse();
+    assertThat(access.canOpen("me", event)).isFalse();
+    inChurch();
+    assertThat(access.canOpen("me", event)).isTrue();
+  }
+
+  @Test
+  void aRestrictedEventOpensOnlyForWhoAlreadyHasAccess() {
+    assertThat(access.canOpen("me", event)).isFalse();
   }
 
   @Test

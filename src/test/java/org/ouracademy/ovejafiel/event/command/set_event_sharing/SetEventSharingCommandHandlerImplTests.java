@@ -13,11 +13,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
-import org.ouracademy.ovejafiel.event.domain.LinkRole;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
-import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 
 class SetEventSharingCommandHandlerImplTests {
 
@@ -27,47 +25,25 @@ class SetEventSharingCommandHandlerImplTests {
   EventId id = EventId.generate();
 
   @Test
-  void changesWhoCanOpenTheEventAndWhatTheLinkAllows() {
+  void changesWhoCanOpenTheEvent() {
     var event =
         singleEvent(
             id,
             "Curso",
             organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH),
             List.of());
-    event.setIsACourse(true);
     when(repository.findById(id)).thenReturn(Optional.of(event));
 
-    handler.handle(new SetEventSharingCommand(id, GeneralAccess.CHURCH, LinkRole.REGISTRANT));
+    handler.handle(new SetEventSharingCommand(id, GeneralAccess.CHURCH));
 
     assertThat(event.getGeneralAccess()).isEqualTo(GeneralAccess.CHURCH);
-    assertThat(event.getLinkRole()).isEqualTo(LinkRole.REGISTRANT);
-  }
-
-  @Test
-  void aPlainEventCannotOpenItsRegistration() {
-    var event =
-        singleEvent(
-            id,
-            "Retiro",
-            organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH),
-            List.of());
-    when(repository.findById(id)).thenReturn(Optional.of(event));
-
-    assertThatThrownBy(
-            () ->
-                handler.handle(
-                    new SetEventSharingCommand(id, GeneralAccess.CHURCH, LinkRole.REGISTRANT)))
-        .isInstanceOf(DomainValidationException.class);
   }
 
   @Test
   void anUnknownEventIsNotFound() {
     when(repository.findById(id)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(
-            () ->
-                handler.handle(
-                    new SetEventSharingCommand(id, GeneralAccess.CHURCH, LinkRole.VIEWER)))
+    assertThatThrownBy(() -> handler.handle(new SetEventSharingCommand(id, GeneralAccess.CHURCH)))
         .isInstanceOf(NoSuchElementException.class);
   }
 }

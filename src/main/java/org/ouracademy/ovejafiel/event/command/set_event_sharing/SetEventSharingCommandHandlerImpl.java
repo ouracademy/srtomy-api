@@ -18,7 +18,7 @@ class SetEventSharingCommandHandlerImpl implements SetEventSharingCommandHandler
     eventRepository
         .findById(command.eventId())
         .orElseThrow(() -> new NoSuchElementException("Event not found"))
-        .shareVia(command.generalAccess(), command.linkRole());
+        .shareVia(command.generalAccess());
     return new SetEventSharingResult();
   }
 }

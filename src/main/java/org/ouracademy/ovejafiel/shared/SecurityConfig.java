@@ -43,10 +43,16 @@ public class SecurityConfig {
               // Pages that anyone with the link can open without signing in (an invitation
               // preview, public node pages, shared events). Reads only.
               authorize.requestMatchers(HttpMethod.GET, "/v1/public/**").permitAll();
-              // Signing up for a course through its shared link needs no account.
+              // Signing up through the shared link, and cancelling with the code kept, need no
+              // account.
               authorize
                   .requestMatchers(HttpMethod.POST, "/v1/public/events/*/registrations")
                   .permitAll();
+              authorize
+                  .requestMatchers(HttpMethod.DELETE, "/v1/public/registrations/*")
+                  .permitAll();
+              // Marking your own attendance by scanning the QR of the event needs no account.
+              authorize.requestMatchers(HttpMethod.POST, "/v1/public/attendance/*").permitAll();
               // Swagger UI is only ever exposed locally — Cloud Run (dev and prod)
               // always runs with the "prod" profile, so this never opens it up there.
               if (local) {

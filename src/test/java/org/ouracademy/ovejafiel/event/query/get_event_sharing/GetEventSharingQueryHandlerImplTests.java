@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventShare;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
-import org.ouracademy.ovejafiel.event.domain.LinkRole;
+import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.domain.ShareRole;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
@@ -39,16 +39,15 @@ class GetEventSharingQueryHandlerImplTests {
             organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH),
             List.of());
     event.setIsACourse(true);
-    event.shareVia(GeneralAccess.CHURCH, LinkRole.REGISTRANT);
+    event.shareVia(GeneralAccess.CHURCH);
     when(events.findById(id)).thenReturn(Optional.of(event));
     when(shares.findByEventIdOrderByCreateDate(id))
         .thenReturn(List.of(new EventShare(event, "ana@x.org", ShareRole.EDITOR, null)));
-    when(registrations.countByEventId(id)).thenReturn(3L);
+    when(registrations.countByEventIdAndStatusNot(id, RegistrationStatus.CANCELLED)).thenReturn(3L);
 
     var result = handler.handle(new GetEventSharingQuery(id)).orElseThrow();
 
     assertThat(result.generalAccess()).isEqualTo(GeneralAccess.CHURCH);
-    assertThat(result.linkRole()).isEqualTo(LinkRole.REGISTRANT);
     assertThat(result.slug()).isEqualTo(event.getShareSlug());
     assertThat(result.isACourse()).isTrue();
     assertThat(result.registrations()).isEqualTo(3);

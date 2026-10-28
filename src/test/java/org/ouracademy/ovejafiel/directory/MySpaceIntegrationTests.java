@@ -226,11 +226,23 @@ class MySpaceIntegrationTests {
         alice,
         HttpMethod.PUT,
         "/events/" + courseId + "/sharing",
-        "{\"generalAccess\":\"ANYONE_WITH_LINK\",\"linkRole\":\"REGISTRANT\"}");
+        "{\"generalAccess\":\"ANYONE_WITH_LINK\"}");
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/events/" + courseId + "/registration",
+        "{\"open\":true,\"requiresAccount\":false,\"waitlistEnabled\":false,\"tickets\":["
+            + "{\"name\":\"General\",\"priceCents\":0}]}");
   }
 
   void register(String subject, String email) {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
+    var ticketId =
+        json(alice, "/events/" + courseId + "/registration")
+            .get("tickets")
+            .get(0)
+            .get("id")
+            .asText();
     var request =
         client
             .post()
@@ -241,8 +253,8 @@ class MySpaceIntegrationTests {
     }
     request
         .body(
-            "{\"firstName\":\"Nombre\",\"lastName\":\"Apellido\",\"email\":\"%s\"}"
-                .formatted(email))
+            "{\"ticketTypeId\":\"%s\",\"firstName\":\"Nombre\",\"lastName\":\"Apellido\",\"email\":\"%s\"}"
+                .formatted(ticketId, email))
         .exchange()
         .expectStatus()
         .isCreated();
