@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.event.query.find_event_by_id;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.ovejafiel.event.EventFixtures.childOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.eventSeries;
 import static org.ouracademy.ovejafiel.event.EventFixtures.occurrenceOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.singleEvent;
@@ -18,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.Recurrence;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
@@ -81,5 +83,44 @@ class FindEventByIdQueryHandlerImplTests {
     when(eventRepository.findById(id)).thenReturn(Optional.empty());
 
     assertThat(handler.handle(new FindEventByIdQuery(id))).isEmpty();
+  }
+
+  @Test
+  void aContainerListsItsSubEventsInOrder() {
+    var conference = singleEvent(EventId.generate(), "Mega evento", church, List.of());
+    var workshop =
+        childOf(
+            conference, EventId.generate(), "Taller", conference.getStart(), conference.getEnd());
+    workshop.setRegistrationMode(RegistrationMode.OWN);
+    when(eventRepository.findById(conference.getId())).thenReturn(Optional.of(conference));
+    when(eventRepository.findByParentOrderByStart(conference)).thenReturn(List.of(workshop));
+
+    var result = handler.handle(new FindEventByIdQuery(conference.getId())).orElseThrow();
+
+    assertThat(result.parentEventId()).isNull();
+    assertThat(result.children())
+        .singleElement()
+        .satisfies(
+            child -> {
+              assertThat(child.id()).isEqualTo(workshop.getId());
+              assertThat(child.title()).isEqualTo("Taller");
+              assertThat(child.registrationMode()).isEqualTo(RegistrationMode.OWN);
+            });
+  }
+
+  @Test
+  void aSubEventSaysWhichContainerItBelongsTo() {
+    var conference = singleEvent(EventId.generate(), "Mega evento", church, List.of());
+    var workshop =
+        childOf(
+            conference, EventId.generate(), "Taller", conference.getStart(), conference.getEnd());
+    when(eventRepository.findById(workshop.getId())).thenReturn(Optional.of(workshop));
+
+    var result = handler.handle(new FindEventByIdQuery(workshop.getId())).orElseThrow();
+
+    assertThat(result.parentEventId()).isEqualTo(conference.getId());
+    assertThat(result.parentTitle()).isEqualTo("Mega evento");
+    assertThat(result.registrationMode()).isEqualTo(RegistrationMode.INHERIT);
+    assertThat(result.children()).isEmpty();
   }
 }

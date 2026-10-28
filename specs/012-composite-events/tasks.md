@@ -11,7 +11,7 @@
 - [x] T006 `DeleteEventCommandHandlerImpl` borra los hijos y pruebas.
 
 ## Leer
-- [ ] T007 `FindEventResult` y `EventResponse` con padre, modo y `children`.
+- [x] T007 `FindEventResult` y `EventResponse` con padre, modo y `children`.
 
 ## Inscripción y asistencia
 - [ ] T008 `EffectiveRegistration` y pruebas.
