@@ -23,9 +23,9 @@
 - [x] T012 Hijos heredados en `me/events` y título con el padre en el feed `.ics`.
 
 ## Cierre
-- [ ] T013 Prueba de integración `CompositeEventsIntegrationTests`.
-- [ ] T014 `docs/redesign.md` §7 y §10.
-- [ ] T015 `./mvnw spotless:apply`, `./mvnw verify` y `python3 scripts/check-language.py`.
+- [x] T013 Prueba de integración `CompositeEventsIntegrationTests`.
+- [x] T014 `docs/redesign.md` §7 y §10.
+- [x] T015 `./mvnw spotless:apply`, `./mvnw verify` y `python3 scripts/check-language.py`.
 
 ## Decisiones tomadas con el dueño del producto
 

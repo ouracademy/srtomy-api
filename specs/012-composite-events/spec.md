@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-28
 
-**Status**: Draft (solo spec; sin código todavía). La UI vive en el repo `srtomy-ui`.
+**Status**: Implemented (API). La UI vive en el repo `srtomy-ui` y falta.
 
 **Input**: Una iglesia tiene cada año un mega evento de 3 días con eventos cortos y cursos dentro. Hoy no hay jerarquía entre eventos: un curso es un `Event` con `is_a_course`, y lo único que agrupa eventos es la serie recurrente (`event_series`). `Event.java` ya anticipa los «eventos complejos» en un comentario, pero nunca se implementó.
 
@@ -19,7 +19,7 @@
    En un evento sin padre el campo se ignora (equivale a `OWN`).
 4. **Cupos y tickets viven donde se configuran.** Los del mega evento están en el padre; un hijo `OWN` tiene los suyos. `Seats` no cambia.
 5. **La asistencia sigue siendo por evento** (`event_attendance` es 1:1 con `event`): cada sub-evento tiene su lista. El QR de un hijo marca en ese hijo; el QR del padre es la entrada general del mega evento.
-6. **Check-in por ticket heredado.** Escanear el `ticket_code` de la inscripción del padre en un hijo `INHERIT` deja ingresada la asistencia de **ese hijo**; en un hijo `OWN` sin ticket propio responde 400.
+6. **Check-in por ticket heredado.** Escanear el `ticket_code` de la inscripción del padre en un hijo `INHERIT` deja ingresada la asistencia de **ese hijo**; en un hijo `OWN` sin ticket propio responde 400. Si la inscripción no tiene una persona de la iglesia vinculada también responde 400, porque la asistencia de un hijo es por persona (deuda técnica 32).
 7. **Reglas de forma.** Sin ciclos; el padre no puede ser hijo; el hijo pertenece a la misma `organization` del padre o a un descendiente; las fechas del hijo caen dentro del rango del padre. Se validan al crear. Validar al cambiar las fechas del padre depende de `PUT /events/{id}`, que sigue sin implementarse (deuda técnica).
 8. **Sin recurrencia en la primera versión.** Ni el padre ni un hijo pueden pertenecer a una serie (`series_id`): se rechaza con `DomainValidationException`. Repetir el mega evento cada año se hace duplicándolo.
 9. **Borrado.** Borrar (lógico) el padre oculta a sus hijos y sus asistencias.
