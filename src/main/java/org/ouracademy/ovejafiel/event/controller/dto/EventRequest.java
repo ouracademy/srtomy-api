@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.Data;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 
 @Data
 public class EventRequest {
@@ -31,6 +32,12 @@ public class EventRequest {
 
   /** Present when the event repeats. */
   @Valid RecurrenceRequest recurrence;
+
+  /** The container this event goes inside (a sub-event of a mega event). */
+  UUID parentEventId;
+
+  /** How a sub-event is entered; inherits the container's registration when omitted. */
+  RegistrationMode registrationMode;
 
   /** IANA zone the event repeats in (e.g. America/Lima); UTC when omitted. */
   String timeZone;

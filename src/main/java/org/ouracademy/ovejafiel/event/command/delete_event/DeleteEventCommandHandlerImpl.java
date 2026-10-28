@@ -1,5 +1,6 @@
 package org.ouracademy.ovejafiel.event.command.delete_event;
 
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommand;
@@ -21,12 +22,22 @@ class DeleteEventCommandHandlerImpl implements DeleteEventCommandHandler {
   @Transactional
   public DeleteEventResult handle(DeleteEventCommand command) {
     var event = eventRepository.findById(command.id()).orElseThrow();
-    var deleted = eventsToDelete(event, command.option());
+    var deleted = new ArrayList<>(eventsToDelete(event, command.option()));
+    deleted.addAll(childrenOf(deleted));
     deleteAttendanceForEventsCommandHandler.handle(
         new DeleteAttendanceForEventsCommand(deleted.stream().map(Event::getId).toList()));
     deleted.forEach(Event::delete);
     stopSeries(event, command.option());
     return new DeleteEventResult(command.id());
+  }
+
+  /**
+   * Deleting a container takes its sub-events with it; deleting a sub-event leaves the container.
+   */
+  private List<Event> childrenOf(List<Event> events) {
+    return events.stream()
+        .flatMap(event -> eventRepository.findByParentOrderByStart(event).stream())
+        .toList();
   }
 
   /** A one-off event only has itself, whatever the option. */

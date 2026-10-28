@@ -210,7 +210,9 @@ class EventControllerTests {
                     Recurrence.EndType.UNTIL,
                     java.time.LocalDate.of(2026, 1, 14),
                     null),
-                ZoneId.of("America/Lima")));
+                ZoneId.of("America/Lima"),
+                null,
+                null));
   }
 
   @Test

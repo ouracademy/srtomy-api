@@ -15,6 +15,8 @@ import org.ouracademy.ovejafiel.event.repository.EventSeriesRepository;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.person.query.FindPersonResult;
@@ -37,6 +39,7 @@ class CreateEventCommandHandlerImpl implements CreateEventCommandHandler {
   private final EventSeriesRepository eventSeriesRepository;
   private final FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   private final FindPeopleByIdsQueryHandler findPeopleByIdsQueryHandler;
+  private final FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   private final EntityManager entityManager;
 
   @Override
@@ -47,9 +50,15 @@ class CreateEventCommandHandlerImpl implements CreateEventCommandHandler {
 
     var start = command.startTime().atZoneSameInstant(ZoneId.of("UTC"));
     var end = command.endTime().atZoneSameInstant(ZoneId.of("UTC"));
+    if (command.parentEventId() != null && command.recurrence() != null) {
+      throw new DomainValidationException("Un sub-evento no puede repetirse");
+    }
     if (command.recurrence() == null) {
       var event = new Event(command.name(), start, end);
       mapToModel(command, event);
+      if (command.parentEventId() != null) {
+        attachToContainer(command, event);
+      }
       return new CreateEventResult(eventRepository.save(event).getId());
     }
     return createSeries(command);
@@ -76,6 +85,29 @@ class CreateEventCommandHandlerImpl implements CreateEventCommandHandler {
       throw new DomainValidationException("La repetición no genera ningún evento");
     }
     return new CreateEventResult(eventRepository.saveAll(occurrences).getFirst().getId());
+  }
+
+  /** The sub-event lives in the container's node or below it, and fits inside its dates. */
+  private void attachToContainer(CreateEventCommand command, Event event) {
+    var container =
+        eventRepository
+            .findById(command.parentEventId())
+            .orElseThrow(
+                () ->
+                    new NoSuchElementException(
+                        "Event not found: " + command.parentEventId().value()));
+    var allowed =
+        findOrganizationSubtreeQueryHandler
+            .handle(new FindOrganizationSubtreeQuery(container.getOrganization().getId()))
+            .ids();
+    if (!allowed.contains(command.organizationId())) {
+      throw new DomainValidationException(
+          "El sub-evento debe estar en la misma sede del evento o dentro de ella");
+    }
+    event.attachTo(container);
+    if (command.registrationMode() != null) {
+      event.setRegistrationMode(command.registrationMode());
+    }
   }
 
   private void validateOrganizationExists(PartyId organizationId) {
