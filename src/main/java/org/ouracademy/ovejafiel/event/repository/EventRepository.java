@@ -89,7 +89,8 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
                  max(x.ticket_name) as ticketName,
                  max(x.registration_status) as registrationStatus,
                  max(x.cancel_code) as cancelCode,
-                 max(x.ticket_code) as ticketCode
+                 max(x.ticket_code) as ticketCode,
+                 max(pe.name) as parentTitle
           from (
               select er.event_id as event_id, true as registered,
                      (er.checked_in_at is not null) as attended,
@@ -98,6 +99,17 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
                      er.ticket_code as ticket_code
               from event_registration er
               join ticket_type tt on tt.id = er.ticket_type_id
+              where er.status <> 'CANCELLED'
+                and (er.user_id = :userId
+                     or (cast(:email as text) is not null
+                         and lower(er.email) = lower(cast(:email as text))))
+              union all
+              -- the sub-events that inherit the ticket of a mega event they signed up for
+              select c.id, true, false, er.id, tt.name, er.status, er.cancel_code, er.ticket_code
+              from event_registration er
+              join ticket_type tt on tt.id = er.ticket_type_id
+              join event c on c.parent_event_id = er.event_id
+                          and c.registration_mode = 'INHERIT' and c.deleted_time is null
               where er.status <> 'CANCELLED'
                 and (er.user_id = :userId
                      or (cast(:email as text) is not null
@@ -112,6 +124,7 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
           ) x
           join event e on e.id = x.event_id and e.deleted_time is null
           join party p on p.id = e.organization_id
+          left join event pe on pe.id = e.parent_event_id
           group by e.id, e.name, e.start_time, e.is_a_course, p.name, e.share_slug
           order by e.start_time desc
           """,
@@ -142,5 +155,8 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
     String getCancelCode();
 
     String getTicketCode();
+
+    /** The mega event this one belongs to; null when it is not a sub-event. */
+    String getParentTitle();
   }
 }
