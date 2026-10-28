@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.ovejafiel.event.EventFixtures.childOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.eventSeries;
 import static org.ouracademy.ovejafiel.event.EventFixtures.occurrenceOf;
+import static org.ouracademy.ovejafiel.event.EventFixtures.registrationSetup;
 import static org.ouracademy.ovejafiel.event.EventFixtures.singleEvent;
+import static org.ouracademy.ovejafiel.event.EventFixtures.ticket;
 import static org.ouracademy.ovejafiel.organization.OrganizationFixtures.organization;
 
 import java.util.HashMap;
@@ -21,8 +24,10 @@ import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventRegistration;
 import org.ouracademy.ovejafiel.event.domain.EventRegistrationSetup;
 import org.ouracademy.ovejafiel.event.domain.GeneralAccess;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.domain.TicketType;
+import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
 import org.ouracademy.ovejafiel.event.query.EventAccess;
 import org.ouracademy.ovejafiel.event.query.Seats;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
@@ -43,7 +48,8 @@ class GetSharedEventQueryHandlerImplTests {
   EventAccess access = mock(EventAccess.class);
   Seats seats = mock(Seats.class);
   GetSharedEventQueryHandlerImpl handler =
-      new GetSharedEventQueryHandlerImpl(events, setups, tickets, registrations, access, seats);
+      new GetSharedEventQueryHandlerImpl(
+          events, setups, tickets, registrations, access, seats, new EffectiveRegistration());
 
   Organization group = organization(PartyId.generate(), "Jóvenes", Organization.Type.GROUP);
   Event event = singleEvent(EventId.generate(), "Retiro", group, List.of());
@@ -201,5 +207,90 @@ class GetSharedEventQueryHandlerImplTests {
 
     assertThat(page.recurrence().daysOfWeek()).containsExactly(1, 3);
     assertThat(page.recurrence().until()).hasToString("2026-01-14");
+  }
+
+  private Event child(String title, RegistrationMode mode, GeneralAccess accessLevel) {
+    var child = childOf(event, EventId.generate(), title, event.getStart(), event.getEnd());
+    child.setRegistrationMode(mode);
+    child.shareVia(accessLevel);
+    return child;
+  }
+
+  @Test
+  void aMegaEventListsTheSubEventsTheVisitorCanOpen() {
+    event.shareVia(GeneralAccess.ANYONE_WITH_LINK);
+    var included = child("Taller", RegistrationMode.INHERIT, GeneralAccess.ANYONE_WITH_LINK);
+    var special = child("Cena", RegistrationMode.OWN, GeneralAccess.ANYONE_WITH_LINK);
+    var hidden = child("Interno", RegistrationMode.OPEN, GeneralAccess.RESTRICTED);
+    when(events.findByParentOrderByStart(event)).thenReturn(List.of(included, special, hidden));
+
+    var page = handler.handle(new GetSharedEventQuery("slug", null)).orElseThrow();
+
+    assertThat(page.program())
+        .extracting(
+            GetSharedEventResult.ProgramItem::title,
+            GetSharedEventResult.ProgramItem::includedInTicket)
+        .containsExactly(tuple("Taller", true), tuple("Cena", false));
+    assertThat(page.container()).isNull();
+  }
+
+  @Test
+  void aSubEventThatInheritsShowsTheContainersRegistrationButCannotSignUpThere() {
+    event.shareVia(GeneralAccess.ANYONE_WITH_LINK);
+    var workshop = child("Taller", RegistrationMode.INHERIT, GeneralAccess.ANYONE_WITH_LINK);
+    when(events.findByShareSlug("taller")).thenReturn(Optional.of(workshop));
+    var setup = registrationSetup(event);
+    var general = ticket(event, "General", 10);
+    when(setups.findByEventId(event.getId())).thenReturn(Optional.of(setup));
+    when(tickets.findByEventIdOrderByPosition(event.getId())).thenReturn(List.of(general));
+    when(seats.remaining(any(), any(), any())).thenReturn(10);
+
+    var page = handler.handle(new GetSharedEventQuery("taller", null)).orElseThrow();
+
+    assertThat(page.registration()).isNotNull();
+    assertThat(page.registration().tickets()).hasSize(1);
+    assertThat(page.canRegister()).isFalse();
+    assertThat(page.container().title()).isEqualTo("Retiro");
+    assertThat(page.container().slug()).isEqualTo(event.getShareSlug());
+    assertThat(page.program()).isEmpty();
+  }
+
+  @Test
+  void aSubEventWithItsOwnRegistrationSignsUpThere() {
+    event.shareVia(GeneralAccess.ANYONE_WITH_LINK);
+    var dinner = child("Cena", RegistrationMode.OWN, GeneralAccess.ANYONE_WITH_LINK);
+    when(events.findByShareSlug("cena")).thenReturn(Optional.of(dinner));
+    var setup = registrationSetup(dinner);
+    var seat = ticket(dinner, "Cena", 10);
+    when(setups.findByEventId(dinner.getId())).thenReturn(Optional.of(setup));
+    when(tickets.findByEventIdOrderByPosition(dinner.getId())).thenReturn(List.of(seat));
+    when(seats.remaining(any(), any(), any())).thenReturn(10);
+
+    var page = handler.handle(new GetSharedEventQuery("cena", null)).orElseThrow();
+
+    assertThat(page.canRegister()).isTrue();
+  }
+
+  @Test
+  void anOpenSubEventShowsNoRegistration() {
+    event.shareVia(GeneralAccess.ANYONE_WITH_LINK);
+    var open = child("Culto", RegistrationMode.OPEN, GeneralAccess.ANYONE_WITH_LINK);
+    when(events.findByShareSlug("culto")).thenReturn(Optional.of(open));
+    when(setups.findByEventId(event.getId())).thenReturn(Optional.of(registrationSetup(event)));
+
+    var page = handler.handle(new GetSharedEventQuery("culto", null)).orElseThrow();
+
+    assertThat(page.registration()).isNull();
+    assertThat(page.canRegister()).isFalse();
+  }
+
+  @Test
+  void theContainerIsNotRevealedToWhoCannotOpenIt() {
+    var workshop = child("Taller", RegistrationMode.INHERIT, GeneralAccess.ANYONE_WITH_LINK);
+    when(events.findByShareSlug("taller")).thenReturn(Optional.of(workshop));
+
+    var page = handler.handle(new GetSharedEventQuery("taller", null)).orElseThrow();
+
+    assertThat(page.container()).isNull();
   }
 }
