@@ -1,9 +1,9 @@
 # Tasks: Eventos compuestos
 
 ## Datos y dominio
-- [ ] T001 Migración `V1.15.0__composite_events.sql`.
-- [ ] T002 `RegistrationMode`, `Event.parent`, `Event.registrationMode`, `Event.attachTo` y pruebas.
-- [ ] T003 `EventRepository.findByParentOrderByStart` y `EventFixtures.childOf`.
+- [x] T001 Migración `V1.15.0__composite_events.sql`.
+- [x] T002 `RegistrationMode`, `Event.parent`, `Event.registrationMode`, `Event.attachTo` y pruebas.
+- [x] T003 `EventRepository.findByParentOrderByStart` y `EventFixtures.childOf`.
 
 ## Crear y borrar
 - [ ] T004 `parentEventId` y `registrationMode` en `EventRequest`, `CreateEventCommand` y `EventController`.
