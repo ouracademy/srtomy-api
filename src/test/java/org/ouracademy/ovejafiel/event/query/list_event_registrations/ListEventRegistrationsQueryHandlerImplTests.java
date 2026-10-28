@@ -38,7 +38,7 @@ class ListEventRegistrationsQueryHandlerImplTests {
         new EventRegistration(
             event, general, null, "Lu", "Mora", "lu@x.org", "999", RegistrationStatus.CONFIRMED);
     checkedIn.checkIn(CheckInSource.QR_TICKET);
-    var waiting =
+    var other =
         new EventRegistration(
             event,
             general,
@@ -47,9 +47,9 @@ class ListEventRegistrationsQueryHandlerImplTests {
             "Paz",
             "ana@x.org",
             null,
-            RegistrationStatus.WAITLISTED);
+            RegistrationStatus.CONFIRMED);
     when(repository.findByEventIdAndStatusNotOrderByCreateDate(id, RegistrationStatus.CANCELLED))
-        .thenReturn(List.of(checkedIn, waiting));
+        .thenReturn(List.of(checkedIn, other));
 
     var result = handler.handle(new ListEventRegistrationsQuery(id));
 
@@ -62,7 +62,7 @@ class ListEventRegistrationsQueryHandlerImplTests {
     assertThat(result.get(0).checkedInAt()).isNotNull();
     assertThat(result.get(0).checkInSource()).isEqualTo(CheckInSource.QR_TICKET);
     assertThat(result.get(1).hasAccount()).isTrue();
-    assertThat(result.get(1).status()).isEqualTo(RegistrationStatus.WAITLISTED);
+    assertThat(result.get(1).status()).isEqualTo(RegistrationStatus.CONFIRMED);
     assertThat(result.get(1).checkedInAt()).isNull();
   }
 }

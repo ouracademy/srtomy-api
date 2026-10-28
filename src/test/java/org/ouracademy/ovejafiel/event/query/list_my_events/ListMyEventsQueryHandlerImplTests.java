@@ -41,7 +41,7 @@ class ListMyEventsQueryHandlerImplTests {
     var registrationId = EventRegistrationId.generate();
     when(row.getRegistrationId()).thenReturn(registrationId.value().toString());
     when(row.getTicketName()).thenReturn("General");
-    when(row.getRegistrationStatus()).thenReturn("WAITLISTED");
+    when(row.getRegistrationStatus()).thenReturn("CONFIRMED");
     when(row.getCancelCode()).thenReturn("cancel");
     when(row.getTicketCode()).thenReturn("ticket");
     when(repository.findOfUser(id.value(), "me@x.org")).thenReturn(List.of(row));
@@ -58,7 +58,7 @@ class ListMyEventsQueryHandlerImplTests {
     assertThat(event.slug()).isEqualTo("abc");
     assertThat(event.registrationId()).isEqualTo(registrationId);
     assertThat(event.ticketName()).isEqualTo("General");
-    assertThat(event.registrationStatus()).isEqualTo(RegistrationStatus.WAITLISTED);
+    assertThat(event.registrationStatus()).isEqualTo(RegistrationStatus.CONFIRMED);
     assertThat(event.cancelCode()).isEqualTo("cancel");
     assertThat(event.ticketCode()).isEqualTo("ticket");
   }

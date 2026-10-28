@@ -5,7 +5,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToOne;
 import lombok.Getter;
 import org.ouracademy.ovejafiel.shared.domain.DomainObject;
-import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 
 /** How an event takes sign-ups. An event without one has no registration. */
 @Entity
@@ -21,27 +20,22 @@ public class EventRegistrationSetup extends DomainObject {
 
   boolean requiresAccount;
 
-  boolean waitlistEnabled;
-
-  /** Total seats; null is unlimited. */
-  Integer capacity;
-
   protected EventRegistrationSetup() {
     // jpa only
   }
 
+  /** A new registration is open. */
   public EventRegistrationSetup(Event event) {
     this.event = event;
+    this.open = true;
   }
 
-  public void configure(
-      boolean open, boolean requiresAccount, boolean waitlistEnabled, Integer capacity) {
-    if (capacity != null && capacity < 1) {
-      throw new DomainValidationException("El cupo total debe ser mayor que cero");
-    }
-    this.open = open;
+  public void configure(boolean requiresAccount) {
     this.requiresAccount = requiresAccount;
-    this.waitlistEnabled = waitlistEnabled;
-    this.capacity = capacity;
+  }
+
+  /** Closed, nobody can sign up; the setup and the sign-ups are kept. */
+  public void setOpen(boolean open) {
+    this.open = open;
   }
 }

@@ -38,11 +38,6 @@ public class Seats {
     if (ticket.getQuantity() != null) {
       left = (int) Math.max(0, ticket.getQuantity() - sold.getOrDefault(ticket.getId(), 0L));
     }
-    if (setup.getCapacity() != null) {
-      var total = sold.values().stream().mapToLong(Long::longValue).sum();
-      var capacityLeft = (int) Math.max(0, setup.getCapacity() - total);
-      left = left == null ? capacityLeft : Math.min(left, capacityLeft);
-    }
     return left;
   }
 

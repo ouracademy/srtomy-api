@@ -78,12 +78,7 @@ class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandl
       throw new DomainValidationException("La venta de este ticket no está abierta");
     }
 
-    RegistrationStatus status;
-    if (seats.hasRoom(setup, ticket, seats.confirmedByTicket(event.getId()))) {
-      status = RegistrationStatus.CONFIRMED;
-    } else if (setup.isWaitlistEnabled()) {
-      status = RegistrationStatus.WAITLISTED;
-    } else {
+    if (!seats.hasRoom(setup, ticket, seats.confirmedByTicket(event.getId()))) {
       throw new DomainValidationException("Se agotaron los lugares de este ticket");
     }
 
@@ -97,7 +92,7 @@ class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandl
                 lastName,
                 email,
                 blankToNull(command.phoneNumber()),
-                status));
+                RegistrationStatus.CONFIRMED));
     return new RegisterForEventResult(
         false, saved.getStatus(), saved.getCancelCode(), saved.getTicketCode());
   }

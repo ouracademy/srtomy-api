@@ -1,14 +1,15 @@
 # HTTP contract: Inscripción
 
-Administrar (`MANAGER`: `events.write` en el nodo del evento):
+Administrar. Cada ruta pide su permiso en el nodo del evento (`registrations.read`, `.configure`, `.close`, `.remove`; el ingreso, `attendance.write`):
 
 | Método y ruta | Descripción |
 | --- | --- |
-| `GET /events/{id}/registration` | `{enabled, open, requiresAccount, waitlistEnabled, capacity, confirmed, waitlisted, tickets[{id, name, priceCents, currency, quantity, salesStart, salesEnd, sold}]}`; `enabled=false` si no hay inscripción. |
-| `PUT /events/{id}/registration` | Body `{open, requiresAccount, waitlistEnabled, capacity?, tickets[{id?, name, priceCents, currency, quantity?, salesStart?, salesEnd?}]}`. Un ticket con `id` se actualiza, sin `id` se crea, y uno que ya no viene se borra (400 si tiene inscripciones). Devuelve lo mismo que el GET. |
-| `DELETE /events/{id}/registration` | 204. Quita la inscripción; 400 si hay inscripciones activas. |
-| `GET /events/{id}/registrations` | `[{id, firstName, lastName, email, phoneNumber, hasAccount, ticketName, status, registeredAt}]`. |
-| `DELETE /events/{id}/registrations/{registrationId}` | 204. La pasa a `CANCELLED` y llena el lugar desde la espera. |
+| `GET /events/{id}/registration` (`registrations.read`) | `{enabled, open, requiresAccount, confirmed, tickets[{id, name, priceCents, currency, quantity, salesStart, salesEnd, sold}]}`; `enabled=false` si no hay inscripción. |
+| `PUT /events/{id}/registration` (`registrations.configure`) | Body `{requiresAccount, tickets[{id?, name, priceCents, currency, quantity?, salesStart?, salesEnd?}]}`. Un ticket con `id` se actualiza, sin `id` se crea, y uno que ya no viene se borra (400 si tiene inscripciones). Los cupos son la `quantity` de cada ticket. Una configuración nueva nace abierta; cerrarla es la ruta siguiente. Devuelve lo mismo que el GET. |
+| `PUT /events/{id}/registration/open` (`registrations.close`) | Body `{open}`: cierra o reabre. 404 si el evento no tiene inscripción. Devuelve lo mismo que el GET. |
+| `DELETE /events/{id}/registration` (`registrations.configure`) | 204. Quita la inscripción; 400 si hay inscripciones activas. |
+| `GET /events/{id}/registrations` (`registrations.read`) | `[{id, firstName, lastName, email, phoneNumber, hasAccount, ticketName, status, registeredAt}]`. |
+| `DELETE /events/{id}/registrations/{registrationId}` (`registrations.remove`) | 204. La pasa a `CANCELLED` y llena el lugar desde la espera. |
 
 Compartir (`PUT /events/{id}/sharing`): body y respuesta `{generalAccess}` (sin `linkRole`).
 
@@ -16,7 +17,7 @@ Público y Mi espacio:
 
 | Método y ruta | Quién | Descripción |
 | --- | --- | --- |
-| `GET /public/events/{slug}` | quien pueda abrirlo | Agrega `registration {open, requiresAccount, waitlistEnabled, soldOut, tickets[{id, name, priceCents, currency, available, remaining}]}` (nulo sin inscripción), `canRegister` (puede inscribirse ahora) y `registered`; quita nada más. |
+| `GET /public/events/{slug}` | quien pueda abrirlo | Agrega `registration {open, requiresAccount, soldOut, tickets[{id, name, priceCents, currency, available, remaining}]}` (nulo sin inscripción), `canRegister` (puede inscribirse ahora) y `registered`; quita nada más. |
 | `POST /public/events/{slug}/registrations` | sin sesión (o con ella) | Body `{ticketTypeId, firstName, lastName, email, phoneNumber?}`; 201 `{alreadyRegistered, status, cancelCode}`; 403 si exige cuenta y no hay sesión, o no puede abrir el evento; 400 si está cerrada, fuera de ventana, agotada o falta algo. |
 | `DELETE /public/registrations/{cancelCode}` | sin sesión | 204; 404 si el código no existe. |
 | `GET /me/events` | sesión | Agrega por evento `registrationId`, `ticketName`, `registrationStatus`, `cancelCode`; `registered` es verdadero solo con inscripción activa. |
@@ -37,4 +38,4 @@ Asistencia por QR (`ATTENDANCE_WRITE` salvo donde se indica):
 
 Estado de la persona: `POST /people` y `PUT /people/{id}` aceptan `memberState` (`VISITOR`, `MEMBERSHIP_IN_PROGRESS`, `MEMBER`; opcional, por defecto visitante al crear y sin cambios al editar). Con cargos el estado es siempre `MEMBER`. Se lee en `GET /organizations/{id}/member-state`.
 
-`GET /events/{id}/attendance` agrega `guestCount` y `marks[{personId, source, markedAt}]`. Los booleanos de los cuerpos (`open`, `requiresAccount`, `waitlistEnabled`) deben enviarse siempre.
+`GET /events/{id}/attendance` agrega `guestCount` y `marks[{personId, source, markedAt}]`. Los booleanos de los cuerpos (`open`, `requiresAccount`) deben enviarse siempre.

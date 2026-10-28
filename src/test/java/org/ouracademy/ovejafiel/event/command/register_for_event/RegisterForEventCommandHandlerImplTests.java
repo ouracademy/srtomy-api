@@ -62,7 +62,7 @@ class RegisterForEventCommandHandlerImplTests {
           "Curso",
           organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH),
           List.of());
-  EventRegistrationSetup setup = registrationSetup(event, false, null);
+  EventRegistrationSetup setup = registrationSetup(event);
   TicketType general = ticket(event, "General", 10);
 
   @BeforeEach
@@ -119,7 +119,7 @@ class RegisterForEventCommandHandlerImplTests {
 
   @Test
   void theSameEmailTwiceDoesNotAddAnotherAndReturnsTheCodesOfTheFirst() {
-    var first = registration(event, general, "lucia@x.org", RegistrationStatus.WAITLISTED);
+    var first = registration(event, general, "lucia@x.org", RegistrationStatus.CONFIRMED);
     when(registrations.findFirstByEventIdAndEmailIgnoreCaseAndStatusNot(
             event.getId(), "lucia@x.org", RegistrationStatus.CANCELLED))
         .thenReturn(Optional.of(first));
@@ -127,14 +127,14 @@ class RegisterForEventCommandHandlerImplTests {
     var result = handler.handle(command("lucia@x.org"));
 
     assertThat(result.alreadyRegistered()).isTrue();
-    assertThat(result.status()).isEqualTo(RegistrationStatus.WAITLISTED);
+    assertThat(result.status()).isEqualTo(RegistrationStatus.CONFIRMED);
     assertThat(result.cancelCode()).isEqualTo(first.getCancelCode());
     assertThat(result.ticketCode()).isEqualTo(first.getTicketCode());
     verify(registrations, never()).save(any());
   }
 
   @Test
-  void aFullTicketWithoutWaitlistIsRefused() {
+  void aFullTicketIsRefused() {
     when(seats.hasRoom(any(), any(), any())).thenReturn(false);
 
     assertThatThrownBy(() -> handler.handle(command("lucia@x.org")))
@@ -144,18 +144,8 @@ class RegisterForEventCommandHandlerImplTests {
   }
 
   @Test
-  void aFullTicketWithWaitlistPutsThemOnTheWaitlist() {
-    setup.configure(true, false, true, null);
-    when(seats.hasRoom(any(), any(), any())).thenReturn(false);
-
-    var result = handler.handle(command("lucia@x.org"));
-
-    assertThat(result.status()).isEqualTo(RegistrationStatus.WAITLISTED);
-  }
-
-  @Test
   void aClosedRegistrationIsRefused() {
-    setup.configure(false, false, false, null);
+    setup.setOpen(false);
 
     assertThatThrownBy(() -> handler.handle(command("lucia@x.org")))
         .isInstanceOf(DomainValidationException.class)
@@ -172,7 +162,7 @@ class RegisterForEventCommandHandlerImplTests {
 
   @Test
   void aRegistrationThatNeedsAnAccountRefusesAnonymousVisitors() {
-    setup.configure(true, true, false, null);
+    setup.configure(true);
 
     assertThatThrownBy(() -> handler.handle(command("lucia@x.org")))
         .isInstanceOf(AccessDeniedException.class);

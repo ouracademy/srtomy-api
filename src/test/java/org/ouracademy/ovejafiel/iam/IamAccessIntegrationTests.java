@@ -144,7 +144,7 @@ class IamAccessIntegrationTests {
     var pastor = find(access, "Pastor", "positionName");
     assertThat(pastor.get("source").asText()).isEqualTo("POSITION");
     assertThat(pastor.get("roleId").isNull()).isTrue();
-    assertThat(pastor.get("permissionCount").asInt()).isEqualTo(13);
+    assertThat(pastor.get("permissionCount").asInt()).isEqualTo(17);
     assertThat(owner.get("inherited").asBoolean()).isTrue();
     assertThat(owner.get("organizationId").asText()).isEqualTo(church.id);
     var leader = find(access, email(bob));
@@ -175,7 +175,7 @@ class IamAccessIntegrationTests {
     assertThat(pastor.get("holders")).hasSize(1);
     assertThat(pastor.get("holders").get(0).get("name").asText()).isEqualTo("Ana Diaz");
     assertThat(pastor.get("holders").get(0).get("email").asText()).isEqualTo(email(alice));
-    assertThat(pastor.get("effectivePermissions")).hasSize(13);
+    assertThat(pastor.get("effectivePermissions")).hasSize(17);
   }
 
   @Test

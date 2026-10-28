@@ -13,10 +13,7 @@ public record EventRegistrationSetupResponse(
     boolean enabled,
     boolean open,
     boolean requiresAccount,
-    boolean waitlistEnabled,
-    Integer capacity,
     long confirmed,
-    long waitlisted,
     long checkedIn,
     List<TicketSetup> tickets) {
 
@@ -35,10 +32,7 @@ public record EventRegistrationSetupResponse(
         result.enabled(),
         result.open(),
         result.requiresAccount(),
-        result.waitlistEnabled(),
-        result.capacity(),
         result.confirmed(),
-        result.waitlisted(),
         result.checkedIn(),
         result.tickets().stream()
             .map(

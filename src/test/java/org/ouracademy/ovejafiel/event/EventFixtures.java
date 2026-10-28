@@ -50,10 +50,9 @@ public final class EventFixtures {
   }
 
   /** An event with an open registration; call {@code configure} again to change it. */
-  public static EventRegistrationSetup registrationSetup(
-      Event event, boolean waitlist, Integer capacity) {
+  public static EventRegistrationSetup registrationSetup(Event event) {
     var setup = new EventRegistrationSetup(event);
-    setup.configure(true, false, waitlist, capacity);
+    setup.configure(false);
     return setup;
   }
 

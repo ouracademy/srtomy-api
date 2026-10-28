@@ -93,11 +93,7 @@ class GetSharedEventQueryHandlerImpl implements GetSharedEventQueryHandler {
                       .filter(GetSharedEventResult.Ticket::onSale)
                       .allMatch(ticket -> ticket.remaining() != null && ticket.remaining() == 0);
               return new GetSharedEventResult.Registration(
-                  setup.isOpen(),
-                  setup.isRequiresAccount(),
-                  setup.isWaitlistEnabled(),
-                  soldOut,
-                  tickets);
+                  setup.isOpen(), setup.isRequiresAccount(), soldOut, tickets);
             })
         .orElse(null);
   }

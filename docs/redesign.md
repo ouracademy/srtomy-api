@@ -63,7 +63,7 @@ Tablas:
 - Vista `user_access` (004b): junta los bindings directos, los cargos de la persona vinculada y el liderazgo de grupos. Todas las consultas de permisos leen esta vista.
 
 Permisos (strings, estilo GCP `recurso.acción`):
-`org.read`, `org.update`, `org.create_child`, `org.delete`, `members.read`, `members.write`, `events.read`, `events.write`, `attendance.write`, `iam.read`, `iam.manage`, `invitations.send`.
+`org.read`, `org.update`, `org.create_child`, `org.delete`, `members.read`, `members.write`, `events.read`, `events.write`, `attendance.write`, `registrations.read`, `registrations.configure`, `registrations.close`, `registrations.remove`, `iam.read`, `iam.manage`, `invitations.send`.
 
 Roles predefinidos:
 
@@ -132,11 +132,13 @@ Son tres cosas distintas, cada una con su propio mecanismo (`specs/007-sharing`,
 
 ### Inscripción (quién tiene un lugar)
 
-- Es **opcional**: un evento nace sin inscripción (un culto no la usa). Quien administra (`events.write`) la activa con una configuración: abierta o cerrada, si exige cuenta, lista de espera, cupo total y **tipos de ticket** (nombre, precio, cantidad, ventana de venta). «Gratis» es un ticket de precio 0. **El precio es informativo: no se cobra** (deuda técnica).
-- Tablas `event_registration_setup`, `ticket_type` y `event_registration` (estado `CONFIRMED`, `WAITLISTED` o `CANCELLED`). Los cupos se cuentan bajo un bloqueo de la configuración; al cancelar, entra a quien más esperó y le quepa.
+- Es **opcional**: un evento nace sin inscripción (un culto no la usa). Se activa con una configuración muy corta: **cupos** (la cantidad del ticket; vacío es sin límite) y **precio** informativo. En «Más opciones»: exigir cuenta y varios **tipos de ticket** (nombre, precio, cantidad, ventana de venta). **El precio es informativo: no se cobra** (deuda técnica). **Cerrar y reabrir** las inscripciones es una acción aparte (`PUT /events/{id}/registration/open`), no un campo.
+- **Un permiso por acción**: `registrations.read` (ver configuración e inscritos), `registrations.configure` (activar, cambiar, quitar), `registrations.close` (cerrar y reabrir) y `registrations.remove` (quitar a un inscrito); marcar el ingreso es `attendance.write`. Quien tenía `events.write` recibió los cuatro nuevos al migrar.
+- No hay lista de espera: al llenarse dice «Agotado» y, si alguien cancela, queda libre para quien llegue. (Se quitó del todo en la migración `V1.14.0` porque nadie avisaba a quien esperaba; si vuelve, irá con los avisos por correo de §11.)
+- Tablas `event_registration_setup`, `ticket_type` y `event_registration` (estado `CONFIRMED` o `CANCELLED`). Los cupos se cuentan bajo un bloqueo de la configuración.
 - Cada inscripción tiene un `cancel_code` (para cancelar sin cuenta) y un `ticket_code` (el QR del ticket; no sirve para cancelar).
 - Quien puede abrir la página pública se inscribe en `POST /v1/public/events/{slug}/registrations`.
-- Mi espacio: **«Mis eventos y cursos»** = lo que tengo con lugar (confirmado o en espera, con botón para cancelar) y lo que asistí; **«Compartidos contigo»** = lo que otra persona o la iglesia me dejó ver y todavía no es mío por inscripción ni asistencia. Cada tarjeta dice por qué aparece.
+- Mi espacio: **«Mis eventos y cursos»** = lo que tengo con lugar (con botón para cancelar) y lo que asistí; **«Compartidos contigo»** = lo que otra persona o la iglesia me dejó ver y todavía no es mío por inscripción ni asistencia. Cada tarjeta dice por qué aparece.
 
 ### Asistencia (quién estuvo)
 
@@ -171,7 +173,7 @@ El usuario confirmó que **no hay datos reales**, así que hay libertad para lim
 6. **007-sharing**: compartir eventos y cursos, enlaces, inscripción por enlace.
 7. **008-my-space**: la vista del miembro común y el nivel Miembro (cuenta sin cargo).
 8. **010-recurring-events-calendar-sync**: eventos recurrentes estilo Google Calendar (cada N, días, fin nunca/fecha/cantidad) y calendario privado `.ics` para suscribirse desde Google Calendar o Apple Calendar.
-9. **011-registration**: inscripción como proceso aparte (tickets, cupos, lista de espera), asistencia con QR del evento y del ticket, visitantes y rediseño de Mi espacio. Reemplaza el «rol del enlace» de la 007.
+9. **011-registration**: inscripción como proceso aparte (tickets y cupos), asistencia con QR del evento y del ticket, visitantes y rediseño de Mi espacio. Reemplaza el «rol del enlace» de la 007.
 10. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
 
 Alcance acordado para este branch (`claude/app-flow-redesign-nq6j60`, en ambos repos):

@@ -16,7 +16,14 @@ class GetPermissionCatalogQueryHandlerImplTests {
     assertThat(groups)
         .extracting(PermissionCatalogResult.Group::resource)
         .containsExactly(
-            "org", "members", "events", "attendance", "positions", "iam", "invitations");
+            "org",
+            "members",
+            "events",
+            "attendance",
+            "registrations",
+            "positions",
+            "iam",
+            "invitations");
     assertThat(groups.stream().flatMap(g -> g.permissions().stream()))
         .containsExactlyInAnyOrderElementsOf(
             Arrays.stream(Permission.values()).map(Permission::value).toList());

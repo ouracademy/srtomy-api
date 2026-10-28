@@ -110,7 +110,8 @@ class GetSharedEventQueryHandlerImplTests {
     course.shareVia(GeneralAccess.ANYONE_WITH_LINK);
     when(events.findByShareSlug("course")).thenReturn(Optional.of(course));
     var setup = new EventRegistrationSetup(course);
-    setup.configure(open, requiresAccount, false, null);
+    setup.configure(requiresAccount);
+    setup.setOpen(open);
     when(setups.findByEventId(course.getId())).thenReturn(Optional.of(setup));
     var ticket = new TicketType(course, 0);
     ticket.describe("General", 0, "PEN", 2, null, null);
@@ -179,14 +180,14 @@ class GetSharedEventQueryHandlerImplTests {
             "Mora",
             "lu@x.org",
             null,
-            RegistrationStatus.WAITLISTED);
+            RegistrationStatus.CONFIRMED);
     when(registrations.findFirstByEventIdAndEmailIgnoreCaseAndStatusNot(
             course.getId(), "lu@x.org", RegistrationStatus.CANCELLED))
         .thenReturn(Optional.of(mine));
 
     var page = handler.handle(new GetSharedEventQuery("course", "me")).orElseThrow();
 
-    assertThat(page.registrationStatus()).isEqualTo(RegistrationStatus.WAITLISTED);
+    assertThat(page.registrationStatus()).isEqualTo(RegistrationStatus.CONFIRMED);
     assertThat(page.canRegister()).isFalse();
   }
 

@@ -17,9 +17,6 @@ public interface EventRegistrationRepository
   List<EventRegistration> findByEventIdAndStatusNotOrderByCreateDate(
       EventId eventId, RegistrationStatus status);
 
-  List<EventRegistration> findByEventIdAndStatusOrderByCreateDate(
-      EventId eventId, RegistrationStatus status);
-
   Optional<EventRegistration> findFirstByEventIdAndEmailIgnoreCaseAndStatusNot(
       EventId eventId, String email, RegistrationStatus status);
 

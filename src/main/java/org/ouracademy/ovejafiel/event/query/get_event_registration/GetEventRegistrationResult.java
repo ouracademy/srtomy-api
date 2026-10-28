@@ -12,10 +12,7 @@ public record GetEventRegistrationResult(
     boolean enabled,
     boolean open,
     boolean requiresAccount,
-    boolean waitlistEnabled,
-    Integer capacity,
     long confirmed,
-    long waitlisted,
     long checkedIn,
     List<Ticket> tickets) {
 
@@ -30,6 +27,6 @@ public record GetEventRegistrationResult(
       long sold) {}
 
   public static GetEventRegistrationResult disabled() {
-    return new GetEventRegistrationResult(false, false, false, false, null, 0, 0, 0, List.of());
+    return new GetEventRegistrationResult(false, false, false, 0, 0, List.of());
   }
 }

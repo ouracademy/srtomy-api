@@ -66,9 +66,9 @@ class SetRegistrationCheckInCommandHandlerImplTests {
   }
 
   @Test
-  void whoIsWaitingCannotBeMarked() {
+  void aCancelledSignUpCannotBeMarked() {
     var registration =
-        registration(event, ticket(event, "General", 5), "lu@x.org", RegistrationStatus.WAITLISTED);
+        registration(event, ticket(event, "General", 5), "lu@x.org", RegistrationStatus.CANCELLED);
     when(repository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
     assertThatThrownBy(

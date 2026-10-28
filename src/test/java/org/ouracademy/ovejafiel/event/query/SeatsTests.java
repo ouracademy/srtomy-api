@@ -42,7 +42,7 @@ class SeatsTests {
 
   @Test
   void aTicketWithoutLimitsNeverRunsOut() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var free = ticket(event, "Libre", null);
 
     assertThat(seats.remaining(setup, free, Map.of(free.getId(), 500L))).isNull();
@@ -51,29 +51,10 @@ class SeatsTests {
 
   @Test
   void aTicketRunsOutAtItsQuantity() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var vip = ticket(event, "VIP", 2);
 
     assertThat(seats.remaining(setup, vip, Map.of(vip.getId(), 1L))).isEqualTo(1);
     assertThat(seats.hasRoom(setup, vip, Map.of(vip.getId(), 2L))).isFalse();
-  }
-
-  @Test
-  void theTotalCapacityLimitsEveryTicket() {
-    var setup = registrationSetup(event, false, 3);
-    var general = ticket(event, "General", 10);
-    var vip = ticket(event, "VIP", 10);
-    var sold = Map.of(general.getId(), 2L, vip.getId(), 1L);
-
-    assertThat(seats.remaining(setup, general, sold)).isZero();
-    assertThat(seats.hasRoom(setup, vip, sold)).isFalse();
-  }
-
-  @Test
-  void theSmallerOfTheTicketAndTheTotalWins() {
-    var setup = registrationSetup(event, false, 10);
-    var vip = ticket(event, "VIP", 2);
-
-    assertThat(seats.remaining(setup, vip, Map.of(vip.getId(), 1L))).isEqualTo(1);
   }
 }

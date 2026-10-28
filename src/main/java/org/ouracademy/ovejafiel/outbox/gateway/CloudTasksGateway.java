@@ -30,6 +30,7 @@ class CloudTasksGateway implements TaskGateway {
   private final Duration delay;
 
   CloudTasksGateway(
+      RestClient.Builder restClientBuilder,
       String apiUrl,
       Supplier<String> accessToken,
       String project,
@@ -45,7 +46,7 @@ class CloudTasksGateway implements TaskGateway {
     this.audience = audience;
     this.delay = delay;
     this.restClient =
-        RestClient.builder()
+        restClientBuilder
             .baseUrl(apiUrl)
             .requestInterceptor(
                 (request, body, execution) -> {

@@ -18,7 +18,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.ouracademy.ovejafiel.event.command.WaitlistPromotion;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventRegistrationSetup;
@@ -38,9 +37,8 @@ class SetEventRegistrationCommandHandlerImplTests {
   EventRegistrationSetupRepository setups = mock(EventRegistrationSetupRepository.class);
   TicketTypeRepository tickets = mock(TicketTypeRepository.class);
   EventRegistrationRepository registrations = mock(EventRegistrationRepository.class);
-  WaitlistPromotion promotion = mock(WaitlistPromotion.class);
   SetEventRegistrationCommandHandlerImpl handler =
-      new SetEventRegistrationCommandHandlerImpl(events, setups, tickets, registrations, promotion);
+      new SetEventRegistrationCommandHandlerImpl(events, setups, tickets, registrations);
 
   EventId id = EventId.generate();
   Event event =
@@ -62,20 +60,18 @@ class SetEventRegistrationCommandHandlerImplTests {
     return new SetEventRegistrationCommand.Ticket(null, name, price, "PEN", quantity, null, null);
   }
 
-  SetEventRegistrationCommand command(
-      Integer capacity, SetEventRegistrationCommand.Ticket... tickets) {
-    return new SetEventRegistrationCommand(id, true, false, true, capacity, List.of(tickets));
+  SetEventRegistrationCommand command(SetEventRegistrationCommand.Ticket... tickets) {
+    return new SetEventRegistrationCommand(id, false, List.of(tickets));
   }
 
   @Test
   void turnsOnTheRegistrationWithItsTicketsInOrder() {
-    handler.handle(command(40, newTicket("General", 0, 30), newTicket("VIP", 2000, 10)));
+    handler.handle(command(newTicket("General", 0, 30), newTicket("VIP", 2000, 10)));
 
     var setup = ArgumentCaptor.forClass(EventRegistrationSetup.class);
     verify(setups).save(setup.capture());
     assertThat(setup.getValue().isOpen()).isTrue();
-    assertThat(setup.getValue().isWaitlistEnabled()).isTrue();
-    assertThat(setup.getValue().getCapacity()).isEqualTo(40);
+    assertThat(setup.getValue().isRequiresAccount()).isFalse();
     var saved = ArgumentCaptor.forClass(TicketType.class);
     verify(tickets, org.mockito.Mockito.times(2)).save(saved.capture());
     assertThat(saved.getAllValues())
@@ -83,23 +79,20 @@ class SetEventRegistrationCommandHandlerImplTests {
         .containsExactly(
             org.assertj.core.api.Assertions.tuple("General", 0, 0),
             org.assertj.core.api.Assertions.tuple("VIP", 2000, 1));
-    verify(promotion).promote(setup.getValue());
   }
 
   @Test
   void changesAnExistingSetupAndUpdatesItsTickets() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var general = ticket(event, "General", 5);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
     when(tickets.findByEventIdOrderByPosition(id)).thenReturn(List.of(general));
 
     handler.handle(
         command(
-            null,
             new SetEventRegistrationCommand.Ticket(
                 general.getId(), "Entrada", 1500, "usd", 8, null, null)));
 
-    assertThat(setup.getCapacity()).isNull();
     assertThat(general.getName()).isEqualTo("Entrada");
     assertThat(general.getCurrency()).isEqualTo("USD");
     assertThat(general.getQuantity()).isEqualTo(8);
@@ -108,7 +101,7 @@ class SetEventRegistrationCommandHandlerImplTests {
 
   @Test
   void removesATicketNobodyHolds() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var kept = ticket(event, "General", 5);
     var dropped = ticket(event, "Antiguo", 5);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
@@ -117,7 +110,6 @@ class SetEventRegistrationCommandHandlerImplTests {
 
     handler.handle(
         command(
-            null,
             new SetEventRegistrationCommand.Ticket(
                 kept.getId(), "General", 0, "PEN", 5, null, null)));
 
@@ -126,7 +118,7 @@ class SetEventRegistrationCommandHandlerImplTests {
 
   @Test
   void aTicketWithSignUpsCannotBeRemoved() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var kept = ticket(event, "General", 5);
     var held = ticket(event, "VIP", 5);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
@@ -137,7 +129,6 @@ class SetEventRegistrationCommandHandlerImplTests {
             () ->
                 handler.handle(
                     command(
-                        null,
                         new SetEventRegistrationCommand.Ticket(
                             kept.getId(), "General", 0, "PEN", 5, null, null))))
         .isInstanceOf(DomainValidationException.class)
@@ -147,7 +138,7 @@ class SetEventRegistrationCommandHandlerImplTests {
 
   @Test
   void needsAtLeastOneTicket() {
-    assertThatThrownBy(() -> handler.handle(command(null)))
+    assertThatThrownBy(() -> handler.handle(command()))
         .isInstanceOf(DomainValidationException.class);
     verify(setups, never()).save(any());
   }
@@ -155,9 +146,7 @@ class SetEventRegistrationCommandHandlerImplTests {
   @Test
   void ticketNamesCannotRepeatIgnoringCase() {
     assertThatThrownBy(
-            () ->
-                handler.handle(
-                    command(null, newTicket("General", 0, 1), newTicket(" general", 0, 1))))
+            () -> handler.handle(command(newTicket("General", 0, 1), newTicket(" general", 0, 1))))
         .isInstanceOf(DomainValidationException.class)
         .hasMessageContaining("general");
   }
@@ -168,36 +157,45 @@ class SetEventRegistrationCommandHandlerImplTests {
             () ->
                 handler.handle(
                     command(
-                        null,
                         new SetEventRegistrationCommand.Ticket(
                             TicketTypeId.generate(), "Ajeno", 0, "PEN", 1, null, null))))
         .isInstanceOf(NoSuchElementException.class);
   }
 
   @Test
-  void anInvalidTicketOrCapacityIsRefused() {
-    assertThatThrownBy(() -> handler.handle(command(null, newTicket(" ", 0, 1))))
+  void anInvalidTicketIsRefused() {
+    assertThatThrownBy(() -> handler.handle(command(newTicket(" ", 0, 1))))
         .isInstanceOf(DomainValidationException.class);
-    assertThatThrownBy(() -> handler.handle(command(null, newTicket("General", -1, 1))))
+    assertThatThrownBy(() -> handler.handle(command(newTicket("General", -1, 1))))
         .isInstanceOf(DomainValidationException.class);
-    assertThatThrownBy(() -> handler.handle(command(0, newTicket("General", 0, 1))))
+    assertThatThrownBy(() -> handler.handle(command(newTicket("General", 0, 0))))
         .isInstanceOf(DomainValidationException.class);
   }
 
   @Test
   void aClosedRegistrationPromotesNobody() {
-    handler.handle(
-        new SetEventRegistrationCommand(
-            id, false, false, true, null, List.of(newTicket("General", 0, null))));
+    var setup = registrationSetup(event);
+    setup.setOpen(false);
+    when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
 
-    verify(promotion, never()).promote(any());
+    handler.handle(command(newTicket("General", 0, null)));
+
+    assertThat(setup.isOpen()).isFalse();
+  }
+
+  @Test
+  void savingTheSetupKeepsItOpenOrClosedAsItWas() {
+    var setup = registrationSetup(event);
+    when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
+    handler.handle(command(newTicket("General", 0, null)));
+    assertThat(setup.isOpen()).isTrue();
   }
 
   @Test
   void anUnknownEventIsNotFound() {
     when(events.findById(id)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> handler.handle(command(null, newTicket("General", 0, 1))))
+    assertThatThrownBy(() -> handler.handle(command(newTicket("General", 0, 1))))
         .isInstanceOf(NoSuchElementException.class);
   }
 }
