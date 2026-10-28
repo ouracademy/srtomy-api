@@ -20,7 +20,7 @@
 
 ## Pública y Mi espacio
 - [x] T011 `program` en la página pública.
-- [ ] T012 Hijos heredados en `me/events` y título con el padre en el feed `.ics`.
+- [x] T012 Hijos heredados en `me/events` y título con el padre en el feed `.ics`.
 
 ## Cierre
 - [ ] T013 Prueba de integración `CompositeEventsIntegrationTests`.
