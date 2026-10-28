@@ -6,9 +6,9 @@
 - [x] T003 `EventRepository.findByParentOrderByStart` y `EventFixtures.childOf`.
 
 ## Crear y borrar
-- [ ] T004 `parentEventId` y `registrationMode` en `EventRequest`, `CreateEventCommand` y `EventController`.
-- [ ] T005 `CreateEventCommandHandlerImpl` con padre (organización, recurrencia, `attachTo`) y pruebas.
-- [ ] T006 `DeleteEventCommandHandlerImpl` borra los hijos y pruebas.
+- [x] T004 `parentEventId` y `registrationMode` en `EventRequest`, `CreateEventCommand` y `EventController`.
+- [x] T005 `CreateEventCommandHandlerImpl` con padre (organización, recurrencia, `attachTo`) y pruebas.
+- [x] T006 `DeleteEventCommandHandlerImpl` borra los hijos y pruebas.
 
 ## Leer
 - [ ] T007 `FindEventResult` y `EventResponse` con padre, modo y `children`.

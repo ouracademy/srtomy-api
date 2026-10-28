@@ -131,7 +131,8 @@ public class Event extends DomainObject {
       throw new DomainValidationException("Un evento compuesto no puede repetirse");
     }
     if (start.isBefore(container.start) || end.isAfter(container.end)) {
-      throw new DomainValidationException("El sub-evento debe estar dentro de las fechas del evento");
+      throw new DomainValidationException(
+          "El sub-evento debe estar dentro de las fechas del evento");
     }
     this.parent = container;
     this.generalAccess = container.generalAccess;
