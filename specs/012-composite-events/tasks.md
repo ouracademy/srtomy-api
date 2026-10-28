@@ -14,9 +14,9 @@
 - [x] T007 `FindEventResult` y `EventResponse` con padre, modo y `children`.
 
 ## Inscripción y asistencia
-- [ ] T008 `EffectiveRegistration` y pruebas.
-- [ ] T009 Rechazar la inscripción en un hijo `INHERIT` u `OPEN`.
-- [ ] T010 Check-in por ticket heredado (y `OWN` sin ticket propio → 400).
+- [x] T008 `EffectiveRegistration` y pruebas.
+- [x] T009 Rechazar la inscripción en un hijo `INHERIT` u `OPEN`.
+- [x] T010 Check-in por ticket heredado (y `OWN` sin ticket propio → 400).
 
 ## Pública y Mi espacio
 - [ ] T011 `program` en la página pública.
