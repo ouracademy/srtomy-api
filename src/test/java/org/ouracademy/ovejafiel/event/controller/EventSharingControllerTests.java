@@ -145,7 +145,6 @@ class EventSharingControllerTests {
             ? new GetSharedEventResult.Registration(
                 true,
                 false,
-                true,
                 false,
                 List.of(new GetSharedEventResult.Ticket(TICKET, "General", 2000, "PEN", true, 5)))
             : null,
@@ -350,7 +349,7 @@ class EventSharingControllerTests {
   void aSignUpWithATokenKeepsTheUser() {
     given(registerForEventCommandHandler.handle(any()))
         .willReturn(
-            new RegisterForEventResult(true, RegistrationStatus.WAITLISTED, "cancel", "ticket"));
+            new RegisterForEventResult(true, RegistrationStatus.CONFIRMED, "cancel", "ticket"));
 
     assertThat(
             mvc.post()
@@ -413,7 +412,6 @@ class EventSharingControllerTests {
                     true,
                     false,
                     3,
-                    1,
                     2,
                     List.of(
                         new GetEventRegistrationResult.Ticket(
@@ -427,9 +425,10 @@ class EventSharingControllerTests {
             .hasStatusOk()
             .bodyJson();
     body.extractingPath("$.enabled").isEqualTo(true);
-    // The total of seats and the waitlist are not part of the setup any more.
+    // The total of seats and the waitlist are gone.
     body.doesNotHavePath("$.capacity");
     body.doesNotHavePath("$.waitlistEnabled");
+    body.doesNotHavePath("$.waitlisted");
     body.extractingPath("$.tickets[0].sold").isEqualTo(3);
     body.extractingPath("$.checkedIn").isEqualTo(2);
     verify(registrationAuthorization).require(any(), eq(id), eq(Permission.REGISTRATIONS_READ));

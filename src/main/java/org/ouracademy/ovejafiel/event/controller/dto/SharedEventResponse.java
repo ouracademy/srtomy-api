@@ -24,11 +24,7 @@ public record SharedEventResponse(
     RegistrationStatus registrationStatus) {
 
   public record RegistrationResponse(
-      boolean open,
-      boolean requiresAccount,
-      boolean waitlistEnabled,
-      boolean soldOut,
-      List<TicketResponse> tickets) {}
+      boolean open, boolean requiresAccount, boolean soldOut, List<TicketResponse> tickets) {}
 
   /** {@code remaining} is null when nothing limits the ticket. */
   public record TicketResponse(
@@ -50,7 +46,6 @@ public record SharedEventResponse(
             : new RegistrationResponse(
                 registration.open(),
                 registration.requiresAccount(),
-                registration.waitlistEnabled(),
                 registration.soldOut(),
                 registration.tickets().stream()
                     .map(

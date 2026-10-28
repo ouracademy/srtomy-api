@@ -41,7 +41,7 @@ class RemoveEventRegistrationCommandHandlerImplTests {
 
   @Test
   void removesTheSetupItsTicketsAndTheCancelledHistory() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var general = ticket(event, "General", 5);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
     when(registrations.existsByEventIdAndStatusNot(id, RegistrationStatus.CANCELLED))
@@ -57,7 +57,7 @@ class RemoveEventRegistrationCommandHandlerImplTests {
 
   @Test
   void whileSomeoneHoldsOrAwaitsASeatItCannotBeRemoved() {
-    when(setups.lockByEventId(id)).thenReturn(Optional.of(registrationSetup(event, false, null)));
+    when(setups.lockByEventId(id)).thenReturn(Optional.of(registrationSetup(event)));
     when(registrations.existsByEventIdAndStatusNot(id, RegistrationStatus.CANCELLED))
         .thenReturn(true);
 

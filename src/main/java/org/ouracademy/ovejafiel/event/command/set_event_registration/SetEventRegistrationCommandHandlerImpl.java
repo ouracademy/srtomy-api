@@ -6,7 +6,6 @@ import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.ovejafiel.event.command.WaitlistPromotion;
 import org.ouracademy.ovejafiel.event.domain.EventRegistrationSetup;
 import org.ouracademy.ovejafiel.event.domain.TicketType;
 import org.ouracademy.ovejafiel.event.domain.TicketTypeId;
@@ -26,7 +25,6 @@ class SetEventRegistrationCommandHandlerImpl implements SetEventRegistrationComm
   private final EventRegistrationSetupRepository setupRepository;
   private final TicketTypeRepository ticketTypeRepository;
   private final EventRegistrationRepository eventRegistrationRepository;
-  private final WaitlistPromotion waitlistPromotion;
 
   @Override
   @Transactional
@@ -82,11 +80,6 @@ class SetEventRegistrationCommandHandlerImpl implements SetEventRegistrationComm
               ticketTypeRepository.delete(ticket);
             });
 
-    // A larger limit may free seats for whoever is waiting.
-    ticketTypeRepository.flush();
-    if (setup.isOpen()) {
-      waitlistPromotion.promote(setup);
-    }
     return new SetEventRegistrationResult();
   }
 

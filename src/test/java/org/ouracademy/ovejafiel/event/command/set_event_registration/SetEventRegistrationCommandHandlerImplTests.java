@@ -18,7 +18,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.ouracademy.ovejafiel.event.command.WaitlistPromotion;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventRegistrationSetup;
@@ -38,9 +37,8 @@ class SetEventRegistrationCommandHandlerImplTests {
   EventRegistrationSetupRepository setups = mock(EventRegistrationSetupRepository.class);
   TicketTypeRepository tickets = mock(TicketTypeRepository.class);
   EventRegistrationRepository registrations = mock(EventRegistrationRepository.class);
-  WaitlistPromotion promotion = mock(WaitlistPromotion.class);
   SetEventRegistrationCommandHandlerImpl handler =
-      new SetEventRegistrationCommandHandlerImpl(events, setups, tickets, registrations, promotion);
+      new SetEventRegistrationCommandHandlerImpl(events, setups, tickets, registrations);
 
   EventId id = EventId.generate();
   Event event =
@@ -74,8 +72,6 @@ class SetEventRegistrationCommandHandlerImplTests {
     verify(setups).save(setup.capture());
     assertThat(setup.getValue().isOpen()).isTrue();
     assertThat(setup.getValue().isRequiresAccount()).isFalse();
-    assertThat(setup.getValue().isWaitlistEnabled()).isFalse();
-    assertThat(setup.getValue().getCapacity()).isNull();
     var saved = ArgumentCaptor.forClass(TicketType.class);
     verify(tickets, org.mockito.Mockito.times(2)).save(saved.capture());
     assertThat(saved.getAllValues())
@@ -83,12 +79,11 @@ class SetEventRegistrationCommandHandlerImplTests {
         .containsExactly(
             org.assertj.core.api.Assertions.tuple("General", 0, 0),
             org.assertj.core.api.Assertions.tuple("VIP", 2000, 1));
-    verify(promotion).promote(setup.getValue());
   }
 
   @Test
   void changesAnExistingSetupAndUpdatesItsTickets() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var general = ticket(event, "General", 5);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
     when(tickets.findByEventIdOrderByPosition(id)).thenReturn(List.of(general));
@@ -98,7 +93,6 @@ class SetEventRegistrationCommandHandlerImplTests {
             new SetEventRegistrationCommand.Ticket(
                 general.getId(), "Entrada", 1500, "usd", 8, null, null)));
 
-    assertThat(setup.getCapacity()).isNull();
     assertThat(general.getName()).isEqualTo("Entrada");
     assertThat(general.getCurrency()).isEqualTo("USD");
     assertThat(general.getQuantity()).isEqualTo(8);
@@ -107,7 +101,7 @@ class SetEventRegistrationCommandHandlerImplTests {
 
   @Test
   void removesATicketNobodyHolds() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var kept = ticket(event, "General", 5);
     var dropped = ticket(event, "Antiguo", 5);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
@@ -124,7 +118,7 @@ class SetEventRegistrationCommandHandlerImplTests {
 
   @Test
   void aTicketWithSignUpsCannotBeRemoved() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     var kept = ticket(event, "General", 5);
     var held = ticket(event, "VIP", 5);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
@@ -180,19 +174,18 @@ class SetEventRegistrationCommandHandlerImplTests {
 
   @Test
   void aClosedRegistrationPromotesNobody() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     setup.setOpen(false);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
 
     handler.handle(command(newTicket("General", 0, null)));
 
     assertThat(setup.isOpen()).isFalse();
-    verify(promotion, never()).promote(any());
   }
 
   @Test
   void savingTheSetupKeepsItOpenOrClosedAsItWas() {
-    var setup = registrationSetup(event, false, null);
+    var setup = registrationSetup(event);
     when(setups.lockByEventId(id)).thenReturn(Optional.of(setup));
     handler.handle(command(newTicket("General", 0, null)));
     assertThat(setup.isOpen()).isTrue();

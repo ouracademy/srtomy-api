@@ -70,8 +70,8 @@ class CheckInRegistrationByTicketCommandHandlerImplTests {
   }
 
   @Test
-  void aSignUpThatIsWaitingOrCancelledCannotCheckIn() {
-    for (var status : List.of(RegistrationStatus.WAITLISTED, RegistrationStatus.CANCELLED)) {
+  void aCancelledSignUpCannotCheckIn() {
+    for (var status : List.of(RegistrationStatus.CANCELLED)) {
       var registration = registration(event, ticket(event, "General", 5), "lu@x.org", status);
       when(repository.findByTicketCode(registration.getTicketCode()))
           .thenReturn(Optional.of(registration));

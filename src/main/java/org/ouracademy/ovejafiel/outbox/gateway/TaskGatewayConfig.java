@@ -11,6 +11,7 @@ import org.ouracademy.ovejafiel.outbox.command.attempt_delivery.AttemptDeliveryC
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestClient;
 
 /**
  * Cloud Tasks when {@code tasks.project}, {@code tasks.target-url} and {@code
@@ -37,6 +38,7 @@ class TaskGatewayConfig {
       return new LocalTaskGateway(attemptDeliveryCommandHandler);
     }
     return new CloudTasksGateway(
+        RestClient.builder(),
         apiUrl,
         googleAccessToken(),
         project,

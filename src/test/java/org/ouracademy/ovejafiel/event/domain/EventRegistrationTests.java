@@ -65,14 +65,15 @@ class EventRegistrationTests {
   }
 
   @Test
-  void aSetupNeedsAPositiveCapacity() {
+  void aNewSetupIsOpenAndCanBeClosed() {
     var setup = new EventRegistrationSetup(event);
 
-    assertThatThrownBy(() -> setup.configure(true, false, false, 0))
-        .isInstanceOf(DomainValidationException.class);
-    setup.configure(true, true, true, 5);
+    assertThat(setup.isOpen()).isTrue();
+    assertThat(setup.isRequiresAccount()).isFalse();
+    setup.configure(true);
+    setup.setOpen(false);
     assertThat(setup.isRequiresAccount()).isTrue();
-    assertThat(setup.getCapacity()).isEqualTo(5);
+    assertThat(setup.isOpen()).isFalse();
   }
 
   @Test
@@ -100,10 +101,10 @@ class EventRegistrationTests {
 
   @Test
   void onlyAConfirmedSignUpChecksIn() {
-    var waiting =
-        registration(event, ticket(event, "A", 1), "a@x.org", RegistrationStatus.WAITLISTED);
+    var cancelled =
+        registration(event, ticket(event, "A", 1), "a@x.org", RegistrationStatus.CANCELLED);
 
-    assertThatThrownBy(() -> waiting.checkIn(CheckInSource.MANUAL))
+    assertThatThrownBy(() -> cancelled.checkIn(CheckInSource.MANUAL))
         .isInstanceOf(DomainValidationException.class);
   }
 

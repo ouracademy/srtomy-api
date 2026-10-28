@@ -95,10 +95,6 @@ public class EventRegistration extends DomainObject {
     this.checkInSource = null;
   }
 
-  public void confirm() {
-    this.status = RegistrationStatus.CONFIRMED;
-  }
-
   /** Marks them as present. Only a confirmed sign-up checks in; doing it again changes nothing. */
   public void checkIn(CheckInSource source) {
     if (status != RegistrationStatus.CONFIRMED) {

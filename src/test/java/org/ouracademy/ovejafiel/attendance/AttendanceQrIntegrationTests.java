@@ -24,7 +24,6 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -43,7 +42,6 @@ class AttendanceQrIntegrationTests {
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
   @Autowired LinkUserToPersonCommandHandler linkUserToPersonCommandHandler;
   @Autowired SentEmails sentEmails;
-  @Autowired JdbcTemplate jdbc;
 
   RestTestClient client;
   String alice;
@@ -251,11 +249,7 @@ class AttendanceQrIntegrationTests {
         HttpMethod.PUT,
         "/events/" + course + "/registration",
         "{\"requiresAccount\":false,"
-            + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0,\"quantity\":1}]}");
-    // The waitlist is no longer offered, but whoever already waits keeps the place.
-    jdbc.update(
-        "UPDATE event_registration_setup SET waitlist_enabled = true WHERE event_id = ?::uuid",
-        course);
+            + "\"tickets\":[{\"name\":\"General\",\"priceCents\":0,\"quantity\":2}]}");
     var ticket =
         json(alice, "/events/" + course + "/registration").get("tickets").get(0).get("id").asText();
     var mine =
@@ -264,12 +258,17 @@ class AttendanceQrIntegrationTests {
                 bob,
                 "/public/events/" + slug + "/registrations",
                 registrationBody(ticket, email(bob))));
-    var waiting =
+    var cancelled =
         read(
             postPublic(
                 "/public/events/" + slug + "/registrations",
-                registrationBody(ticket, "wait@example.org")));
-    assertThat(waiting.get("status").asText()).isEqualTo("WAITLISTED");
+                registrationBody(ticket, "gone@example.org")));
+    client
+        .delete()
+        .uri("/public/registrations/" + cancelled.get("cancelCode").asText())
+        .exchange()
+        .expectStatus()
+        .isNoContent();
     var uri = "/events/" + course + "/attendance/check-in";
 
     var first =
@@ -293,12 +292,13 @@ class AttendanceQrIntegrationTests {
     assertThat(json(alice, "/events/" + course + "/registration").get("checkedIn").asInt())
         .isEqualTo(1);
 
-    // Whoever waits cannot come in; a code of nothing, and the cancel code, are not tickets.
+    // Whoever gave up the seat cannot come in; a code of nothing, and the cancel code, are not
+    // tickets.
     assertThat(
             statusAs(
                 alice,
                 uri,
-                "{\"ticketCode\":\"%s\"}".formatted(waiting.get("ticketCode").asText())))
+                "{\"ticketCode\":\"%s\"}".formatted(cancelled.get("ticketCode").asText())))
         .isEqualTo(400);
     assertThat(statusAs(alice, uri, "{\"ticketCode\":\"nope\"}")).isEqualTo(404);
     assertThat(

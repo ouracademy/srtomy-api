@@ -161,7 +161,7 @@ class DirectoryIntegrationTests {
     // Bob is a person of the group with a position that reads nothing but the basics.
     holdAccess(bob, group, PredefinedRoles.MEMBER.value());
 
-    assertThat(permissions(bob, group)).doesNotContain("members.read");
+    assertThat(permissions(bob, group)).isNotEmpty().doesNotContain("members.read");
     assertThat(entry(bob).get("membersVisible").asBoolean()).isTrue();
   }
 

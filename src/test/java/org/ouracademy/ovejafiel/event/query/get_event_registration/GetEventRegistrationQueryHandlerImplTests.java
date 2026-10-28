@@ -43,14 +43,13 @@ class GetEventRegistrationQueryHandlerImplTests {
 
   @Test
   void describesTheSetupWithWhatEachTicketHasSold() {
-    var setup = registrationSetup(event, true, 40);
+    var setup = registrationSetup(event);
     var general = ticket(event, "General", 30);
     when(events.findById(id)).thenReturn(Optional.of(event));
     when(setups.findByEventId(id)).thenReturn(Optional.of(setup));
     when(tickets.findByEventIdOrderByPosition(id)).thenReturn(List.of(general));
     when(seats.confirmedByTicket(id)).thenReturn(Map.of(general.getId(), 7L));
     when(registrations.countByEventIdAndStatus(id, RegistrationStatus.CONFIRMED)).thenReturn(7L);
-    when(registrations.countByEventIdAndStatus(id, RegistrationStatus.WAITLISTED)).thenReturn(2L);
     when(registrations.countCheckedIn(id)).thenReturn(5L);
 
     var result = handler.handle(new GetEventRegistrationQuery(id)).orElseThrow();
@@ -58,7 +57,6 @@ class GetEventRegistrationQueryHandlerImplTests {
     assertThat(result.enabled()).isTrue();
     assertThat(result.open()).isTrue();
     assertThat(result.confirmed()).isEqualTo(7);
-    assertThat(result.waitlisted()).isEqualTo(2);
     assertThat(result.checkedIn()).isEqualTo(5);
     assertThat(result.tickets()).hasSize(1);
     assertThat(result.tickets().get(0).sold()).isEqualTo(7);

@@ -55,8 +55,6 @@ class GetEventRegistrationQueryHandlerImpl implements GetEventRegistrationQueryH
                               setup.isRequiresAccount(),
                               eventRegistrationRepository.countByEventIdAndStatus(
                                   event.getId(), RegistrationStatus.CONFIRMED),
-                              eventRegistrationRepository.countByEventIdAndStatus(
-                                  event.getId(), RegistrationStatus.WAITLISTED),
                               eventRegistrationRepository.countCheckedIn(event.getId()),
                               tickets);
                         })

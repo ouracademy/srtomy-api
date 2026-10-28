@@ -24,13 +24,9 @@ public record GetSharedEventResult(
     boolean canRegister,
     RegistrationStatus registrationStatus) {
 
-  /** {@code soldOut} when no ticket on sale has seats left (a waitlist may still take people). */
+  /** {@code soldOut} when no ticket on sale has seats left. */
   public record Registration(
-      boolean open,
-      boolean requiresAccount,
-      boolean waitlistEnabled,
-      boolean soldOut,
-      List<Ticket> tickets) {}
+      boolean open, boolean requiresAccount, boolean soldOut, List<Ticket> tickets) {}
 
   /** {@code remaining} is null when nothing limits the ticket. */
   public record Ticket(

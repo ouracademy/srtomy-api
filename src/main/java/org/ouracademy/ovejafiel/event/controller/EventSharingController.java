@@ -167,7 +167,7 @@ public class EventSharingController {
     return ResponseEntity.noContent().build();
   }
 
-  /** How the event takes sign-ups: tickets, seats, waitlist. */
+  /** How the event takes sign-ups: tickets and seats. */
   @GetMapping("events/{id}/registration")
   public EventRegistrationSetupResponse registration(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {

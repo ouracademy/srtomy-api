@@ -14,7 +14,6 @@ public record EventRegistrationSetupResponse(
     boolean open,
     boolean requiresAccount,
     long confirmed,
-    long waitlisted,
     long checkedIn,
     List<TicketSetup> tickets) {
 
@@ -34,7 +33,6 @@ public record EventRegistrationSetupResponse(
         result.open(),
         result.requiresAccount(),
         result.confirmed(),
-        result.waitlisted(),
         result.checkedIn(),
         result.tickets().stream()
             .map(

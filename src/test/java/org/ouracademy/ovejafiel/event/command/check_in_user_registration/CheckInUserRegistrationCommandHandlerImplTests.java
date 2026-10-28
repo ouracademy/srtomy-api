@@ -78,17 +78,4 @@ class CheckInUserRegistrationCommandHandlerImplTests {
     assertThat(handler.handle(new CheckInUserRegistrationCommand(event.getId(), userId, null)))
         .isEmpty();
   }
-
-  @Test
-  void aWaitlistedSignUpIsLeftAlone() {
-    var registration =
-        registration(event, ticket(event, "General", 5), "lu@x.org", RegistrationStatus.WAITLISTED);
-    when(repository.findFirstByEventIdAndUserIdAndStatusNot(any(), any(), any()))
-        .thenReturn(Optional.of(registration));
-
-    assertThat(
-            handler.handle(new CheckInUserRegistrationCommand(event.getId(), userId, "lu@x.org")))
-        .isEmpty();
-    assertThat(registration.isCheckedIn()).isFalse();
-  }
 }

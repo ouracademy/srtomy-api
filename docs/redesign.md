@@ -134,11 +134,11 @@ Son tres cosas distintas, cada una con su propio mecanismo (`specs/007-sharing`,
 
 - Es **opcional**: un evento nace sin inscripción (un culto no la usa). Se activa con una configuración muy corta: **cupos** (la cantidad del ticket; vacío es sin límite) y **precio** informativo. En «Más opciones»: exigir cuenta y varios **tipos de ticket** (nombre, precio, cantidad, ventana de venta). **El precio es informativo: no se cobra** (deuda técnica). **Cerrar y reabrir** las inscripciones es una acción aparte (`PUT /events/{id}/registration/open`), no un campo.
 - **Un permiso por acción**: `registrations.read` (ver configuración e inscritos), `registrations.configure` (activar, cambiar, quitar), `registrations.close` (cerrar y reabrir) y `registrations.remove` (quitar a un inscrito); marcar el ingreso es `attendance.write`. Quien tenía `events.write` recibió los cuatro nuevos al migrar.
-- Sin lista de espera por ahora (nadie avisa al liberarse un lugar): al llenarse dice «Agotado». Quien ya esperaba conserva su lugar.
-- Tablas `event_registration_setup`, `ticket_type` y `event_registration` (estado `CONFIRMED`, `WAITLISTED` o `CANCELLED`). Los cupos se cuentan bajo un bloqueo de la configuración; al cancelar, entra a quien más esperó y le quepa.
+- No hay lista de espera: al llenarse dice «Agotado» y, si alguien cancela, queda libre para quien llegue. (Se quitó del todo en la migración `V1.14.0` porque nadie avisaba a quien esperaba; si vuelve, irá con los avisos por correo de §11.)
+- Tablas `event_registration_setup`, `ticket_type` y `event_registration` (estado `CONFIRMED` o `CANCELLED`). Los cupos se cuentan bajo un bloqueo de la configuración.
 - Cada inscripción tiene un `cancel_code` (para cancelar sin cuenta) y un `ticket_code` (el QR del ticket; no sirve para cancelar).
 - Quien puede abrir la página pública se inscribe en `POST /v1/public/events/{slug}/registrations`.
-- Mi espacio: **«Mis eventos y cursos»** = lo que tengo con lugar (confirmado o en espera, con botón para cancelar) y lo que asistí; **«Compartidos contigo»** = lo que otra persona o la iglesia me dejó ver y todavía no es mío por inscripción ni asistencia. Cada tarjeta dice por qué aparece.
+- Mi espacio: **«Mis eventos y cursos»** = lo que tengo con lugar (con botón para cancelar) y lo que asistí; **«Compartidos contigo»** = lo que otra persona o la iglesia me dejó ver y todavía no es mío por inscripción ni asistencia. Cada tarjeta dice por qué aparece.
 
 ### Asistencia (quién estuvo)
 
@@ -173,7 +173,7 @@ El usuario confirmó que **no hay datos reales**, así que hay libertad para lim
 6. **007-sharing**: compartir eventos y cursos, enlaces, inscripción por enlace.
 7. **008-my-space**: la vista del miembro común y el nivel Miembro (cuenta sin cargo).
 8. **010-recurring-events-calendar-sync**: eventos recurrentes estilo Google Calendar (cada N, días, fin nunca/fecha/cantidad) y calendario privado `.ics` para suscribirse desde Google Calendar o Apple Calendar.
-9. **011-registration**: inscripción como proceso aparte (tickets, cupos, lista de espera), asistencia con QR del evento y del ticket, visitantes y rediseño de Mi espacio. Reemplaza el «rol del enlace» de la 007.
+9. **011-registration**: inscripción como proceso aparte (tickets y cupos), asistencia con QR del evento y del ticket, visitantes y rediseño de Mi espacio. Reemplaza el «rol del enlace» de la 007.
 10. **009-tech-debt**: no es una feature, es una lista viva de limpiezas y pendientes (sección 10). Cada ítem se hace solo con el visto bueno del dueño del producto.
 
 Alcance acordado para este branch (`claude/app-flow-redesign-nq6j60`, en ambos repos):
@@ -220,7 +220,6 @@ Sin la Auth0 Action que agrega el email al token, el usuario se registra sin ema
 | 27 | Visitantes sin diferenciar en el nivel «Miembro» | API | Toda persona vinculada a un usuario obtiene «Miembro» en su nodo (008) aunque sea visitante, porque hoy todas nacen visitantes. | Decidir si un visitante vinculado debe tener menos acceso y, de ser así, excluirlo de la rama `MEMBER` de `user_access` y promover a quienes ya están. | Pendiente (consultar) |
 | 28 | Preguntas propias y varios boletos por compra | API y UI | La inscripción pide solo nombre, apellido, correo y teléfono, y un boleto por inscripción. | Preguntas configurables por evento y cantidad de boletos por compra. | Pendiente (consultar) |
 | 29 | Historial al quitar la inscripción de un evento | API | Quitar la inscripción borra también las filas canceladas (solo guardaban historial). | Decidir si ese historial debe conservarse (por ejemplo, desactivar en vez de borrar). | Pendiente (consultar) |
-| 30 | Lista de espera apagada y cupo total sin uso | API | La 011b dejó de ofrecer la lista de espera (no hay aviso por correo) y el cupo total del evento; las columnas `waitlist_enabled` y `capacity` de `event_registration_setup` y el código que las usa siguen para las inscripciones antiguas. | Con los avisos por correo (§11), volver a ofrecer la espera y borrar `capacity`. | Pendiente (consultar) |
 
 ## 11. Trabajo futuro: centro de notificaciones (campana)
 

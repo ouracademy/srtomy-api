@@ -11,16 +11,16 @@
 ## Decisiones (acordadas con el dueño del producto)
 
 1. **Compartir y inscribirse son cosas distintas.** Compartir (007) dice **quién puede abrir** el evento (`RESTRICTED`, `CHURCH`, `ANYONE_WITH_LINK`). Inscribirse dice **quién tiene un lugar**. Se quita `event.link_role` y el rol `REGISTRANT`: el enlace solo deja ver, así que ya no hay un selector de un único valor. Quien puede abrir la página de un evento con inscripción abierta puede inscribirse.
-2. **Inscripción opcional.** Un evento o curso nace **sin inscripción** (`event_registration_setup` no existe). Los organizadores (`events.write`) la activan con una configuración: abierta o cerrada, si exige cuenta, si hay lista de espera, un cupo total opcional y **uno o más tipos de ticket**.
+2. **Inscripción opcional.** Un evento o curso nace **sin inscripción** (`event_registration_setup` no existe). Los organizadores (`events.write`) la activan con una configuración: abierta o cerrada, si exige cuenta y **uno o más tipos de ticket** (los cupos son la cantidad de cada ticket).
 3. **Gratis es un ticket de precio 0.** «Gratis» en la UI crea un único ticket «General». No hay modo aparte en el modelo.
 4. **Tipo de ticket** (`ticket_type`): nombre, precio (`price_cents`, moneda de 3 letras, por defecto `PEN`), cantidad opcional (nula = sin límite) y ventana de venta opcional (`sales_start`, `sales_end`).
 5. **Pagos fuera de alcance.** El precio es informativo: no se cobra ni se integra una pasarela. Una fase futura agrega un estado de pago sin cambiar este modelo.
-6. **Inscripción** (`event_registration`): pertenece a un tipo de ticket y tiene estado `CONFIRMED`, `WAITLISTED` o `CANCELLED`. Una persona (por correo) tiene como máximo una inscripción activa (`CONFIRMED` o `WAITLISTED`) por evento. Cancelar conserva la fila (historial).
-7. **Cupos.** Un ticket está lleno al llegar a su cantidad y el evento al llegar al cupo total (cuentan solo las `CONFIRMED`). Si hay lista de espera, quien llega con todo lleno queda `WAITLISTED`; si no, se rechaza con 400. Al cancelar una confirmada, entra la primera de la espera (por orden de llegada) a la que le quepa. Los cupos se cuentan bajo un bloqueo de la configuración del evento, para no pasarse con inscripciones simultáneas.
+6. **Inscripción** (`event_registration`): pertenece a un tipo de ticket y tiene estado `CONFIRMED` o `CANCELLED`. Una persona (por correo) tiene como máximo una inscripción activa (`CONFIRMED`) por evento. Cancelar conserva la fila (historial).
+7. **Cupos.** Un ticket está lleno al llegar a su cantidad (cuentan solo las `CONFIRMED`); quien llega con el ticket lleno es rechazado con 400. Al cancelar una confirmada el lugar queda libre. Los cupos se cuentan bajo un bloqueo de la configuración del evento, para no pasarse con inscripciones simultáneas.
 8. **Cancelar.** Cada inscripción tiene un `cancel_code` aleatorio (96 bits). Quien se inscribe lo recibe en la respuesta y, con cuenta, en `GET /me/events`; con él cancela sin sesión (`DELETE /public/registrations/{code}`). Los organizadores también pueden quitar a alguien.
 9. **Datos que se piden:** nombre, apellido, correo y teléfono opcional. Las preguntas propias por evento quedan como trabajo futuro.
 10. **Datos anteriores.** El dueño pidió **reemplazar y borrar**: la migración elimina las inscripciones de la 007 y la columna `link_role` (no se edita ninguna migración aplicada).
-11. **Mi espacio.** «Mis eventos y cursos» = lo que tengo con un lugar (inscripción confirmada o en espera, por mi cuenta o por mi correo verificado) **y** lo que asistí. «Compartidos contigo» = lo que otra persona o la iglesia me dejó ver y todavía no es mío por inscripción ni asistencia. Cada tarjeta dice por qué aparece.
+11. **Mi espacio.** «Mis eventos y cursos» = lo que tengo con un lugar (inscripción confirmada, por mi cuenta o por mi correo verificado) **y** lo que asistí. «Compartidos contigo» = lo que otra persona o la iglesia me dejó ver y todavía no es mío por inscripción ni asistencia. Cada tarjeta dice por qué aparece.
 
 12. **Compartir sin selectores de una sola opción (UI).** «Acceso general» queda en un select (Restringido / Toda la iglesia / Cualquiera con el enlace); el rol por persona (Lector/Editor) se mantiene. Se quita «Con el enlace». Un select de rol solo aparece si tiene dos valores con sentido.
 13. **Guardar explícito (UI).** El diálogo Compartir **nunca** guarda solo: acumula los cambios (personas agregadas o quitadas, acceso general) y un botón **Guardar**, deshabilitado hasta que algo cambie y con spinner mientras dura la petición (patrón `api-submit-button`), los aplica con los endpoints existentes. Sin cambios en el API para esto salvo quitar `linkRole`.
@@ -35,7 +35,7 @@
 21. **Quién marca**: quien tiene `ATTENDANCE_WRITE` (pastor, ujier) marca a mano, escanea tickets, anota visitantes, sube el contador y **genera el QR del evento** que enseña a la gente. Escanear el QR del evento no pide permiso (es la autoasistencia que el ujier invita a hacer).
 
 22. **Inscripción más simple.** Los cupos son solo la **cantidad de cada ticket** (vacío: sin límite): se quita el «cupo total» del evento. Con un solo ticket, la UI lo muestra como «Cupos» y «Precio», sin hablar de tickets; los varios tipos de ticket quedan en «Más opciones». La migración `V1.13.0` pasa el cupo total de los eventos con un solo ticket a la cantidad de ese ticket (con varios tickets conserva el total, que sigue limitando).
-23. **Sin lista de espera por ahora.** Nadie avisa a quien espera cuando se libera un lugar (no se envía correo), así que la lista de espera deja de ofrecerse: al llenarse, la inscripción dice «Agotado» (400). Las personas que ya esperaban conservan su lugar y siguen entrando en orden al liberarse uno. La opción volverá junto con los avisos por correo (`docs/redesign.md` §11).
+23. **Sin lista de espera.** Nadie avisa a quien espera cuando se libera un lugar (no se envía correo), así que la lista de espera no sirve y se **quitó del todo** (`V1.14.0`): la inscripción llena responde 400 «se agotaron los lugares» y las personas que esperaban pasaron a `CANCELLED`. Si vuelve, irá con los avisos por correo (`docs/redesign.md` §11).
 24. **Cerrar y reabrir inscripciones** es una acción propia, no un campo del formulario: `PUT /events/{id}/registration/open {open}`. La configuración y las inscripciones se conservan; al reabrir entran los que esperan si hay lugar. Una inscripción nueva nace abierta.
 25. **Un permiso por acción** (se agregan al catálogo de IAM, grupo `registrations`): `registrations.read` (ver la configuración y los inscritos), `registrations.configure` (activar, cambiar o quitar la inscripción), `registrations.close` (cerrar o reabrir) y `registrations.remove` (quitar a un inscrito). Marcar el ingreso sigue siendo `attendance.write`. Cada endpoint pide solo su permiso (la respuesta de quien configura o cierra no exige además `registrations.read`). La migración `V1.13.0` se los da a todos los roles y cargos que ya tenían `events.write`, para que nadie pierda lo que podía hacer.
 
@@ -55,11 +55,10 @@
 3. **Given** que exige cuenta, **When** no hay sesión, **Then** 403.
 4. **Given** un evento al que el visitante no puede acceder (`RESTRICTED`), **Then** 404 al abrir la página y 403 al inscribirse.
 
-### US3 — Cupos y lista de espera (P1)
+### US3 — Cupos (P1)
 
-1. **Given** un ticket con 1 lugar y sin espera, **When** se inscribe una segunda persona, **Then** 400 «se agotaron».
-2. **Given** lo mismo con espera, **Then** queda `WAITLISTED`; **When** la primera cancela, **Then** la segunda pasa a `CONFIRMED`.
-3. **Given** un cupo total menor que la suma de los tickets, **Then** el total manda.
+1. **Given** un ticket con 1 lugar, **When** se inscribe una segunda persona, **Then** 400 «se agotaron».
+2. **Given** el ticket lleno, **When** la primera persona cancela, **Then** el lugar queda libre y la segunda puede inscribirse.
 
 ### US4 — Administrar inscritos (P1)
 
@@ -86,7 +85,7 @@ Los organizadores ven los inscritos con ticket y estado (`GET /events/{id}/regis
 ### US8 — QR del ticket (P1)
 
 1. **Given** una inscripción confirmada, **When** el ujier escanea su `ticket_code`, **Then** queda ingresada con origen `QR_TICKET`; **When** escanea otra vez, **Then** `alreadyCheckedIn` con la hora, sin duplicar.
-2. **Given** una inscripción en espera o cancelada o de otro evento, **Then** 400.
+2. **Given** una inscripción cancelada o de otro evento, **Then** 400.
 3. **Given** quien no tiene `ATTENDANCE_WRITE`, **Then** 403.
 4. Los organizadores ven en la lista de inscritos quién ingresó y quién no, y pueden marcar o desmarcar a mano.
 

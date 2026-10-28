@@ -240,7 +240,7 @@ class SharingIntegrationTests {
     // A plain event (not a course) takes sign-ups too; only managers set it up.
     assertThat(json(alice, "/events/" + eventId + "/registration").get("enabled").asBoolean())
         .isFalse();
-    openRegistration(eventId, false, null, 20);
+    openRegistration(eventId, 20);
     var setup = json(alice, "/events/" + eventId + "/registration");
     assertThat(setup.get("enabled").asBoolean()).isTrue();
     assertThat(setup.get("tickets").get(0).get("quantity").asInt()).isEqualTo(20);
@@ -256,7 +256,7 @@ class SharingIntegrationTests {
 
   @Test
   void eachThingYouDoWithTheRegistrationHasItsOwnPermission() {
-    openRegistration(courseId, false, null, 5);
+    openRegistration(courseId, 5);
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "ANYONE_WITH_LINK");
     var ticket = ticketOf(courseId);
@@ -303,7 +303,7 @@ class SharingIntegrationTests {
   void anyoneSignsUpThroughTheLinkWithATicket() {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "ANYONE_WITH_LINK");
-    var ticket = openRegistration(courseId, false, null, 10);
+    var ticket = openRegistration(courseId, 10);
     var page = publicPage(slug);
     assertThat(page.get("canRegister").asBoolean()).isTrue();
     assertThat(page.get("registration").get("tickets").get(0).get("remaining").asInt())
@@ -346,14 +346,14 @@ class SharingIntegrationTests {
   @Test
   void signingUpNeedsAnOpenLinkAndAnOpenRegistration() {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
-    var ticket = openRegistration(courseId, false, null, 5);
+    var ticket = openRegistration(courseId, 5);
 
     // Restricted: whoever cannot open the event cannot sign up.
     assertThat(registerStatus(slug, ticket, "a@example.org")).isEqualTo(403);
     setSharing(courseId, "ANYONE_WITH_LINK");
     assertThat(registerStatus(slug, ticket, "a@example.org")).isEqualTo(201);
     // Closed registration.
-    setRegistration(courseId, false, false, false, null, 5);
+    setRegistration(courseId, false, false, 5);
     assertThat(publicPage(slug).get("canRegister").asBoolean()).isFalse();
     assertThat(registerStatus(slug, ticket, "b@example.org")).isEqualTo(400);
     // An event without registration, and an unknown link.
@@ -370,7 +370,7 @@ class SharingIntegrationTests {
   void aRegistrationThatNeedsAnAccountRefusesAnonymousVisitors() {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "ANYONE_WITH_LINK");
-    var ticket = setRegistration(courseId, true, true, false, null, 5);
+    var ticket = setRegistration(courseId, true, true, 5);
 
     assertThat(registerStatus(slug, ticket, "anon@example.org")).isEqualTo(403);
     assertThat(publicPage(slug).get("canRegister").asBoolean()).isFalse();
@@ -393,7 +393,7 @@ class SharingIntegrationTests {
   void aSignUpNeedsATicketANameAndAValidEmail() {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "ANYONE_WITH_LINK");
-    var ticket = openRegistration(courseId, false, null, 5);
+    var ticket = openRegistration(courseId, 5);
 
     assertThat(
             statusPublicPost(
@@ -427,7 +427,7 @@ class SharingIntegrationTests {
     holdAccess(bob, other, PredefinedRoles.MEMBER.value());
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "CHURCH");
-    var ticket = openRegistration(courseId, false, null, 5);
+    var ticket = openRegistration(courseId, 5);
 
     assertThat(registerStatus(slug, ticket, "anon@example.org")).isEqualTo(403);
     assertThat(
@@ -454,24 +454,20 @@ class SharingIntegrationTests {
   }
 
   @Test
-  void aFullTicketRefusesOrWaitlistsAndACancellationPromotesTheFirstInLine() {
+  void aFullTicketRefusesTheNextOneUntilASeatIsGivenUp() {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "ANYONE_WITH_LINK");
-    var ticket = openRegistration(courseId, false, null, 1);
+    var ticket = openRegistration(courseId, 1);
 
     var first = register(slug, ticket, "Ana", "Paz", "ana@example.org", null);
-    // No waitlist: the next one is refused.
+    // There is no waitlist: when the seats run out nobody else can sign up.
     assertThat(registerStatus(slug, ticket, "luis@example.org")).isEqualTo(400);
     assertThat(publicPage(slug).get("registration").get("soldOut").asBoolean()).isTrue();
+    var setup = json(alice, "/events/" + courseId + "/registration");
+    assertThat(setup.get("confirmed").asInt()).isEqualTo(1);
+    assertThat(setup.has("waitlisted")).isFalse();
 
-    // With waitlist the next ones queue up, in order.
-    setRegistration(courseId, true, false, true, null, 1);
-    var second = register(slug, ticket, "Luis", "Rey", "luis@example.org", null);
-    var third = register(slug, ticket, "Eva", "Sol", "eva@example.org", null);
-    assertThat(second.get("status").asText()).isEqualTo("WAITLISTED");
-    assertThat(third.get("status").asText()).isEqualTo("WAITLISTED");
-
-    // The first gives up the seat with the code they kept: the one waiting longest gets it.
+    // The first gives up the seat with the code they kept: it is free for the next one.
     assertThat(
             client
                 .delete()
@@ -481,47 +477,21 @@ class SharingIntegrationTests {
                 .getStatus()
                 .value())
         .isEqualTo(204);
+    assertThat(publicPage(slug).get("registration").get("soldOut").asBoolean()).isFalse();
+    assertThat(registerStatus(slug, ticket, "luis@example.org")).isEqualTo(201);
     var states = new java.util.HashMap<String, String>();
     json(alice, "/events/" + courseId + "/registrations")
         .forEach(r -> states.put(r.get("email").asText(), r.get("status").asText()));
     assertThat(states)
-        .containsOnlyKeys("luis@example.org", "eva@example.org")
-        .containsEntry("luis@example.org", "CONFIRMED")
-        .containsEntry("eva@example.org", "WAITLISTED");
-    var setup = json(alice, "/events/" + courseId + "/registration");
-    assertThat(setup.get("confirmed").asInt()).isEqualTo(1);
-    assertThat(setup.get("waitlisted").asInt()).isEqualTo(1);
-  }
-
-  @Test
-  void raisingTheLimitGivesSeatsToTheWaitlist() {
-    var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
-    setSharing(courseId, "ANYONE_WITH_LINK");
-    var ticket = openRegistration(courseId, true, null, 1);
-    register(slug, ticket, "Ana", "Paz", "ana@example.org", null);
-    register(slug, ticket, "Luis", "Rey", "luis@example.org", null);
-
-    setRegistration(courseId, true, false, true, null, 2);
-
-    assertThat(json(alice, "/events/" + courseId + "/registration").get("waitlisted").asInt())
-        .isZero();
-  }
-
-  @Test
-  void anOldTotalOfSeatsStillLimitsEveryTicket() {
-    var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
-    setSharing(courseId, "ANYONE_WITH_LINK");
-    var ticket = openRegistration(courseId, false, 1, null);
-
-    assertThat(registerStatus(slug, ticket, "ana@example.org")).isEqualTo(201);
-    assertThat(registerStatus(slug, ticket, "luis@example.org")).isEqualTo(400);
+        .containsOnlyKeys("luis@example.org")
+        .containsEntry("luis@example.org", "CONFIRMED");
   }
 
   @Test
   void simultaneousSignUpsNeverExceedTheSeats() throws Exception {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "ANYONE_WITH_LINK");
-    var ticket = openRegistration(courseId, false, null, 2);
+    var ticket = openRegistration(courseId, 2);
 
     var pool = java.util.concurrent.Executors.newFixedThreadPool(6);
     try {
@@ -548,7 +518,7 @@ class SharingIntegrationTests {
   void aTicketWithSignUpsCannotBeRemovedAndTheRegistrationMustBeClosedInstead() {
     var slug = json(alice, "/events/" + courseId + "/sharing").get("slug").asText();
     setSharing(courseId, "ANYONE_WITH_LINK");
-    var ticket = openRegistration(courseId, false, null, 5);
+    var ticket = openRegistration(courseId, 5);
     register(slug, ticket, "Ana", "Paz", "ana@example.org", null);
 
     assertThat(
@@ -609,22 +579,12 @@ class SharingIntegrationTests {
   }
 
   /** Opens the registration of the event with one ticket "General" and returns its id. */
-  String openRegistration(String id, boolean waitlist, Integer capacity, Integer quantity) {
-    return setRegistration(id, true, false, waitlist, capacity, quantity);
+  String openRegistration(String id, Integer quantity) {
+    return setRegistration(id, true, false, quantity);
   }
 
-  /**
-   * Sets the registration with one ticket "General". The waitlist and the total of seats are not
-   * offered any more, but the setups that already have them keep working: they are set in the
-   * database.
-   */
-  String setRegistration(
-      String id,
-      boolean open,
-      boolean requiresAccount,
-      boolean waitlist,
-      Integer capacity,
-      Integer quantity) {
+  /** Sets the registration with one ticket "General", open or closed, and returns the ticket id. */
+  String setRegistration(String id, boolean open, boolean requiresAccount, Integer quantity) {
     var tickets = json(alice, "/events/" + id + "/registration").get("tickets");
     var existing = tickets.isEmpty() ? "" : "\"id\":\"" + tickets.get(0).get("id").asText() + "\",";
     var ticket =
@@ -645,11 +605,6 @@ class SharingIntegrationTests {
         HttpMethod.PUT,
         "/events/" + id + "/registration/open",
         "{\"open\":%s}".formatted(open));
-    jdbc.update(
-        "UPDATE event_registration_setup SET waitlist_enabled = ?, capacity = ? WHERE event_id = ?::uuid",
-        waitlist,
-        capacity,
-        id);
     return ticket;
   }
 
