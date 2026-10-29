@@ -147,6 +147,62 @@ class OrganizationControllerTests {
   }
 
   @Test
+  void createWithoutPositionsNorPositionLevelsUsesEmptyOnes() {
+    var id = PartyId.generate();
+    var command =
+        new CreateChurchCommand(
+            new OrganizationInfo("Church", null, null, null, SocialLinks.NONE),
+            new OrganizationInfo("Sede", null, null, null, SocialLinks.NONE),
+            List.of(new PositionSeed("Hermano", Set.of(), Set.of())),
+            new Creator("Ana", "Diaz", null),
+            "test-user",
+            null,
+            false);
+    given(createChurchCommandHandler.handle(command))
+        .willReturn(new CreateChurchResult(church(id), church(PartyId.generate())));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/organizations")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name":"Church","location":{"name":"Sede"},
+                     "positions":[{"name":"Hermano"}],
+                     "creator":{"firstName":"Ana","lastName":"Diaz"}}
+                    """))
+        .hasStatus(201);
+
+    var withoutPositions =
+        new CreateChurchCommand(
+            command.info(),
+            command.location(),
+            List.of(),
+            command.creator(),
+            "test-user",
+            null,
+            false);
+    given(createChurchCommandHandler.handle(withoutPositions))
+        .willReturn(new CreateChurchResult(church(id), church(PartyId.generate())));
+
+    for (var positions : List.of("", "\"positions\":null,")) {
+      assertThat(
+              mvc.post()
+                  .uri("/v1/organizations")
+                  .header("Authorization", bearer())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
+                      {"name":"Church","location":{"name":"Sede"},%s
+                       "creator":{"firstName":"Ana","lastName":"Diaz"}}
+                      """
+                          .formatted(positions)))
+          .hasStatus(201);
+    }
+  }
+
+  @Test
   void createWithoutALocationIsBadRequest() {
     assertThat(
             mvc.post()

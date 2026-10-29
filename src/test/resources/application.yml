@@ -10,6 +10,10 @@
 # README.md); CI spins up an equivalent Postgres service container (see
 # .github/workflows/ci.yml).
 spring:
+  threads:
+    virtual:
+      # Same as the main application.yml, so the tests run like production does.
+      enabled: true
   datasource:
     url: jdbc:postgresql://127.0.0.1:5432/srtommy
     username: root
