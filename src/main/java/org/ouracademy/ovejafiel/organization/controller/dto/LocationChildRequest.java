@@ -16,8 +16,10 @@ public class LocationChildRequest extends OrganizationRequest {
 
   @NotNull Organization.Type type;
 
+  /** People to start the group with, as members who lead it. Optional. */
   @NotNull List<UUID> leaderIds = new ArrayList<>();
 
+  /** People to start the group with, as members. Optional. */
   @NotNull List<UUID> memberIds = new ArrayList<>();
 
   @NotNull

@@ -8,12 +8,19 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQuery;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQuery;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQueryHandler;
+import org.ouracademy.ovejafiel.organization.domain.Organization;
+import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
+import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
+import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
@@ -27,16 +34,22 @@ import org.ouracademy.ovejafiel.person.command.restore_person.RestorePersonComma
 import org.ouracademy.ovejafiel.person.command.update_person.UpdatePersonCommand;
 import org.ouracademy.ovejafiel.person.command.update_person.UpdatePersonCommandHandler;
 import org.ouracademy.ovejafiel.person.controller.dto.CreatePersonRequest;
+import org.ouracademy.ovejafiel.person.controller.dto.MembershipRequest;
+import org.ouracademy.ovejafiel.person.controller.dto.MembershipResponse;
 import org.ouracademy.ovejafiel.person.controller.dto.PersonMatchResponse;
 import org.ouracademy.ovejafiel.person.controller.dto.PersonResponse;
 import org.ouracademy.ovejafiel.person.controller.dto.UpdatePersonRequest;
+import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.query.find_person_by_id.FindPersonByIdQuery;
 import org.ouracademy.ovejafiel.person.query.find_person_by_id.FindPersonByIdQueryHandler;
 import org.ouracademy.ovejafiel.person.query.find_person_matches.FindPersonMatchesQuery;
 import org.ouracademy.ovejafiel.person.query.find_person_matches.FindPersonMatchesQueryHandler;
+import org.ouracademy.ovejafiel.person.query.get_person_memberships.GetPersonMembershipsQuery;
+import org.ouracademy.ovejafiel.person.query.get_person_memberships.GetPersonMembershipsQueryHandler;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQuery;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQueryHandler;
 import org.ouracademy.ovejafiel.shared.domain.ConflictException;
+import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,18 +85,90 @@ public class PersonController {
   RestorePersonCommandHandler restorePersonCommandHandler;
   FindPersonMatchesQueryHandler findPersonMatchesQueryHandler;
   FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
+  FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
+  FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
+  SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
+  GetPersonMembershipsQueryHandler getPersonMembershipsQueryHandler;
 
   @GetMapping
   public Page<PersonResponse> findAll(
       @AuthenticationPrincipal Jwt jwt,
       @RequestParam(required = true) UUID organizationId,
       String searchText,
+      @RequestParam(required = false) MemberState memberState,
       @ParameterObject Pageable pageable) {
     authorize(jwt, new PartyId(organizationId), Permission.MEMBERS_READ);
-    return searchPeopleQueryHandler
-        .handle(new SearchPeopleQuery(new PartyId(organizationId), searchText, pageable))
+    var result =
+        searchPeopleQueryHandler.handle(
+            new SearchPeopleQuery(new PartyId(organizationId), searchText, memberState, pageable));
+    return result
         .people()
-        .map(PersonResponse::from);
+        .map(person -> PersonResponse.from(person, result.standings().get(person.id())));
+  }
+
+  /**
+   * The nodes the person belongs to, with their state, leadership and positions in each. Only those
+   * nodes the caller can read the people of.
+   */
+  @GetMapping("{id}/memberships")
+  public List<MembershipResponse> memberships(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    authorizeQueryHandler.handle(
+        new AuthorizeQuery(jwt.getSubject(), organizationsOf(id), Permission.MEMBERS_READ));
+    return getPersonMembershipsQueryHandler
+        .handle(new GetPersonMembershipsQuery(new PartyId(id)))
+        .stream()
+        .filter(membership -> canRead(jwt, membership.organizationId()))
+        .map(MembershipResponse::from)
+        .toList();
+  }
+
+  /**
+   * Puts an existing person in a node (a location, group or ministry) with the state they have
+   * there, or changes it: attendee of the youth group while a member of the church. They must
+   * already belong to the same church.
+   */
+  @PutMapping("{id}/memberships/{organizationId}")
+  @ResponseStatus(code = HttpStatus.NO_CONTENT)
+  public void setMembership(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @PathVariable UUID organizationId,
+      @RequestBody @Valid MembershipRequest request) {
+    var node = new PartyId(organizationId);
+    authorize(jwt, node, Permission.MEMBERS_WRITE);
+    var person = new PartyId(id);
+    findPersonByIdQueryHandler
+        .handle(new FindPersonByIdQuery(person))
+        .orElseThrow(() -> new NoSuchElementException("Person not found: " + id));
+    var churchId =
+        findChurchOfOrganizationQueryHandler
+            .handle(new FindChurchOfOrganizationQuery(node))
+            .orElseThrow(
+                () -> new NoSuchElementException("Organization not found: " + organizationId))
+            .churchId();
+    // Otherwise a writer of one church could take in anyone by naming their id.
+    var church =
+        findOrganizationSubtreeQueryHandler
+            .handle(new FindOrganizationSubtreeQuery(churchId))
+            .ids();
+    if (organizationsOf(id).stream().noneMatch(church::contains)) {
+      throw new AccessDeniedException("La persona no pertenece a esta iglesia");
+    }
+    var type =
+        findOrganizationByIdQueryHandler
+            .handle(new FindOrganizationByIdQuery(node))
+            .orElseThrow(
+                () -> new NoSuchElementException("Organization not found: " + organizationId))
+            .type();
+    if (request.isLeader()
+        && type != Organization.Type.GROUP
+        && type != Organization.Type.MINISTRY) {
+      throw new DomainValidationException("Solo un grupo o ministerio tiene líderes");
+    }
+    setNodeMembershipCommandHandler.handle(
+        new SetNodeMembershipCommand(
+            person, node, request.getMemberState().typeId(), request.isLeader()));
   }
 
   @GetMapping("{id}")
@@ -216,6 +301,15 @@ public class PersonController {
         request.getAge(),
         request.getBirthdate(),
         request.getHasBeenBaptized());
+  }
+
+  private boolean canRead(Jwt jwt, PartyId organizationId) {
+    try {
+      authorize(jwt, organizationId, Permission.MEMBERS_READ);
+      return true;
+    } catch (AccessDeniedException e) {
+      return false;
+    }
   }
 
   private void authorize(Jwt jwt, PartyId organizationId, Permission permission) {

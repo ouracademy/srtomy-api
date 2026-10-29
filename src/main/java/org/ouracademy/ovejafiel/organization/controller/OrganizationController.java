@@ -10,6 +10,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQuery;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQueryHandler;
 import org.ouracademy.ovejafiel.iam.domain.IamRoleId;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQuery;
@@ -35,6 +37,7 @@ import org.ouracademy.ovejafiel.organization.controller.dto.CreateChurchRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.CreateLocationRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.LocationChildMemberResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.LocationChildRequest;
+import org.ouracademy.ovejafiel.organization.controller.dto.MemberGrowthResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.MemberStateResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.OrganizationRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.OrganizationResponse;
@@ -44,6 +47,8 @@ import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindO
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_children.FindOrganizationChildrenQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_children.FindOrganizationChildrenQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQuery;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberStateQuery;
@@ -61,6 +66,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -85,6 +91,8 @@ public class OrganizationController {
   FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
   GetLocationChildrenQueryHandler getLocationChildrenQueryHandler;
   GetMemberStateQueryHandler getMemberStateQueryHandler;
+  GetMemberGrowthQueryHandler getMemberGrowthQueryHandler;
+  FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
   @GetMapping("{id}/childs")
@@ -214,12 +222,7 @@ public class OrganizationController {
     return ResponseEntity.of(
         updateLocationChildCommandHandler
             .handle(
-                new UpdateLocationChildCommand(
-                    new PartyId(id),
-                    info(request),
-                    request.getType(),
-                    request.getMemberIds().stream().map(PartyId::new).toList(),
-                    request.getLeaderIds().stream().map(PartyId::new).toList()))
+                new UpdateLocationChildCommand(new PartyId(id), info(request), request.getType()))
             .map(result -> OrganizationResponse.from(result.organization())));
   }
 
@@ -242,6 +245,25 @@ public class OrganizationController {
     return getMemberStateQueryHandler.handle(new GetMemberStateQuery(new PartyId(id))).stream()
         .map(MemberStateResponse::from)
         .toList();
+  }
+
+  /**
+   * How the people of the node (and of everything below it) are doing: how many are visitors,
+   * attendees or members now, and per month how many joined, progressed or left, for the last
+   * {@code months} (1 to 36, 12 by default).
+   */
+  @GetMapping("{id}/growth")
+  public MemberGrowthResponse growth(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestParam(defaultValue = "12") int months) {
+    authorize(jwt, id, Permission.MEMBERS_READ);
+    var subtree =
+        findOrganizationSubtreeQueryHandler.handle(
+            new FindOrganizationSubtreeQuery(new PartyId(id)));
+    return MemberGrowthResponse.from(
+        getMemberGrowthQueryHandler.handle(
+            new GetMemberGrowthQuery(subtree.ids(), Math.clamp(months, 1, 36))));
   }
 
   @DeleteMapping("{id}")

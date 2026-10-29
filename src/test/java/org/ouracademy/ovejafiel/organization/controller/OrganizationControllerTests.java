@@ -13,6 +13,9 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityId;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQuery;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQueryHandler;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth.MemberGrowthResult;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.domain.PredefinedRoles;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQuery;
@@ -39,6 +42,8 @@ import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
 import org.ouracademy.ovejafiel.organization.query.PersonDetails;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_children.FindOrganizationChildrenQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQuery;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenResult;
@@ -78,6 +83,8 @@ class OrganizationControllerTests {
   @MockitoBean FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
   @MockitoBean GetLocationChildrenQueryHandler getLocationChildrenQueryHandler;
   @MockitoBean GetMemberStateQueryHandler getMemberStateQueryHandler;
+  @MockitoBean GetMemberGrowthQueryHandler getMemberGrowthQueryHandler;
+  @MockitoBean FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
 
   static final PersonDetails ANA_DETAILS =
@@ -274,14 +281,7 @@ class OrganizationControllerTests {
                 .uri("/v1/organizations/locations/childs/" + PartyId.generate().value())
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"name\":\"Youth\",\"type\":\"MINISTRY\","
-                        + "\"leaderIds\":[\""
-                        + PartyId.generate().value()
-                        + "\"],"
-                        + "\"memberIds\":[\""
-                        + PartyId.generate().value()
-                        + "\"]}"))
+                .content("{\"name\":\"Youth\",\"type\":\"MINISTRY\"}"))
         .hasStatus(404);
   }
 
@@ -292,15 +292,52 @@ class OrganizationControllerTests {
                 .uri("/v1/organizations/locations/childs/" + PartyId.generate().value())
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"name\":\"Church\",\"type\":\"CHURCH\","
-                        + "\"leaderIds\":[\""
-                        + PartyId.generate().value()
-                        + "\"],"
-                        + "\"memberIds\":[\""
-                        + PartyId.generate().value()
-                        + "\"]}"))
+                .content("{\"name\":\"Church\",\"type\":\"CHURCH\"}"))
         .hasStatus(400);
+  }
+
+  @Test
+  void growthReturnsTheCurrentCountsAndTheMonthsAndClampsTheRange() {
+    var id = PartyId.generate();
+    var below = PartyId.generate();
+    given(findOrganizationSubtreeQueryHandler.handle(any()))
+        .willReturn(new FindOrganizationSubtreeResult(List.of(id, below)));
+    given(getMemberGrowthQueryHandler.handle(any()))
+        .willReturn(
+            new MemberGrowthResult(
+                new MemberGrowthResult.StateCounts(4, 3, 10),
+                List.of(new MemberGrowthResult.Month("2026-10", 5, 2, 1, 1, 17, 10))));
+
+    var response =
+        assertThat(
+                mvc.get()
+                    .uri("/v1/organizations/" + id.value() + "/growth?months=999")
+                    .header("Authorization", bearer()))
+            .hasStatusOk()
+            .bodyJson();
+    response.extractingPath("$.current.members").isEqualTo(10);
+    response.extractingPath("$.current.total").isEqualTo(17);
+    response.extractingPath("$.months[0].month").isEqualTo("2026-10");
+    response.extractingPath("$.months[0].membersAtEnd").isEqualTo(10);
+
+    org.mockito.Mockito.verify(getMemberGrowthQueryHandler)
+        .handle(new GetMemberGrowthQuery(List.of(id, below), 36));
+    org.mockito.Mockito.verify(authorizeQueryHandler)
+        .handle(new AuthorizeQuery("test-user", id, Permission.MEMBERS_READ));
+  }
+
+  @Test
+  void growthNeedsMembersRead() {
+    org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("no"))
+        .when(authorizeQueryHandler)
+        .handle(any());
+
+    assertThat(
+            mvc.get()
+                .uri("/v1/organizations/" + PartyId.generate().value() + "/growth")
+                .header("Authorization", bearer()))
+        .hasStatus(403);
+    org.mockito.Mockito.verifyNoInteractions(getMemberGrowthQueryHandler);
   }
 
   @Test

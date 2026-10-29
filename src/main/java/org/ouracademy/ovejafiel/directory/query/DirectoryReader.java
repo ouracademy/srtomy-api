@@ -40,9 +40,17 @@ public class DirectoryReader {
     return namesByNode(directoryRepository.findPeople(nodeIds, LEADER), audience);
   }
 
+  /** The people of the node who do not lead it: the leaders are listed apart. */
   public List<String> membersOf(PartyId nodeId, Audience audience) {
-    return namesByNode(directoryRepository.findPeople(List.of(nodeId), IS_PART_OF), audience)
-        .getOrDefault(nodeId, List.of());
+    var leaders =
+        directoryRepository.findPeople(List.of(nodeId), LEADER).stream()
+            .map(PersonRow::personId)
+            .collect(Collectors.toSet());
+    var members =
+        directoryRepository.findPeople(List.of(nodeId), IS_PART_OF).stream()
+            .filter(row -> !leaders.contains(row.personId()))
+            .toList();
+    return namesByNode(members, audience).getOrDefault(nodeId, List.of());
   }
 
   /** Position name to the people who hold it, in the given node. */
