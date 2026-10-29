@@ -5,8 +5,8 @@ Un sistema para iglesias
 ## Setup
 
 - Install https://sdkman.io/
-- Install java con sdkman: `sdk install java 21.0.0.0-amzn`
-- Use java: `sdk use java 21.0.0.0-amzn`
+- Install java con sdkman (versión en `.java-version`, hoy 25): `sdk list java` y luego `sdk install java <25.x-amzn>`
+- Use java: `sdk use java <25.x-amzn>`
 - Create BD: `docker-compose up -d`
 - Check Authenticate and then run: `export GOOGLE_APPLICATION_CREDENTIALS="path-to/application_default_credentials.json`
 - Run the app: `./mvnw spring-boot:run -Dspring-boot.run.profiles=local`

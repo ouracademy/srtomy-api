@@ -63,7 +63,7 @@ Rationale: small, reviewed, well-described changes are easier to verify, revert,
 
 ## Technical Constraints
 
-- Runtime: Java 21 via sdkman (`sdk install/use java 21.0.0.0-amzn`); Spring Boot 4.x; Postgres
+- Runtime: Java 25 via sdkman (version in `.java-version`; `sdk list java`, then `sdk install/use java <25.x-amzn>`); Spring Boot 4.x; Postgres
   >= 14 (Flyway/Hibernate dropped older support) — currently `postgres:16-alpine` in
   `docker-compose.yml` and CI.
 - Database schema changes MUST go through Flyway migrations (`src/main/resources/db/migration`),
