@@ -68,6 +68,6 @@ public class AttendanceController {
     eventAuthorization.require(jwt, id, Permission.ATTENDANCE_WRITE);
     registerAttendanceCommandHandler.handle(
         new RegisterAttendanceCommand(
-            new EventId(id), attendanceRequest.getPersonIds().stream().map(PartyId::new).toList()));
+            new EventId(id), attendanceRequest.personIds().stream().map(PartyId::new).toList()));
   }
 }
