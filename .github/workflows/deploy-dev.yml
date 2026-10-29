@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "21"
+          java-version-file: .java-version
           cache: maven
 
       - id: auth
@@ -64,7 +64,7 @@ jobs:
         # No -q: it hides what the buildpack prints, and when the build fails
         # that output is the only place the cause appears.
         run: |
-          ./mvnw -B -DskipTests spring-boot:build-image \
+          ./mvnw -B -Dmaven.test.skip=true -Djacoco.skip=true spring-boot:build-image \
             -Dspring-boot.build-image.imageName=${{ vars.DEV_ARTIFACT_REGISTRY_URL }}:${{ github.sha }} \
             -Dspring-boot.build-image.builder=gcr.io/buildpacks/builder
 
