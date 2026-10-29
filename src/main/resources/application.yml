@@ -1,5 +1,10 @@
 spring:
   config.import: sm@
+  threads:
+    virtual:
+      # Each request runs on a virtual thread (and so does any task executor). The
+      # limit on the database stays the Hikari pool, not the number of threads.
+      enabled: true
   profiles:
     active:
       - "prod"
