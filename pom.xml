@@ -161,6 +161,21 @@
 	<build>
 		<plugins>
 			<plugin>
+				<!-- Since JDK 23 javac no longer runs the annotation processors it
+				finds on the classpath, so Lombok has to be named here or its getters
+				and constructors are not generated (the build breaks on Java 23+). -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
