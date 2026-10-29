@@ -13,5 +13,7 @@ public interface UserPersonLinkRepository extends JpaRepository<UserPersonLink, 
 
   boolean existsByPersonId(PartyId personId);
 
+  long deleteByPersonId(PartyId personId);
+
   boolean existsByUserIdAndChurchId(UserId userId, PartyId churchId);
 }

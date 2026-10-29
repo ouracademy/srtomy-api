@@ -6,15 +6,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.time.LocalDateTime;
 import lombok.Getter;
+import org.hibernate.annotations.SQLRestriction;
 import org.ouracademy.ovejafiel.party.domain.Party;
 import org.ouracademy.ovejafiel.shared.domain.DomainObject;
 
 @Entity
 @Getter
-// import org.hibernate.annotations.SQLDelete;
-// import org.hibernate.annotations.SQLRestriction;
-// @SQLDelete(sql = "UPDATE accountability SET deleted_time = now() WHERE id=?")
-// @SQLRestriction("deleted_time is null")
+// A closed accountability (see EndAccountabilitiesOfChildCommand) is history: queries do not see
+// it.
+@SQLRestriction("deleted_time is null")
 public class Accountability extends DomainObject {
 
   @Id AccountabilityId id = AccountabilityId.generate();
@@ -29,7 +29,7 @@ public class Accountability extends DomainObject {
   @JoinColumn(name = "type")
   AccountabilityType type;
 
-  LocalDateTime deletedTime; // TODO: remove soft delete
+  LocalDateTime deletedTime;
 
   Accountability() {
     // jpa only
