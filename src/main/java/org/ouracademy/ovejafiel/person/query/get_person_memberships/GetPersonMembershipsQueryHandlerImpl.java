@@ -1,7 +1,6 @@
 package org.ouracademy.ovejafiel.person.query.get_person_memberships;
 
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,8 +41,10 @@ class GetPersonMembershipsQueryHandlerImpl implements GetPersonMembershipsQueryH
     var memberships = new ArrayList<PersonMembershipResult>();
     byNode.forEach(
         (organizationId, held) -> {
-          // Only nodes the person is part of; a bare position or state elsewhere is not one.
-          if (held.stream().noneMatch(a -> a.typeId().equals(IS_PART_OF))) {
+          // Only nodes the person is in: part of it, or known by it with a state. A bare
+          // position elsewhere is not one.
+          if (held.stream()
+              .noneMatch(a -> a.typeId().equals(IS_PART_OF) || stateOf(a.typeId()).isPresent())) {
             return;
           }
           findOrganizationByIdQueryHandler
@@ -60,7 +61,6 @@ class GetPersonMembershipsQueryHandlerImpl implements GetPersonMembershipsQueryH
                                   .flatMap(Optional::stream)
                                   .findFirst()
                                   .orElse(null),
-                              held.stream().anyMatch(a -> a.typeId().equals(LEADER)),
                               held.stream()
                                   .filter(a -> a.position() != null)
                                   .map(a -> a.position().name())

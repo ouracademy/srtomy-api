@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.query.FindPersonResult;
-import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleResult.Standing;
 
 /** Same JSON fields the endpoints returned when they serialized the Person entity. */
 public record PersonResponse(
@@ -23,20 +22,15 @@ public record PersonResponse(
     Boolean hasBeenBaptized,
     LocalDateTime createDate,
     LocalDateTime lastModifiedDate,
-    MemberState memberState,
-    Boolean leader) {
+    MemberState memberState) {
 
   /** The person alone, without how they stand in any node. */
   public static PersonResponse from(FindPersonResult result) {
     return from(result, null);
   }
 
-  /**
-   * The person and, when given, how they stand in the node that was listed: {@code memberState} is
-   * their state there and {@code leader} whether they lead it; both null for someone who is only in
-   * a node below it.
-   */
-  public static PersonResponse from(FindPersonResult result, Standing standing) {
+  /** The person and, when given, their state in the node that was listed. */
+  public static PersonResponse from(FindPersonResult result, MemberState state) {
     return new PersonResponse(
         result.id().value(),
         result.name(),
@@ -52,7 +46,6 @@ public record PersonResponse(
         result.hasBeenBaptized(),
         result.createDate(),
         result.lastModifiedDate(),
-        standing == null ? null : standing.state(),
-        standing == null ? null : standing.leader());
+        state);
   }
 }

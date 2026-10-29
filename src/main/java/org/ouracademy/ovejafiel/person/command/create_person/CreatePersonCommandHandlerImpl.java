@@ -1,17 +1,15 @@
 package org.ouracademy.ovejafiel.person.command.create_person;
 
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-
-import java.util.List;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommand;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommandHandler;
-import org.ouracademy.ovejafiel.accountability.command.create_accountability.CreateAccountabilityCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommand;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommandHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQuery;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQueryHandler;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
@@ -25,7 +23,8 @@ class CreatePersonCommandHandlerImpl implements CreatePersonCommandHandler {
   private final PersonRepository personRepository;
   private final FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
   private final SyncPersonPositionsCommandHandler syncPersonPositionsCommandHandler;
-  private final CreateAccountabilitiesCommandHandler createAccountabilitiesCommandHandler;
+  private final SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
+  private final FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
 
   @Override
   @Transactional
@@ -47,12 +46,15 @@ class CreatePersonCommandHandlerImpl implements CreatePersonCommandHandler {
     syncPersonPositionsCommandHandler.handle(
         new SyncPersonPositionsCommand(
             command.subject(), personId, organizationId, churchId, command.positionIds()));
-    createAccountabilitiesCommandHandler.handle(
-        new CreateAccountabilitiesCommand(
-            List.of(
-                new CreateAccountabilityCommand(
-                    personId, organizationId, stateOf(command).typeId()),
-                new CreateAccountabilityCommand(personId, organizationId, IS_PART_OF))));
+    // Being in a node means being known by the nodes above it: the church knows all its people.
+    setNodeMembershipCommandHandler.handle(
+        new SetNodeMembershipCommand(
+            personId,
+            organizationId,
+            findOrganizationAncestorsQueryHandler
+                .handle(new FindOrganizationAncestorsQuery(organizationId))
+                .ids(),
+            stateOf(command).typeId()));
 
     return new CreatePersonResult(personId);
   }

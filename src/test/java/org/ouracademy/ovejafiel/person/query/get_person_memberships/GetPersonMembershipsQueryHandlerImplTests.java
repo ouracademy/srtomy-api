@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBERSHIP_IN_PROGRESS;
 
@@ -63,7 +62,6 @@ class GetPersonMembershipsQueryHandlerImplTests {
             List.of(
                 of(youth, IS_PART_OF),
                 of(youth, MEMBERSHIP_IN_PROGRESS),
-                of(youth, LEADER),
                 treasurer,
                 of(church, IS_PART_OF),
                 of(church, MEMBER)));
@@ -75,20 +73,41 @@ class GetPersonMembershipsQueryHandlerImplTests {
         .containsExactly("Iglesia Central", "Jóvenes");
     var churchStanding = result.get(0);
     assertThat(churchStanding.state()).isEqualTo(MemberState.MEMBER);
-    assertThat(churchStanding.leader()).isFalse();
     assertThat(churchStanding.positions()).isEmpty();
     var youthStanding = result.get(1);
     assertThat(youthStanding.state()).isEqualTo(MemberState.MEMBERSHIP_IN_PROGRESS);
-    assertThat(youthStanding.leader()).isTrue();
     assertThat(youthStanding.positions()).containsExactly("Tesorero");
     assertThat(youthStanding.organizationType()).isEqualTo(Organization.Type.GROUP);
   }
 
   @Test
-  void aNodeWhereThePersonIsNotPartIsLeftOut() {
+  void aNodeThatOnlyKnowsThePersonByTheirStateIsListed() {
+    var node = PartyId.generate();
+    organization(node, "Iglesia", Organization.Type.CHURCH);
+    when(accountabilities.handle(any())).thenReturn(List.of(of(node, MEMBER)));
+
+    var result = handler.handle(new GetPersonMembershipsQuery(person));
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).state()).isEqualTo(MemberState.MEMBER);
+  }
+
+  @Test
+  void aNodeWithOnlyAPositionIsLeftOut() {
     var node = PartyId.generate();
     organization(node, "Alabanza", Organization.Type.MINISTRY);
-    when(accountabilities.handle(any())).thenReturn(List.of(of(node, MEMBER)));
+    when(accountabilities.handle(any()))
+        .thenReturn(
+            List.of(
+                new PersonAccountabilityResult(
+                    node,
+                    AccountabilityTypeId.generate(),
+                    new PositionResult(
+                        AccountabilityTypeId.generate(),
+                        "Tesorera",
+                        PartyId.generate(),
+                        Set.of(),
+                        Set.of()))));
 
     assertThat(handler.handle(new GetPersonMembershipsQuery(person))).isEmpty();
   }

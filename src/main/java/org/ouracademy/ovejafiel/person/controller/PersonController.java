@@ -16,11 +16,10 @@ import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_membe
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQuery;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQueryHandler;
-import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
-import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
-import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQuery;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
@@ -49,7 +48,6 @@ import org.ouracademy.ovejafiel.person.query.get_person_memberships.GetPersonMem
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQuery;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQueryHandler;
 import org.ouracademy.ovejafiel.shared.domain.ConflictException;
-import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -86,7 +84,7 @@ public class PersonController {
   FindPersonMatchesQueryHandler findPersonMatchesQueryHandler;
   FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
-  FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
+  FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
   SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
   GetPersonMembershipsQueryHandler getPersonMembershipsQueryHandler;
 
@@ -103,7 +101,7 @@ public class PersonController {
             new SearchPeopleQuery(new PartyId(organizationId), searchText, memberState, pageable));
     return result
         .people()
-        .map(person -> PersonResponse.from(person, result.standings().get(person.id())));
+        .map(person -> PersonResponse.from(person, result.states().get(person.id())));
   }
 
   /**
@@ -126,7 +124,7 @@ public class PersonController {
   /**
    * Puts an existing person in a node (a location, group or ministry) with the state they have
    * there, or changes it: attendee of the youth group while a member of the church. They must
-   * already belong to the same church.
+   * already belong to the same church, and the church (and any node in between) knows them too.
    */
   @PutMapping("{id}/memberships/{organizationId}")
   @ResponseStatus(code = HttpStatus.NO_CONTENT)
@@ -155,20 +153,14 @@ public class PersonController {
     if (organizationsOf(id).stream().noneMatch(church::contains)) {
       throw new AccessDeniedException("La persona no pertenece a esta iglesia");
     }
-    var type =
-        findOrganizationByIdQueryHandler
-            .handle(new FindOrganizationByIdQuery(node))
-            .orElseThrow(
-                () -> new NoSuchElementException("Organization not found: " + organizationId))
-            .type();
-    if (request.isLeader()
-        && type != Organization.Type.GROUP
-        && type != Organization.Type.MINISTRY) {
-      throw new DomainValidationException("Solo un grupo o ministerio tiene líderes");
-    }
     setNodeMembershipCommandHandler.handle(
         new SetNodeMembershipCommand(
-            person, node, request.getMemberState().typeId(), request.isLeader()));
+            person,
+            node,
+            findOrganizationAncestorsQueryHandler
+                .handle(new FindOrganizationAncestorsQuery(node))
+                .ids(),
+            request.getMemberState().typeId()));
   }
 
   @GetMapping("{id}")

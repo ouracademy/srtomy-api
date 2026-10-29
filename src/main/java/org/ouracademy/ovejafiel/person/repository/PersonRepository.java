@@ -53,9 +53,32 @@ public interface PersonRepository extends JpaRepository<Person, PartyId> {
   Page<Person> findByOrgIds(
       List<PartyId> organizationIds, AccountabilityType accountabilityType, Pageable pageable);
 
+  /** Like {@link #findByOrgIds} but only those whose state in {@code nodeId} is {@code state}. */
+  @Query(
+      """
+            select p
+            from Person p
+            where p.id in (
+                select a.child.id from Accountability a
+                where a.type = :accountabilityType
+                and a.parent.id in :organizationIds
+            )
+            and p.id in (
+                select s.child.id from Accountability s
+                where s.type = :state and s.parent.id = :nodeId
+            )
+            order by p.firstName, p.lastName, p.id
+            """)
+  Page<Person> findByOrgIdsInState(
+      List<PartyId> organizationIds,
+      AccountabilityType accountabilityType,
+      PartyId nodeId,
+      AccountabilityType state,
+      Pageable pageable);
+
   /**
-   * Like {@link #findByOrgIds} but only those whose state is {@code rank} (1 visitor, 2 attendee, 3
-   * member): the highest state they have in any of {@code organizationIds}.
+   * Like {@link #findByNameAndOrgIds} but only those whose state in {@code nodeId} is {@code
+   * state}.
    */
   @Query(
       """
@@ -66,41 +89,10 @@ public interface PersonRepository extends JpaRepository<Person, PartyId> {
                 where a.type = :accountabilityType
                 and a.parent.id in :organizationIds
             )
-            and (
-                select max(case when s.type.id = :memberType then 3
-                                when s.type.id = :attendeeType then 2 else 1 end)
-                from Accountability s
-                where s.child.id = p.id and s.parent.id in :organizationIds
-                and s.type.id in :stateTypes
-            ) = :rank
-            order by p.firstName, p.lastName, p.id
-            """)
-  Page<Person> findByOrgIdsInState(
-      List<PartyId> organizationIds,
-      AccountabilityType accountabilityType,
-      AccountabilityTypeId memberType,
-      AccountabilityTypeId attendeeType,
-      List<AccountabilityTypeId> stateTypes,
-      int rank,
-      Pageable pageable);
-
-  /** Like {@link #findByNameAndOrgIds} but only those whose state is {@code rank}. */
-  @Query(
-      """
-            select p
-            from Person p
-            where p.id in (
-                select a.child.id from Accountability a
-                where a.type = :accountabilityType
-                and a.parent.id in :organizationIds
+            and p.id in (
+                select s.child.id from Accountability s
+                where s.type = :state and s.parent.id = :nodeId
             )
-            and (
-                select max(case when s.type.id = :memberType then 3
-                                when s.type.id = :attendeeType then 2 else 1 end)
-                from Accountability s
-                where s.child.id = p.id and s.parent.id in :organizationIds
-                and s.type.id in :stateTypes
-            ) = :rank
             and (
                 lower(p.firstName) like lower(CONCAT('%', :searchText, '%'))
                 or lower(p.lastName) like lower(CONCAT('%', :searchText, '%'))
@@ -111,30 +103,23 @@ public interface PersonRepository extends JpaRepository<Person, PartyId> {
       String searchText,
       List<PartyId> organizationIds,
       AccountabilityType accountabilityType,
-      AccountabilityTypeId memberType,
-      AccountabilityTypeId attendeeType,
-      List<AccountabilityTypeId> stateTypes,
-      int rank,
+      PartyId nodeId,
+      AccountabilityType state,
       Pageable pageable);
 
-  /**
-   * What each of {@code personIds} has in {@code organizationIds}: their open accountabilities
-   * there that are of one of {@code typeIds} (the progress states and LEADER), and in which node.
-   */
+  /** The state of each of {@code personIds} in {@code nodeId}: their open progress-state rows. */
   @Query(
       """
-            select a.child.id as personId, a.parent.id as nodeId, a.type.id as typeId
+            select a.child.id as personId, a.type.id as typeId
             from Accountability a
-            where a.parent.id in :organizationIds and a.child.id in :personIds
+            where a.parent.id = :nodeId and a.child.id in :personIds
             and a.type.id in :typeIds
             """)
-  List<Standing> findStandings(
-      List<PartyId> personIds, List<PartyId> organizationIds, List<AccountabilityTypeId> typeIds);
+  List<StateRow> findStates(
+      List<PartyId> personIds, PartyId nodeId, List<AccountabilityTypeId> typeIds);
 
-  interface Standing {
+  interface StateRow {
     PartyId getPersonId();
-
-    PartyId getNodeId();
 
     AccountabilityTypeId getTypeId();
   }

@@ -11,8 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.ovejafiel.accountability.domain.AccountabilityId;
-import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQuery;
 import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQueryHandler;
 import org.ouracademy.ovejafiel.accountability.query.get_member_growth.MemberGrowthResult;
@@ -47,9 +45,6 @@ import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.Fin
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQuery;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenResult;
-import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberStateQuery;
-import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberStateQueryHandler;
-import org.ouracademy.ovejafiel.organization.query.get_member_state.MemberStateResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
@@ -82,7 +77,6 @@ class OrganizationControllerTests {
   @MockitoBean FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   @MockitoBean FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
   @MockitoBean GetLocationChildrenQueryHandler getLocationChildrenQueryHandler;
-  @MockitoBean GetMemberStateQueryHandler getMemberStateQueryHandler;
   @MockitoBean GetMemberGrowthQueryHandler getMemberGrowthQueryHandler;
   @MockitoBean FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
@@ -387,35 +381,5 @@ class OrganizationControllerTests {
     response.extractingPath("$.IS_PART_OF[0].age").isEqualTo(30);
     response.extractingPath("$.IS_PART_OF[0].birthdate").isEqualTo("1995-05-17");
     response.extractingPath("$.IS_PART_OF[1].firstName").isNull();
-  }
-
-  @Test
-  void memberStateKeepsTheNestedChildAndTypeNames() {
-    var orgId = PartyId.generate();
-    given(getMemberStateQueryHandler.handle(new GetMemberStateQuery(orgId)))
-        .willReturn(
-            List.of(
-                new MemberStateResult(
-                    AccountabilityId.generate(),
-                    PartyId.generate(),
-                    "Ana",
-                    orgId,
-                    AccountabilityTypeId.generate(),
-                    "VISITOR",
-                    ANA_DETAILS)));
-
-    var response =
-        assertThat(
-                mvc.get()
-                    .uri("/v1/organizations/" + orgId.value() + "/member-state")
-                    .header("Authorization", bearer()))
-            .hasStatusOk()
-            .bodyJson();
-    response.extractingPath("$[0].child.name").isEqualTo("Ana");
-    response.extractingPath("$[0].type.name").isEqualTo("VISITOR");
-    response.extractingPath("$[0].child.firstName").isEqualTo("Ana");
-    response.extractingPath("$[0].child.lastName").isEqualTo("Diaz");
-    response.extractingPath("$[0].child.age").isEqualTo(30);
-    response.extractingPath("$[0].child.birthdate").isEqualTo("1995-05-17");
   }
 }

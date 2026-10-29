@@ -1,29 +1,21 @@
 package org.ouracademy.ovejafiel.person.query.search_people;
 
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER_PROGRESS_STATES;
-import static org.ouracademy.ovejafiel.person.domain.MemberState.MEMBER;
-import static org.ouracademy.ovejafiel.person.domain.MemberState.MEMBERSHIP_IN_PROGRESS;
 
 import jakarta.persistence.EntityManager;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityType;
-import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.person.query.FindPersonResult;
-import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleResult.Standing;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -55,8 +47,7 @@ class SearchPeopleQueryHandlerImpl implements SearchPeopleQueryHandler {
     var pageable = PageRequest.of(query.pageable().getPageNumber(), query.pageable().getPageSize());
     var people = find(query, isPartOf, organizationIds, pageable);
     var results = people.map(FindPersonResult::from);
-    return new SearchPeopleResult(
-        results, standings(query.organizationId(), organizationIds, results));
+    return new SearchPeopleResult(results, states(query.organizationId(), results));
   }
 
   private Page<Person> find(
@@ -65,26 +56,17 @@ class SearchPeopleQueryHandlerImpl implements SearchPeopleQueryHandler {
       List<PartyId> organizationIds,
       PageRequest pageable) {
     if (query.state() != null) {
-      var states = List.of(MEMBER_PROGRESS_STATES);
-      var rank = query.state().rank();
+      var state = entityManager.getReference(AccountabilityType.class, query.state().typeId());
       return query.searchText() != null
           ? personRepository.findByNameAndOrgIdsInState(
               query.searchText(),
               organizationIds,
               isPartOf,
-              MEMBER.typeId(),
-              MEMBERSHIP_IN_PROGRESS.typeId(),
-              states,
-              rank,
+              query.organizationId(),
+              state,
               pageable)
           : personRepository.findByOrgIdsInState(
-              organizationIds,
-              isPartOf,
-              MEMBER.typeId(),
-              MEMBERSHIP_IN_PROGRESS.typeId(),
-              states,
-              rank,
-              pageable);
+              organizationIds, isPartOf, query.organizationId(), state, pageable);
     }
     return query.searchText() != null
         ? personRepository.findByNameAndOrgIds(
@@ -92,39 +74,19 @@ class SearchPeopleQueryHandlerImpl implements SearchPeopleQueryHandler {
         : personRepository.findByOrgIds(organizationIds, isPartOf, pageable);
   }
 
-  /** The highest state of each person in the node and below it, and whether they lead the node. */
-  private Map<PartyId, Standing> standings(
-      PartyId nodeId, List<PartyId> organizationIds, Page<FindPersonResult> people) {
+  /** The state each person has in the node itself; none for who is only in a node below it. */
+  private Map<PartyId, MemberState> states(PartyId nodeId, Page<FindPersonResult> people) {
     var ids = people.getContent().stream().map(FindPersonResult::id).toList();
     if (ids.isEmpty()) {
       return Map.of();
     }
-    var typeIds = new ArrayList<>(Arrays.asList(MEMBER_PROGRESS_STATES));
-    typeIds.add(LEADER);
     var states = new HashMap<PartyId, MemberState>();
-    var leaders = new HashSet<PartyId>();
-    for (var row : personRepository.findStandings(ids, organizationIds, typeIds)) {
-      if (row.getTypeId().equals(LEADER)) {
-        if (row.getNodeId().equals(nodeId)) {
-          leaders.add(row.getPersonId());
-        }
-      } else {
-        stateOf(row.getTypeId())
-            .ifPresent(
-                state ->
-                    states.merge(row.getPersonId(), state, SearchPeopleQueryHandlerImpl::higher));
-      }
+    for (var row : personRepository.findStates(ids, nodeId, List.of(MEMBER_PROGRESS_STATES))) {
+      Arrays.stream(MemberState.values())
+          .filter(state -> state.typeId().equals(row.getTypeId()))
+          .findFirst()
+          .ifPresent(state -> states.put(row.getPersonId(), state));
     }
-    var result = new HashMap<PartyId, Standing>();
-    states.forEach((id, state) -> result.put(id, new Standing(state, leaders.contains(id))));
-    return result;
-  }
-
-  private static MemberState higher(MemberState a, MemberState b) {
-    return a.rank() >= b.rank() ? a : b;
-  }
-
-  private static Optional<MemberState> stateOf(AccountabilityTypeId typeId) {
-    return Arrays.stream(MemberState.values()).filter(s -> s.typeId().equals(typeId)).findFirst();
+    return states;
   }
 }

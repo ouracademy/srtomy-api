@@ -38,7 +38,6 @@ import org.ouracademy.ovejafiel.organization.controller.dto.CreateLocationReques
 import org.ouracademy.ovejafiel.organization.controller.dto.LocationChildMemberResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.LocationChildRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.MemberGrowthResponse;
-import org.ouracademy.ovejafiel.organization.controller.dto.MemberStateResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.OrganizationRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.OrganizationResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.SocialLinksRequest;
@@ -51,8 +50,6 @@ import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.Fin
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQuery;
 import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQueryHandler;
-import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberStateQuery;
-import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberStateQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.TokenClaims;
 import org.springframework.http.HttpStatus;
@@ -90,7 +87,6 @@ public class OrganizationController {
   FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
   GetLocationChildrenQueryHandler getLocationChildrenQueryHandler;
-  GetMemberStateQueryHandler getMemberStateQueryHandler;
   GetMemberGrowthQueryHandler getMemberGrowthQueryHandler;
   FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
@@ -236,15 +232,6 @@ public class OrganizationController {
         editOrganizationCommandHandler
             .handle(new EditOrganizationCommand(new PartyId(id), info(request)))
             .map(result -> OrganizationResponse.from(result.organization())));
-  }
-
-  @GetMapping("{id}/member-state")
-  public List<MemberStateResponse> getMemberState(
-      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-    authorize(jwt, id, Permission.MEMBERS_READ);
-    return getMemberStateQueryHandler.handle(new GetMemberStateQuery(new PartyId(id))).stream()
-        .map(MemberStateResponse::from)
-        .toList();
   }
 
   /**

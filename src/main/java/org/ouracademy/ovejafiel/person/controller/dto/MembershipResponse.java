@@ -10,7 +10,6 @@ public record MembershipResponse(
     String organizationName,
     String organizationType,
     MemberState memberState,
-    boolean leader,
     List<String> positions) {
 
   public static MembershipResponse from(PersonMembershipResult result) {
@@ -19,7 +18,6 @@ public record MembershipResponse(
         result.organizationName(),
         result.organizationType() == null ? null : result.organizationType().name(),
         result.state(),
-        result.leader(),
         result.positions());
   }
 }

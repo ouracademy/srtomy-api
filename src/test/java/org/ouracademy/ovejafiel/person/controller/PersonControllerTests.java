@@ -27,7 +27,8 @@ import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
-import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsResult;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
@@ -57,7 +58,6 @@ import org.ouracademy.ovejafiel.person.query.get_person_memberships.PersonMember
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQuery;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQueryHandler;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleResult;
-import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleResult.Standing;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
@@ -93,7 +93,7 @@ class PersonControllerTests {
   @MockitoBean FindPersonMatchesQueryHandler findPersonMatchesQueryHandler;
   @MockitoBean FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   @MockitoBean FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
-  @MockitoBean FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
+  @MockitoBean FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
   @MockitoBean SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
   @MockitoBean GetPersonMembershipsQueryHandler getPersonMembershipsQueryHandler;
 
@@ -467,7 +467,7 @@ class PersonControllerTests {
   }
 
   @Test
-  void findAllShowsHowEachPersonStandsInTheNodeAndPassesTheStateFilter() {
+  void findAllShowsTheStateOfEachPersonInTheNodeAndPassesTheStateFilter() {
     var organizationId = UUID.randomUUID();
     var anaId = PartyId.generate();
     var ana = personResult(anaId, "Ana", "Diaz");
@@ -476,7 +476,7 @@ class PersonControllerTests {
         .willReturn(
             new SearchPeopleResult(
                 new PageImpl<>(List.of(ana, luis)),
-                java.util.Map.of(anaId, new Standing(MemberState.MEMBERSHIP_IN_PROGRESS, true))));
+                java.util.Map.of(anaId, MemberState.MEMBERSHIP_IN_PROGRESS)));
 
     var response =
         assertThat(
@@ -489,7 +489,6 @@ class PersonControllerTests {
             .hasStatusOk()
             .bodyJson();
     response.extractingPath("$.content[0].memberState").isEqualTo("MEMBERSHIP_IN_PROGRESS");
-    response.extractingPath("$.content[0].leader").isEqualTo(true);
     // Luis is only in a node below this one, so he has no state here.
     response.extractingPath("$.content[1].memberState").isNull();
 
@@ -512,14 +511,12 @@ class PersonControllerTests {
                     "Jóvenes",
                     Organization.Type.GROUP,
                     MemberState.MEMBERSHIP_IN_PROGRESS,
-                    false,
                     List.of("Tesorero")),
                 new PersonMembershipResult(
                     hidden,
                     "Alabanza",
                     Organization.Type.MINISTRY,
                     MemberState.MEMBER,
-                    true,
                     List.of())));
     org.mockito.Mockito.doThrow(new AccessDeniedException("no"))
         .when(authorizeQueryHandler)
@@ -540,20 +537,22 @@ class PersonControllerTests {
   }
 
   @Test
-  void putMembershipPutsAnExistingPersonInTheNodeWithTheStateAndLeadershipAsked() {
+  void putMembershipPutsAnExistingPersonInTheNodeAndItsAncestorsWithTheStateAsked() {
     var personId = PartyId.generate();
     var church = PartyId.generate();
     var group = PartyId.generate();
     memberOf(church);
     aPersonExists(personId);
-    nodeIs(group, church, Organization.Type.GROUP);
+    nodeIs(group, church);
+    given(findOrganizationAncestorsQueryHandler.handle(any()))
+        .willReturn(new FindOrganizationAncestorsResult(List.of(church)));
 
     assertThat(
             mvc.put()
                 .uri("/v1/people/" + personId.value() + "/memberships/" + group.value())
                 .header("Authorization", bearerHeader())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"memberState\":\"MEMBERSHIP_IN_PROGRESS\",\"leader\":true}"))
+                .content("{\"memberState\":\"MEMBERSHIP_IN_PROGRESS\"}"))
         .hasStatus(HttpStatus.NO_CONTENT);
 
     verify(authorizeQueryHandler)
@@ -561,7 +560,10 @@ class PersonControllerTests {
     verify(setNodeMembershipCommandHandler)
         .handle(
             new SetNodeMembershipCommand(
-                personId, group, SystemAccountabilityTypes.MEMBERSHIP_IN_PROGRESS, true));
+                personId,
+                group,
+                List.of(church),
+                SystemAccountabilityTypes.MEMBERSHIP_IN_PROGRESS));
   }
 
   @Test
@@ -571,7 +573,7 @@ class PersonControllerTests {
     var group = PartyId.generate();
     memberOf(PartyId.generate());
     aPersonExists(personId);
-    nodeIs(group, church, Organization.Type.GROUP);
+    nodeIs(group, church);
 
     assertThat(
             mvc.put()
@@ -580,24 +582,6 @@ class PersonControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"memberState\":\"MEMBER\"}"))
         .hasStatus(HttpStatus.FORBIDDEN);
-    verifyNoInteractions(setNodeMembershipCommandHandler);
-  }
-
-  @Test
-  void onlyAGroupOrMinistryHasLeaders() {
-    var personId = PartyId.generate();
-    var church = PartyId.generate();
-    memberOf(church);
-    aPersonExists(personId);
-    nodeIs(church, church, Organization.Type.CHURCH);
-
-    assertThat(
-            mvc.put()
-                .uri("/v1/people/" + personId.value() + "/memberships/" + church.value())
-                .header("Authorization", bearerHeader())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"memberState\":\"MEMBER\",\"leader\":true}"))
-        .hasStatus(HttpStatus.BAD_REQUEST);
     verifyNoInteractions(setNodeMembershipCommandHandler);
   }
 
@@ -618,17 +602,11 @@ class PersonControllerTests {
         .willReturn(Optional.of(personResult(id, "Ana", "Diaz")));
   }
 
-  /** {@code node} is of {@code type} and lives in {@code church}, whose tree is just itself. */
-  private void nodeIs(PartyId node, PartyId church, Organization.Type type) {
+  /** {@code node} lives in {@code church}, whose tree is just itself. */
+  private void nodeIs(PartyId node, PartyId church) {
     given(findChurchOfOrganizationQueryHandler.handle(any()))
         .willReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
     subtreeOf(church, node);
-    given(findOrganizationByIdQueryHandler.handle(any()))
-        .willReturn(
-            Optional.of(
-                org.ouracademy.ovejafiel.organization.query.FindOrganizationResult.from(
-                    org.ouracademy.ovejafiel.organization.OrganizationFixtures.organization(
-                        node, "Nodo", type))));
   }
 
   private void subtreeOf(PartyId... nodes) {

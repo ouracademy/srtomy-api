@@ -1,7 +1,6 @@
 package org.ouracademy.ovejafiel.accountability.command.set_node_membership;
 
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER_PROGRESS_STATES;
 
@@ -26,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class SetNodeMembershipCommandHandlerImpl implements SetNodeMembershipCommandHandler {
 
+  private static final List<AccountabilityTypeId> STATES = List.of(MEMBER_PROGRESS_STATES);
+
   private final AccountabilityRepository accountabilityRepository;
   private final AccountabilityTypeRepository accountabilityTypeRepository;
   private final SetMemberStateCommandHandler setMemberStateCommandHandler;
@@ -35,7 +36,7 @@ class SetNodeMembershipCommandHandlerImpl implements SetNodeMembershipCommandHan
   @Override
   @Transactional
   public SetNodeMembershipResult handle(SetNodeMembershipCommand command) {
-    if (!List.of(MEMBER_PROGRESS_STATES).contains(command.state())) {
+    if (!STATES.contains(command.state())) {
       throw new DomainValidationException("El estado de la persona no es válido");
     }
     var held =
@@ -47,20 +48,31 @@ class SetNodeMembershipCommandHandlerImpl implements SetNodeMembershipCommandHan
           "Quien tiene un cargo es miembro: quita el cargo para cambiar su estado");
     }
 
-    var joined = !isPartOf(command.organizationId(), command.personId());
+    // The church and every node on the way down know the person, with the state they came with.
+    for (var ancestorId : command.ancestorIds()) {
+      if (!hasState(ancestorId, command.personId())) {
+        accountabilityRepository.save(
+            new Accountability(
+                entityManager.getReference(Party.class, command.personId()),
+                entityManager.getReference(Party.class, ancestorId),
+                accountabilityTypeRepository.getReferenceById(command.state())));
+        memberStateEvents.joined(command.personId(), ancestorId, stateName(command.state()));
+      }
+    }
+
+    var joined = !hasState(command.organizationId(), command.personId());
     if (joined) {
       join(command.personId(), command.organizationId(), command.state());
     } else {
       setMemberStateCommandHandler.handle(
           new SetMemberStateCommand(command.personId(), command.organizationId(), command.state()));
     }
-    setLeader(command, held);
     return new SetNodeMembershipResult(joined);
   }
 
-  private boolean isPartOf(PartyId organizationId, PartyId personId) {
+  private boolean hasState(PartyId organizationId, PartyId personId) {
     return accountabilityRepository.findByParentIdAndChildId(organizationId, personId).stream()
-        .anyMatch(found -> found.getType().getId().equals(IS_PART_OF));
+        .anyMatch(found -> STATES.contains(found.getType().getId()));
   }
 
   private void join(PartyId personId, PartyId organizationId, AccountabilityTypeId state) {
@@ -72,20 +84,10 @@ class SetNodeMembershipCommandHandlerImpl implements SetNodeMembershipCommandHan
                 person, organization, accountabilityTypeRepository.getReferenceById(IS_PART_OF)),
             new Accountability(
                 person, organization, accountabilityTypeRepository.getReferenceById(state))));
-    memberStateEvents.joined(
-        personId, organizationId, SystemAccountabilityTypes.progressStateName(state).orElseThrow());
+    memberStateEvents.joined(personId, organizationId, stateName(state));
   }
 
-  private void setLeader(SetNodeMembershipCommand command, List<Accountability> held) {
-    var current = held.stream().filter(found -> found.getType().getId().equals(LEADER)).toList();
-    if (command.leader() && current.isEmpty()) {
-      accountabilityRepository.save(
-          new Accountability(
-              entityManager.getReference(Party.class, command.personId()),
-              entityManager.getReference(Party.class, command.organizationId()),
-              accountabilityTypeRepository.getReferenceById(LEADER)));
-    } else if (!command.leader() && !current.isEmpty()) {
-      accountabilityRepository.deleteAll(current);
-    }
+  private static String stateName(AccountabilityTypeId state) {
+    return SystemAccountabilityTypes.progressStateName(state).orElseThrow();
   }
 }

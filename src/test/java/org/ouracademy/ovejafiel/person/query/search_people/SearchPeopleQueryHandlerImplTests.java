@@ -6,10 +6,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBERSHIP_IN_PROGRESS;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER_PROGRESS_STATES;
 import static org.ouracademy.ovejafiel.person.PersonFixtures.person;
 
 import jakarta.persistence.EntityManager;
@@ -27,7 +25,6 @@ import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.Fin
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
-import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleResult.Standing;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -36,7 +33,6 @@ import org.springframework.data.domain.PageRequest;
 class SearchPeopleQueryHandlerImplTests {
 
   static final PageRequest PAGE = PageRequest.of(0, 20);
-  static final List<AccountabilityTypeId> STATES = List.of(MEMBER_PROGRESS_STATES);
 
   @Mock PersonRepository personRepository;
   @Mock EntityManager entityManager;
@@ -90,8 +86,10 @@ class SearchPeopleQueryHandlerImplTests {
     var organizationId = PartyId.generate();
     var ana = PartyId.generate();
     var ids = subtreeOf(organizationId);
-    when(personRepository.findByOrgIdsInState(
-            ids, isPartOf, MEMBER, MEMBERSHIP_IN_PROGRESS, STATES, 2, PAGE))
+    var attendee = new AccountabilityType("MEMBERSHIP_IN_PROGRESS", null, null);
+    when(entityManager.getReference(AccountabilityType.class, MEMBERSHIP_IN_PROGRESS))
+        .thenReturn(attendee);
+    when(personRepository.findByOrgIdsInState(ids, isPartOf, organizationId, attendee, PAGE))
         .thenReturn(new PageImpl<>(List.of(person(ana, "Ana", "Diaz"))));
 
     var result =
@@ -107,8 +105,10 @@ class SearchPeopleQueryHandlerImplTests {
     var organizationId = PartyId.generate();
     var ana = PartyId.generate();
     var ids = subtreeOf(organizationId);
+    var member = new AccountabilityType("MEMBER", null, null);
+    when(entityManager.getReference(AccountabilityType.class, MEMBER)).thenReturn(member);
     when(personRepository.findByNameAndOrgIdsInState(
-            "an", ids, isPartOf, MEMBER, MEMBERSHIP_IN_PROGRESS, STATES, 3, PAGE))
+            "an", ids, isPartOf, organizationId, member, PAGE))
         .thenReturn(new PageImpl<>(List.of(person(ana, "Ana", "Diaz"))));
 
     var result =
@@ -118,12 +118,11 @@ class SearchPeopleQueryHandlerImplTests {
   }
 
   @Test
-  void eachPersonComesWithTheHighestStateInTheNodeAndBelowAndWhetherTheyLeadIt() {
+  void eachPersonComesWithTheStateTheyHaveInTheNode() {
     var organizationId = PartyId.generate();
-    var below = PartyId.generate();
     var ana = PartyId.generate();
     var luis = PartyId.generate();
-    var eva = PartyId.generate();
+    var below = PartyId.generate();
     var ids = subtreeOf(organizationId);
     when(personRepository.findByOrgIds(ids, isPartOf, PAGE))
         .thenReturn(
@@ -131,38 +130,23 @@ class SearchPeopleQueryHandlerImplTests {
                 List.of(
                     person(ana, "Ana", "Diaz"),
                     person(luis, "Luis", "Paz"),
-                    person(eva, "Eva", "Rios"))));
-    when(personRepository.findStandings(any(), any(), any()))
-        .thenReturn(
-            List.of(
-                // Ana: attendee here and leads the node, but a member of a group below.
-                standing(ana, organizationId, MEMBERSHIP_IN_PROGRESS),
-                standing(ana, organizationId, LEADER),
-                standing(ana, below, MEMBER),
-                standing(luis, organizationId, MEMBER),
-                // Eva leads a group below, not this node.
-                standing(eva, below, MEMBERSHIP_IN_PROGRESS),
-                standing(eva, below, LEADER)));
+                    person(below, "Eva", "Rios"))));
+    when(personRepository.findStates(any(), any(), any()))
+        .thenReturn(List.of(state(ana, MEMBERSHIP_IN_PROGRESS), state(luis, MEMBER)));
 
     var result = handler.handle(new SearchPeopleQuery(organizationId, null, PAGE));
 
-    assertThat(result.standings().get(ana)).isEqualTo(new Standing(MemberState.MEMBER, true));
-    assertThat(result.standings().get(luis)).isEqualTo(new Standing(MemberState.MEMBER, false));
-    assertThat(result.standings().get(eva))
-        .isEqualTo(new Standing(MemberState.MEMBERSHIP_IN_PROGRESS, false));
+    assertThat(result.states().get(ana)).isEqualTo(MemberState.MEMBERSHIP_IN_PROGRESS);
+    assertThat(result.states().get(luis)).isEqualTo(MemberState.MEMBER);
+    // Eva is only in a node below, so she has no state here.
+    assertThat(result.states()).doesNotContainKey(below);
   }
 
-  private static PersonRepository.Standing standing(
-      PartyId person, PartyId node, AccountabilityTypeId type) {
-    return new PersonRepository.Standing() {
+  private static PersonRepository.StateRow state(PartyId person, AccountabilityTypeId type) {
+    return new PersonRepository.StateRow() {
       @Override
       public PartyId getPersonId() {
         return person;
-      }
-
-      @Override
-      public PartyId getNodeId() {
-        return node;
       }
 
       @Override

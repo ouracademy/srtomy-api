@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
 import static org.ouracademy.ovejafiel.person.PersonFixtures.person;
 
 import java.util.List;
@@ -17,11 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommand;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommandHandler;
-import org.ouracademy.ovejafiel.accountability.command.create_accountability.CreateAccountabilityCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.OrganizationsOfMemberResult;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
@@ -32,12 +32,14 @@ class RestorePersonCommandHandlerImplTests {
 
   @Mock PersonRepository personRepository;
   @Mock FindOrganizationsOfMemberQueryHandler findOrganizationsOfMemberQueryHandler;
-  @Mock CreateAccountabilitiesCommandHandler createAccountabilitiesCommandHandler;
+  @Mock SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
+  @Mock FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
 
   RestorePersonCommandHandlerImpl handler;
 
   PartyId personId = PartyId.generate();
   PartyId nodeId = PartyId.generate();
+  PartyId churchId = PartyId.generate();
 
   @BeforeEach
   void setUp() {
@@ -45,7 +47,8 @@ class RestorePersonCommandHandlerImplTests {
         new RestorePersonCommandHandlerImpl(
             personRepository,
             findOrganizationsOfMemberQueryHandler,
-            createAccountabilitiesCommandHandler);
+            setNodeMembershipCommandHandler,
+            findOrganizationAncestorsQueryHandler);
   }
 
   @Test
@@ -55,17 +58,17 @@ class RestorePersonCommandHandlerImplTests {
     when(personRepository.findById(personId)).thenReturn(Optional.of(ana));
     when(findOrganizationsOfMemberQueryHandler.handle(any()))
         .thenReturn(new OrganizationsOfMemberResult(List.of()));
+    when(findOrganizationAncestorsQueryHandler.handle(any()))
+        .thenReturn(new FindOrganizationAncestorsResult(List.of(churchId)));
 
     var result = handler.handle(new RestorePersonCommand(personId, nodeId));
 
     assertThat(result.id()).isEqualTo(personId);
     assertThat(ana.getDeletedTime()).isNull();
-    verify(createAccountabilitiesCommandHandler)
+    verify(setNodeMembershipCommandHandler)
         .handle(
-            new CreateAccountabilitiesCommand(
-                List.of(
-                    new CreateAccountabilityCommand(personId, nodeId, MemberState.VISITOR.typeId()),
-                    new CreateAccountabilityCommand(personId, nodeId, IS_PART_OF))));
+            new SetNodeMembershipCommand(
+                personId, nodeId, List.of(churchId), MemberState.VISITOR.typeId()));
   }
 
   @Test
@@ -79,7 +82,7 @@ class RestorePersonCommandHandlerImplTests {
         .isInstanceOf(ConflictException.class)
         .extracting("code")
         .isEqualTo("PERSON_ALREADY_ACTIVE");
-    verifyNoInteractions(createAccountabilitiesCommandHandler);
+    verifyNoInteractions(setNodeMembershipCommandHandler);
   }
 
   @Test

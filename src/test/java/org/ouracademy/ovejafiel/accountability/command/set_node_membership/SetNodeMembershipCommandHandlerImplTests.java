@@ -9,7 +9,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBERSHIP_IN_PROGRESS;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.VISITOR;
@@ -63,39 +62,47 @@ class SetNodeMembershipCommandHandlerImplTests {
   }
 
   @Test
-  void aNewcomerJoinsTheGroupWithTheStateAsked() {
+  void aNewcomerJoinsTheGroupAndTheChurchKnowsThemWithTheSameState() {
+    isIn(church);
     isIn(group);
 
     var result =
-        handler.handle(new SetNodeMembershipCommand(person, group, MEMBERSHIP_IN_PROGRESS, false));
+        handler.handle(
+            new SetNodeMembershipCommand(person, group, List.of(church), MEMBERSHIP_IN_PROGRESS));
 
     assertThat(result.joined()).isTrue();
+    verify(events).joined(person, church, "MEMBERSHIP_IN_PROGRESS");
     verify(events).joined(person, group, "MEMBERSHIP_IN_PROGRESS");
+    // Part of the group, and the state.
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Accountability>> saved = ArgumentCaptor.forClass(List.class);
     verify(accountabilities).saveAll(saved.capture());
-    // Part of the group, and the state.
     assertThat(saved.getValue()).hasSize(2);
+    // The church only gets the state: a membership there would give the access of a member to
+    // the whole church.
+    verify(accountabilities).save(any(Accountability.class));
     verify(setMemberState, never()).handle(any());
   }
 
   @Test
-  void theChurchIsNotTouchedWhenSomeoneJoinsAGroup() {
+  void someoneTheChurchAlreadyKnowsKeepsTheirStateThere() {
+    isIn(church, holding(MEMBER));
     isIn(group);
 
-    handler.handle(new SetNodeMembershipCommand(person, group, MEMBER, false));
+    handler.handle(
+        new SetNodeMembershipCommand(person, group, List.of(church), MEMBERSHIP_IN_PROGRESS));
 
-    // Joining a group would otherwise make them a member (with its access) of the whole church.
-    verify(accountabilities, org.mockito.Mockito.atLeastOnce())
-        .findByParentIdAndChildId(group, person);
-    verify(accountabilities, never()).findByParentIdAndChildId(church, person);
+    // Attendee of the youth group while a member of the church.
+    verify(events, never()).joined(person, church, "MEMBERSHIP_IN_PROGRESS");
+    verify(events).joined(person, group, "MEMBERSHIP_IN_PROGRESS");
+    verify(accountabilities, never()).save(any(Accountability.class));
   }
 
   @Test
   void someoneAlreadyInTheNodeChangesState() {
     isIn(group, holding(IS_PART_OF), holding(VISITOR));
 
-    var result = handler.handle(new SetNodeMembershipCommand(person, group, MEMBER, false));
+    var result = handler.handle(new SetNodeMembershipCommand(person, group, List.of(), MEMBER));
 
     assertThat(result.joined()).isFalse();
     verify(setMemberState).handle(new SetMemberStateCommand(person, group, MEMBER));
@@ -103,40 +110,11 @@ class SetNodeMembershipCommandHandlerImplTests {
   }
 
   @Test
-  void leadingAddsTheLeaderAccountabilityOnce() {
-    isIn(group, holding(IS_PART_OF), holding(MEMBER));
-    when(types.getReferenceById(LEADER)).thenReturn(mock(AccountabilityType.class));
-
-    handler.handle(new SetNodeMembershipCommand(person, group, MEMBER, true));
-
-    verify(accountabilities).save(any(Accountability.class));
-  }
-
-  @Test
-  void anExistingLeaderIsNotAddedAgain() {
-    isIn(group, holding(IS_PART_OF), holding(MEMBER), holding(LEADER));
-
-    handler.handle(new SetNodeMembershipCommand(person, group, MEMBER, true));
-
-    verify(accountabilities, never()).save(any(Accountability.class));
-  }
-
-  @Test
-  void stoppingLeadingRemovesTheLeaderAccountabilityOnly() {
-    var leads = holding(LEADER);
-    isIn(group, holding(IS_PART_OF), holding(MEMBER), leads);
-
-    handler.handle(new SetNodeMembershipCommand(person, group, MEMBER, false));
-
-    verify(accountabilities).deleteAll(List.of(leads));
-  }
-
-  @Test
   void whoeverHoldsAPositionCannotBeLessThanAMember() {
     isIn(group, holding(IS_PART_OF), holding(MEMBER), holdingPosition());
 
     assertThatThrownBy(
-            () -> handler.handle(new SetNodeMembershipCommand(person, group, VISITOR, false)))
+            () -> handler.handle(new SetNodeMembershipCommand(person, group, List.of(), VISITOR)))
         .isInstanceOf(DomainValidationException.class);
     verify(setMemberState, never()).handle(any());
   }
@@ -145,7 +123,7 @@ class SetNodeMembershipCommandHandlerImplTests {
   void aPositionHolderCanStayAMember() {
     isIn(group, holding(IS_PART_OF), holding(MEMBER), holdingPosition());
 
-    handler.handle(new SetNodeMembershipCommand(person, group, MEMBER, false));
+    handler.handle(new SetNodeMembershipCommand(person, group, List.of(), MEMBER));
 
     verify(setMemberState).handle(new SetMemberStateCommand(person, group, MEMBER));
   }
@@ -153,7 +131,8 @@ class SetNodeMembershipCommandHandlerImplTests {
   @Test
   void onlyAProgressStateIsAccepted() {
     assertThatThrownBy(
-            () -> handler.handle(new SetNodeMembershipCommand(person, group, IS_PART_OF, false)))
+            () ->
+                handler.handle(new SetNodeMembershipCommand(person, group, List.of(), IS_PART_OF)))
         .isInstanceOf(DomainValidationException.class);
   }
 }
