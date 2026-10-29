@@ -4,7 +4,7 @@ Spec: [`spec.md`](./spec.md). Modelo: [`data-model.md`](./data-model.md). HTTP: 
 
 ## Diseño
 
-1. **Datos.** Migración `V1.15.0`: `event.parent_event_id` (FK a `event`, con índice) y `event.registration_mode` (`INHERIT`, `OWN`, `OPEN`; por defecto `INHERIT`). Aditiva: sin `parent_event_id` nada cambia.
+1. **Datos.** Migración `V1.16.0`: `event.parent_event_id` (FK a `event`, con índice) y `event.registration_mode` (`INHERIT`, `OWN`, `OPEN`; por defecto `INHERIT`). Aditiva: sin `parent_event_id` nada cambia.
 2. **Dominio** (`event/domain/Event.java`). `@ManyToOne Event parent`, enum `RegistrationMode` y `Event.attachTo(parent)`, que valida las reglas de forma (padre sin padre ni serie, hijo sin serie, fechas dentro del rango del padre) y copia `general_access` del padre. Compartir **no se hereda en tiempo de ejecución**: se copia al crear y luego el hijo se comparte por su cuenta.
 3. **Crear.** `CreateEventCommandHandlerImpl` carga el padre, valida que la organización sea la misma o descendiente (`FindOrganizationSubtreeQueryHandler`), rechaza `recurrence` y llama a `attachTo`.
 4. **Borrar.** `DeleteEventCommandHandlerImpl` borra también los hijos y su asistencia. Borrar un hijo no toca al padre.

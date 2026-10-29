@@ -128,15 +128,35 @@ class AttendanceControllerTests {
 
   @Test
   void registerAttendanceWithoutPersonIdsIsRejected() {
-    assertThat(
-            mvc.put()
-                .uri("/v1/events/" + UUID.randomUUID() + "/attendance")
-                .header("Authorization", bearerHeader())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"personIds\": null}"))
-        .hasStatus(400);
+    for (var body : List.of("{\"personIds\": null}", "{}")) {
+      assertThat(
+              mvc.put()
+                  .uri("/v1/events/" + UUID.randomUUID() + "/attendance")
+                  .header("Authorization", bearerHeader())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body))
+          .hasStatus(400);
+    }
 
     verifyNoInteractions(registerAttendanceCommandHandler);
+  }
+
+  @Test
+  void registerAttendanceWithAnEmptyListClearsIt() {
+    var eventId = EventId.generate();
+    given(registerAttendanceCommandHandler.handle(any()))
+        .willReturn(new RegisterAttendanceResult(eventId, List.of()));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + eventId.value() + "/attendance")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"personIds\": []}"))
+        .hasStatus(201);
+
+    verify(registerAttendanceCommandHandler)
+        .handle(new RegisterAttendanceCommand(eventId, List.of()));
   }
 
   @Test

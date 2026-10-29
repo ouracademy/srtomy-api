@@ -1,5 +1,6 @@
 package org.ouracademy.ovejafiel.accountability.repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -9,6 +10,7 @@ import org.ouracademy.ovejafiel.accountability.domain.AccountabilityType;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface AccountabilityRepository extends JpaRepository<Accountability, AccountabilityId> {
@@ -27,6 +29,16 @@ public interface AccountabilityRepository extends JpaRepository<Accountability, 
   void deleteAllByChildId(PartyId childId);
 
   List<Accountability> findByChildId(PartyId childId);
+
+  /** Closes the open accountabilities of the child under any of the parents; returns how many. */
+  @Modifying(flushAutomatically = true)
+  @Query(
+      """
+      update Accountability a set a.deletedTime = :endedAt
+      where a.child.id = :childId and a.parent.id in :parentIds
+      """)
+  int endByChildIdAndParentIdIn(
+      PartyId childId, Collection<PartyId> parentIds, LocalDateTime endedAt);
 
   List<Accountability> findByChildIdAndTypeId(PartyId childId, AccountabilityTypeId typeId);
 

@@ -14,6 +14,7 @@ public enum Permission {
   ORG_DELETE("org.delete"),
   MEMBERS_READ("members.read"),
   MEMBERS_WRITE("members.write"),
+  MEMBERS_DELETE("members.delete"),
   EVENTS_READ("events.read"),
   EVENTS_WRITE("events.write"),
   ATTENDANCE_WRITE("attendance.write"),

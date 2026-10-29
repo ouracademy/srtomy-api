@@ -9,6 +9,7 @@ class PermissionTests {
   @Test
   void fromValueFindsTheCatalogEntryOrNothing() {
     assertThat(Permission.fromValue("members.write")).contains(Permission.MEMBERS_WRITE);
+    assertThat(Permission.fromValue("members.delete")).contains(Permission.MEMBERS_DELETE);
     assertThat(Permission.fromValue("nope")).isEmpty();
   }
 
