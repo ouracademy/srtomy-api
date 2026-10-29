@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.person.domain;
 
 import jakarta.persistence.Entity;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 import org.ouracademy.ovejafiel.party.domain.Party;
@@ -19,6 +20,17 @@ public class Person extends Party {
   Integer age;
   LocalDate birthdate;
   Boolean hasBeenBaptized;
+
+  /** When the person was removed from the church; null while they belong to it. */
+  LocalDateTime deletedTime;
+
+  public void delete() {
+    this.deletedTime = LocalDateTime.now();
+  }
+
+  public void restore() {
+    this.deletedTime = null;
+  }
 
   public String getFullName() {
     return name;

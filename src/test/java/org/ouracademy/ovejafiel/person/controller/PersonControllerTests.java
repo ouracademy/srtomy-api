@@ -21,16 +21,29 @@ import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_membe
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQuery;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.command.PersonInfo;
 import org.ouracademy.ovejafiel.person.command.create_person.CreatePersonCommand;
 import org.ouracademy.ovejafiel.person.command.create_person.CreatePersonCommandHandler;
 import org.ouracademy.ovejafiel.person.command.create_person.CreatePersonResult;
+import org.ouracademy.ovejafiel.person.command.delete_person.DeletePersonCommand;
+import org.ouracademy.ovejafiel.person.command.delete_person.DeletePersonCommandHandler;
+import org.ouracademy.ovejafiel.person.command.delete_person.DeletePersonResult;
+import org.ouracademy.ovejafiel.person.command.delete_person.DeletePersonResult.Outcome;
+import org.ouracademy.ovejafiel.person.command.restore_person.RestorePersonCommand;
+import org.ouracademy.ovejafiel.person.command.restore_person.RestorePersonCommandHandler;
+import org.ouracademy.ovejafiel.person.command.restore_person.RestorePersonResult;
 import org.ouracademy.ovejafiel.person.command.update_person.UpdatePersonCommand;
 import org.ouracademy.ovejafiel.person.command.update_person.UpdatePersonCommandHandler;
 import org.ouracademy.ovejafiel.person.command.update_person.UpdatePersonResult;
 import org.ouracademy.ovejafiel.person.query.find_person_by_id.FindPersonByIdQuery;
 import org.ouracademy.ovejafiel.person.query.find_person_by_id.FindPersonByIdQueryHandler;
+import org.ouracademy.ovejafiel.person.query.find_person_matches.FindPersonMatchesQuery;
+import org.ouracademy.ovejafiel.person.query.find_person_matches.FindPersonMatchesQueryHandler;
+import org.ouracademy.ovejafiel.person.query.find_person_matches.FindPersonMatchesResult;
+import org.ouracademy.ovejafiel.person.query.find_person_matches.FindPersonMatchesResult.Match;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQuery;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleQueryHandler;
 import org.ouracademy.ovejafiel.person.query.search_people.SearchPeopleResult;
@@ -64,6 +77,10 @@ class PersonControllerTests {
   @MockitoBean UpdatePersonCommandHandler updatePersonCommandHandler;
   @MockitoBean FindOrganizationsOfMemberQueryHandler findOrganizationsOfMemberQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
+  @MockitoBean DeletePersonCommandHandler deletePersonCommandHandler;
+  @MockitoBean RestorePersonCommandHandler restorePersonCommandHandler;
+  @MockitoBean FindPersonMatchesQueryHandler findPersonMatchesQueryHandler;
+  @MockitoBean FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
 
   @BeforeEach
   void everyPersonBelongsToSomeNode() {
@@ -272,6 +289,171 @@ class PersonControllerTests {
                 .header("Authorization", bearerHeader()))
         .hasStatus(HttpStatus.FORBIDDEN);
     verifyNoInteractions(findPersonByIdQueryHandler);
+  }
+
+  @Test
+  void deleteNeedsMembersDeleteOnTheNodeAndAnswersNoContent() {
+    var personId = UUID.randomUUID();
+    var node = PartyId.generate();
+    memberOf(node);
+    subtreeOf(node);
+    given(deletePersonCommandHandler.handle(any()))
+        .willReturn(new DeletePersonResult(Outcome.REMOVED_FROM_NODE));
+
+    assertThat(
+            mvc.delete()
+                .uri("/v1/people/" + personId + "?organizationId=" + node.value())
+                .header("Authorization", bearerHeader()))
+        .hasStatus(HttpStatus.NO_CONTENT);
+
+    verify(authorizeQueryHandler)
+        .handle(new AuthorizeQuery("test-user", node, Permission.MEMBERS_DELETE));
+    verify(deletePersonCommandHandler)
+        .handle(new DeletePersonCommand(new PartyId(personId), node, false));
+  }
+
+  @Test
+  void deleteOfSomeoneOutsideTheNodeIsForbidden() {
+    var node = PartyId.generate();
+    memberOf(PartyId.generate());
+    subtreeOf(node);
+
+    assertThat(
+            mvc.delete()
+                .uri("/v1/people/" + UUID.randomUUID() + "?organizationId=" + node.value())
+                .header("Authorization", bearerHeader()))
+        .hasStatus(HttpStatus.FORBIDDEN);
+    verifyNoInteractions(deletePersonCommandHandler);
+  }
+
+  @Test
+  void deleteOfAPersonWithAnAccountAsksForConfirmationWith409() {
+    var node = PartyId.generate();
+    memberOf(node);
+    subtreeOf(node);
+    given(deletePersonCommandHandler.handle(any()))
+        .willReturn(new DeletePersonResult(Outcome.REQUIRES_USER_UNLINK));
+
+    var response =
+        assertThat(
+                mvc.delete()
+                    .uri("/v1/people/" + UUID.randomUUID() + "?organizationId=" + node.value())
+                    .header("Authorization", bearerHeader()))
+            .hasStatus(HttpStatus.CONFLICT)
+            .bodyJson();
+    response.extractingPath("$.code").isEqualTo("PERSON_HAS_ACCOUNT");
+  }
+
+  @Test
+  void deleteWithConfirmUnlinkUserPassesTheConfirmation() {
+    var personId = UUID.randomUUID();
+    var node = PartyId.generate();
+    memberOf(node);
+    subtreeOf(node);
+    given(deletePersonCommandHandler.handle(any()))
+        .willReturn(new DeletePersonResult(Outcome.DELETED));
+
+    assertThat(
+            mvc.delete()
+                .uri(
+                    "/v1/people/"
+                        + personId
+                        + "?organizationId="
+                        + node.value()
+                        + "&confirmUnlinkUser=true")
+                .header("Authorization", bearerHeader()))
+        .hasStatus(HttpStatus.NO_CONTENT);
+    verify(deletePersonCommandHandler)
+        .handle(new DeletePersonCommand(new PartyId(personId), node, true));
+  }
+
+  @Test
+  void deleteOfAMissingPersonIsNotFound() {
+    var node = PartyId.generate();
+    memberOf(node);
+    subtreeOf(node);
+    given(deletePersonCommandHandler.handle(any()))
+        .willReturn(new DeletePersonResult(Outcome.NOT_FOUND));
+
+    assertThat(
+            mvc.delete()
+                .uri("/v1/people/" + UUID.randomUUID() + "?organizationId=" + node.value())
+                .header("Authorization", bearerHeader()))
+        .hasStatus(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void deleteWithoutPermissionIsForbiddenAndDoesNothing() {
+    var node = PartyId.generate();
+    org.mockito.Mockito.doThrow(new AccessDeniedException("no"))
+        .when(authorizeQueryHandler)
+        .handle(any());
+
+    assertThat(
+            mvc.delete()
+                .uri("/v1/people/" + UUID.randomUUID() + "?organizationId=" + node.value())
+                .header("Authorization", bearerHeader()))
+        .hasStatus(HttpStatus.FORBIDDEN);
+    verifyNoInteractions(deletePersonCommandHandler);
+  }
+
+  @Test
+  void matchesReturnsActiveAndRemovedPeopleForTheRegistrationForm() {
+    var node = PartyId.generate();
+    var activeId = PartyId.generate();
+    var removedId = PartyId.generate();
+    var removedAt = java.time.LocalDateTime.of(2026, 3, 4, 10, 0);
+    given(findPersonMatchesQueryHandler.handle(any()))
+        .willReturn(
+            new FindPersonMatchesResult(
+                List.of(
+                    new Match(activeId, "Ana Diaz", "ana@x.org", "999", true, null),
+                    new Match(removedId, "Ana Diaz", null, null, false, removedAt))));
+
+    var response =
+        assertThat(
+                mvc.get()
+                    .uri(
+                        "/v1/people/matches?organizationId="
+                            + node.value()
+                            + "&searchText=Ana&email=ana@x.org")
+                    .header("Authorization", bearerHeader()))
+            .hasStatusOk()
+            .bodyJson();
+    response.extractingPath("$[0].status").isEqualTo("ACTIVE");
+    response.extractingPath("$[0].id").isEqualTo(activeId.value().toString());
+    response.extractingPath("$[1].status").isEqualTo("REMOVED");
+    response.extractingPath("$[1].removedTime").isEqualTo("2026-03-04T10:00:00");
+    verify(authorizeQueryHandler)
+        .handle(new AuthorizeQuery("test-user", node, Permission.MEMBERS_WRITE));
+    verify(findPersonMatchesQueryHandler)
+        .handle(new FindPersonMatchesQuery(node, "Ana", "ana@x.org"));
+  }
+
+  @Test
+  void restoreBringsThePersonBackToTheNode() {
+    var personId = UUID.randomUUID();
+    var node = PartyId.generate();
+    given(restorePersonCommandHandler.handle(any()))
+        .willReturn(new RestorePersonResult(new PartyId(personId)));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/people/" + personId + "/restore?organizationId=" + node.value())
+                .header("Authorization", bearerHeader()))
+        .hasStatusOk()
+        .bodyText()
+        .contains(personId.toString());
+
+    verify(authorizeQueryHandler)
+        .handle(new AuthorizeQuery("test-user", node, Permission.MEMBERS_WRITE));
+    verify(restorePersonCommandHandler)
+        .handle(new RestorePersonCommand(new PartyId(personId), node));
+  }
+
+  private void subtreeOf(PartyId... nodes) {
+    given(findOrganizationSubtreeQueryHandler.handle(any()))
+        .willReturn(new FindOrganizationSubtreeResult(List.of(nodes)));
   }
 
   private void memberOf(PartyId organizationId) {
