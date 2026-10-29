@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "21"
+          java-version-file: .java-version
           cache: maven
 
       - id: auth
@@ -40,12 +40,31 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v3
 
+      # GitHub updates the runner images under us (the dev deploy broke between
+      # image 20261012 and 20261025 with no change here): the buildpack export
+      # fails with "no suitable export target found ... does not provide the
+      # specified platform" when Docker uses the containerd image store. Use the
+      # classic store, and print which one Docker has so a failure can be told apart.
+      - name: Use the classic Docker image store
+        run: |
+          if [ -s /etc/docker/daemon.json ]; then
+            sudo jq '.features = ((.features // {}) + {"containerd-snapshotter": false})' \
+              /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.new > /dev/null
+            sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
+          else
+            echo '{"features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json > /dev/null
+          fi
+          sudo systemctl restart docker
+          docker info --format 'Docker {{.ServerVersion}}, storage driver: {{.Driver}}, {{.DriverStatus}}'
+
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker southamerica-west1-docker.pkg.dev --quiet
 
       - name: Build image with Cloud Native Buildpacks
+        # No -q: it hides what the buildpack prints, and when the build fails
+        # that output is the only place the cause appears.
         run: |
-          ./mvnw -q -B -DskipTests spring-boot:build-image \
+          ./mvnw -B -Dmaven.test.skip=true -Djacoco.skip=true spring-boot:build-image \
             -Dspring-boot.build-image.imageName=${{ vars.DEV_ARTIFACT_REGISTRY_URL }}:${{ github.sha }} \
             -Dspring-boot.build-image.builder=gcr.io/buildpacks/builder
 

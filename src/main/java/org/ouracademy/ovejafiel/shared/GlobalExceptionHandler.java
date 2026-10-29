@@ -1,6 +1,7 @@
 package org.ouracademy.ovejafiel.shared;
 
 import java.util.NoSuchElementException;
+import org.ouracademy.ovejafiel.shared.domain.ConflictException;
 import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -51,6 +52,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     problemDetail.setTitle("Bad Request");
     return handleExceptionInternal(
         ex, problemDetail, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+  }
+
+  /** The request needs a confirmation or a change first; {@code code} says which case it is. */
+  @ExceptionHandler(ConflictException.class)
+  public ResponseEntity<Object> handleConflict(ConflictException ex, WebRequest request) {
+    var problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    problemDetail.setTitle("Conflict");
+    problemDetail.setProperty("code", ex.getCode());
+    return handleExceptionInternal(
+        ex, problemDetail, new HttpHeaders(), HttpStatus.CONFLICT, request);
   }
 
   @ExceptionHandler(Exception.class)
