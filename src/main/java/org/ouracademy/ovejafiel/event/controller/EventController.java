@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.event.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -15,10 +16,12 @@ import org.ouracademy.ovejafiel.event.command.delete_event.DeleteEventCommandHan
 import org.ouracademy.ovejafiel.event.command.edit_event.EditEventCommand;
 import org.ouracademy.ovejafiel.event.command.edit_event.EditEventCommandHandler;
 import org.ouracademy.ovejafiel.event.controller.dto.EditEventRequest;
+import org.ouracademy.ovejafiel.event.controller.dto.EditEventResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.EventDeleteRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.EventRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.EventResponse;
 import org.ouracademy.ovejafiel.event.domain.AccessLevel;
+import org.ouracademy.ovejafiel.event.domain.EventChangeOption;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.query.authorize_event.AuthorizeEventQuery;
 import org.ouracademy.ovejafiel.event.query.authorize_event.AuthorizeEventQueryHandler;
@@ -131,14 +134,28 @@ public class EventController {
   }
 
   @PutMapping("{id}")
-  public ResponseEntity<UUID> edit(
+  public EditEventResponse edit(
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable UUID id,
       @RequestBody @Valid EditEventRequest request) {
     authorizeOnEvent(jwt, id, AccessLevel.EDITOR);
     var result =
-        editEventCommandHandler.handle(new EditEventCommand(new EventId(id), request.getOption()));
-    return ResponseEntity.ok(result.id().value());
+        editEventCommandHandler.handle(
+            new EditEventCommand(
+                new EventId(id),
+                request.getOption() == null ? EventChangeOption.THIS_EVENT : request.getOption(),
+                request.getName(),
+                OffsetDateTime.parse(request.getStartTime()),
+                OffsetDateTime.parse(request.getEndTime()),
+                request.getAddress(),
+                request.getDescription(),
+                request.getIsACourse(),
+                new PartyId(request.getOrganizationId()),
+                request.getSpeakerIds().stream().map(PartyId::new).toList(),
+                request.getRecurrence() == null ? null : request.getRecurrence().toRecurrence(),
+                request.getTimeZone() == null ? null : request.zone(),
+                Instant.now()));
+    return new EditEventResponse(result.id().value(), result.keptEvents(), result.notifiedPeople());
   }
 
   /**

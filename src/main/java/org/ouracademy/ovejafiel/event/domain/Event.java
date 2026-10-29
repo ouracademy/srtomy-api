@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -111,5 +112,40 @@ public class Event extends DomainObject {
 
   public Duration duration() {
     return Duration.between(start, end);
+  }
+
+  /** Changes what the organizer can edit; the node and the kind (event or course) stay. */
+  public void edit(
+      String title,
+      ZonedDateTime start,
+      ZonedDateTime end,
+      String address,
+      String description,
+      List<Person> speakers) {
+    this.title = title;
+    this.start = start;
+    this.end = end;
+    this.address = address;
+    this.description = description;
+    this.speakers = new ArrayList<>(speakers);
+  }
+
+  /** Moves the event without touching the rest of its data. */
+  public void moveTo(ZonedDateTime start, ZonedDateTime end) {
+    this.start = start;
+    this.end = end;
+  }
+
+  public boolean hasStartedAt(Instant now) {
+    return !start.toInstant().isAfter(now);
+  }
+
+  /** The event stops being an occurrence of its series and stays as a one-off event. */
+  public void leaveSeries() {
+    this.series = null;
+  }
+
+  public void joinSeries(EventSeries series) {
+    this.series = series;
   }
 }
