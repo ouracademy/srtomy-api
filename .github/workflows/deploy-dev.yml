@@ -40,6 +40,23 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v3
 
+      # GitHub updates the runner images under us (the dev deploy broke between
+      # image 20261012 and 20261025 with no change here): the buildpack export
+      # fails with "no suitable export target found ... does not provide the
+      # specified platform" when Docker uses the containerd image store. Use the
+      # classic store, and print which one Docker has so a failure can be told apart.
+      - name: Use the classic Docker image store
+        run: |
+          if [ -s /etc/docker/daemon.json ]; then
+            sudo jq '.features = ((.features // {}) + {"containerd-snapshotter": false})' \
+              /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.new > /dev/null
+            sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
+          else
+            echo '{"features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json > /dev/null
+          fi
+          sudo systemctl restart docker
+          docker info --format 'Docker {{.ServerVersion}}, storage driver: {{.Driver}}, {{.DriverStatus}}'
+
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker southamerica-west1-docker.pkg.dev --quiet
 
