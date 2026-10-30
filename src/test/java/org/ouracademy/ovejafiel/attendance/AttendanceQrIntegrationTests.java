@@ -386,9 +386,9 @@ class AttendanceQrIntegrationTests {
   }
 
   String stateOf(String personId) {
-    for (var state : json(alice, "/organizations/" + group + "/member-state")) {
-      if (state.get("child").get("id").asText().equals(personId)) {
-        return state.get("type").get("name").asText();
+    for (var person : json(alice, "/people?organizationId=" + group + "&size=100").get("content")) {
+      if (person.get("id").asText().equals(personId)) {
+        return person.get("memberState").asText();
       }
     }
     return null;

@@ -5,8 +5,10 @@ import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilit
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.accountability.command.MemberStateEvents;
 import org.ouracademy.ovejafiel.accountability.domain.Accountability;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes;
 import org.ouracademy.ovejafiel.accountability.repository.AccountabilityRepository;
 import org.ouracademy.ovejafiel.accountability.repository.AccountabilityTypeRepository;
 import org.ouracademy.ovejafiel.party.domain.Party;
@@ -21,6 +23,7 @@ class SetMemberStateCommandHandlerImpl implements SetMemberStateCommandHandler {
   private final AccountabilityRepository accountabilityRepository;
   private final AccountabilityTypeRepository accountabilityTypeRepository;
   private final EntityManager entityManager;
+  private final MemberStateEvents memberStateEvents;
 
   @Override
   @Transactional
@@ -41,6 +44,15 @@ class SetMemberStateCommandHandlerImpl implements SetMemberStateCommandHandler {
             .filter(found -> !(alreadyThere && isState(found, command.state())))
             .toList());
     if (!alreadyThere) {
+      var previous =
+          current.stream().map(found -> found.getType().getId()).findFirst().orElse(null);
+      var from = previous == null ? null : SystemAccountabilityTypes.progressStateName(previous);
+      var to = SystemAccountabilityTypes.progressStateName(command.state()).orElseThrow();
+      if (from == null || from.isEmpty()) {
+        memberStateEvents.joined(command.personId(), command.organizationId(), to);
+      } else {
+        memberStateEvents.changed(command.personId(), command.organizationId(), from.get(), to);
+      }
       accountabilityRepository.save(
           new Accountability(
               entityManager.getReference(Party.class, command.personId()),

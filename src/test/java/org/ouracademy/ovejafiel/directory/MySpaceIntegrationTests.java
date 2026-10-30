@@ -76,9 +76,9 @@ class MySpaceIntegrationTests {
             .get("id")
             .asText();
     location = json(alice, "/organizations/" + churchId + "/childs").get(0).get("id").asText();
-    group = createGroup("Jóvenes", location, null);
-    subgroup = createGroup("Adolescentes", group, null);
-    sibling = createGroup("Alabanza", location, null);
+    group = createGroup("Jóvenes", location);
+    subgroup = createGroup("Adolescentes", group);
+    sibling = createGroup("Alabanza", location);
     courseId = createCourse("Discipulado");
     bobsPerson = createPerson("Bob", group);
     link(bob, bobsPerson);
@@ -141,22 +141,24 @@ class MySpaceIntegrationTests {
 
   @Test
   void myNodesAreOnlyTheOnesOfMyOwnPerson() {
-    var leaderId = createPerson("Lucía", location);
-    var led = createGroup("Misiones", location, leaderId);
-    link(carol, leaderId);
+    var lucia = createPerson("Lucía", location);
+    var led = createGroup("Misiones", location);
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/people/" + lucia + "/memberships/" + led,
+        "{\"memberState\":\"MEMBER\"}");
+    link(carol, lucia);
 
     var bobs = json(bob, "/me/nodes");
     assertThat(bobs).hasSize(1);
     assertThat(bobs.get(0).get("id").asText()).isEqualTo(group);
-    assertThat(bobs.get(0).get("leader").asBoolean()).isFalse();
     assertThat(bobs.get(0).get("churchName").asText()).isEqualTo("Iglesia");
 
     var carols = json(carol, "/me/nodes");
     var byId = new java.util.HashMap<String, JsonNode>();
     carols.forEach(node -> byId.put(node.get("id").asText(), node));
     assertThat(byId.keySet()).containsExactlyInAnyOrder(location, led);
-    assertThat(byId.get(led).get("leader").asBoolean()).isTrue();
-    assertThat(byId.get(location).get("leader").asBoolean()).isFalse();
   }
 
   @Test
@@ -259,16 +261,12 @@ class MySpaceIntegrationTests {
         .isCreated();
   }
 
-  String createGroup(String name, String parentId, String leaderId) {
+  String createGroup(String name, String parentId) {
     return read(body(
             alice,
             HttpMethod.POST,
             "/organizations/locations/childs",
-            "{\"name\":\"%s\",\"type\":\"GROUP\",\"parentId\":\"%s\"%s}"
-                .formatted(
-                    name,
-                    parentId,
-                    leaderId == null ? "" : ",\"leaderIds\":[\"%s\"]".formatted(leaderId))))
+            "{\"name\":\"%s\",\"type\":\"GROUP\",\"parentId\":\"%s\"}".formatted(name, parentId)))
         .get("id")
         .asText();
   }

@@ -14,7 +14,7 @@ public record PublicPageResponse(
     String address,
     String phoneNumber,
     SocialLinks socialLinks,
-    List<String> leaders,
+    List<String> team,
     List<String> members,
     List<PositionPeople> positions,
     OrgChartNode orgChart) {
@@ -26,7 +26,7 @@ public record PublicPageResponse(
       String name,
       Organization.Type type,
       String slug,
-      List<String> leaders,
+      List<String> team,
       List<OrgChartNode> children) {
 
     static OrgChartNode from(GetPublicPageResult.OrgChartNode node) {
@@ -34,7 +34,7 @@ public record PublicPageResponse(
           node.name(),
           node.type(),
           node.slug(),
-          node.leaders(),
+          node.team(),
           node.children().stream().map(OrgChartNode::from).toList());
     }
   }
@@ -48,7 +48,7 @@ public record PublicPageResponse(
         result.address(),
         result.phoneNumber(),
         result.socialLinks(),
-        result.leaders(),
+        result.team(),
         result.members(),
         result.positions().stream()
             .map(entry -> new PositionPeople(entry.position(), entry.people()))

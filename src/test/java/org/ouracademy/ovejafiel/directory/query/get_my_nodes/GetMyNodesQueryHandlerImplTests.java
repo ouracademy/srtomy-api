@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 
 import java.util.List;
@@ -65,15 +64,14 @@ class GetMyNodesQueryHandlerImplTests {
   }
 
   @Test
-  void listsTheNodesWhereThePersonIsAMemberOrALeaderSortedByName() {
+  void listsTheNodesWhereThePersonIsOnTheListSortedByName() {
     signedIn();
     when(accountabilities.handle(any()))
-        .thenReturn(List.of(of(youth, IS_PART_OF), of(praise, LEADER), of(praise, IS_PART_OF)));
+        .thenReturn(List.of(of(youth, IS_PART_OF), of(praise, IS_PART_OF)));
 
     var nodes = handler.handle(new GetMyNodesQuery("me"));
 
     assertThat(nodes).extracting(MyNodeResult::name).containsExactly("Alabanza", "Jóvenes");
-    assertThat(nodes).extracting(MyNodeResult::leader).containsExactly(true, false);
     assertThat(nodes).extracting(MyNodeResult::churchName).containsOnly("Iglesia");
   }
 
@@ -98,7 +96,6 @@ class GetMyNodesQueryHandlerImplTests {
 
     assertThat(nodes).hasSize(1);
     assertThat(nodes.get(0).positions()).containsExactly("Tesorero");
-    assertThat(nodes.get(0).leader()).isFalse();
   }
 
   @Test

@@ -17,9 +17,9 @@ public record DirectoryNodeResult(
     String description,
     String schedule,
     MemberVisibility memberVisibility,
-    List<String> leaders) {
+    List<String> team) {
 
-  public static DirectoryNodeResult of(Organization node, List<String> leaders) {
+  public static DirectoryNodeResult of(Organization node, List<String> team) {
     return new DirectoryNodeResult(
         node.getId(),
         node.getName(),
@@ -28,6 +28,6 @@ public record DirectoryNodeResult(
         node.getDescription(),
         node.getSchedule(),
         node.getMemberVisibility(),
-        leaders);
+        team);
   }
 }

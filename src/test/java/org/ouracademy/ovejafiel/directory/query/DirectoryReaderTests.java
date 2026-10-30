@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -53,16 +52,22 @@ class DirectoryReaderTests {
   }
 
   @Test
-  void leadersAreGroupedByNodeAndFilteredLikeMembers() {
+  void theTeamIsWhoHoldsAPositionOnceEachGroupedByNodeAndFilteredLikeMembers() {
     var other = PartyId.generate();
-    var otherLeader = new PersonRow(other, PartyId.generate(), "Lia", "Paz", null, adult);
-    when(repository.findPeople(List.of(node, other), LEADER))
-        .thenReturn(List.of(row("Ana", null, adult), row("Cleo", null, minor), otherLeader));
+    var ana = PartyId.generate();
+    when(repository.findHeldPositions(List.of(node, other)))
+        .thenReturn(
+            List.of(
+                new HeldRow(node, "Pastor", ana, "Ana", "Prueba", null, adult),
+                // The same person with two positions is listed once.
+                new HeldRow(node, "Tesorera", ana, "Ana", "Prueba", null, adult),
+                new HeldRow(node, "Ujier", PartyId.generate(), "Cleo", "Prueba", null, minor),
+                new HeldRow(other, "Pastor", PartyId.generate(), "Lia", "Paz", null, adult)));
 
-    var leaders = reader.leadersByNode(List.of(node, other), Audience.PUBLIC);
+    var team = reader.teamByNode(List.of(node, other), Audience.PUBLIC);
 
-    assertThat(leaders.get(node)).containsExactly("Ana Prueba");
-    assertThat(leaders.get(other)).containsExactly("Lia Paz");
+    assertThat(team.get(node)).containsExactly("Ana Prueba");
+    assertThat(team.get(other)).containsExactly("Lia Paz");
   }
 
   @Test
