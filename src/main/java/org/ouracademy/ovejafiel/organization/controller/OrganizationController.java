@@ -110,36 +110,36 @@ public class OrganizationController {
   @ResponseStatus(code = HttpStatus.CREATED)
   public OrganizationResponse create(
       @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid CreateChurchRequest request) {
-    var location = request.getLocation();
+    var location = request.location();
     var result =
         createChurchCommandHandler.handle(
             new CreateChurchCommand(
                 new OrganizationInfo(
-                    request.getName(),
-                    request.getDescription(),
-                    request.getAddress(),
-                    request.getPhoneNumber(),
-                    SocialLinksRequest.toDomain(request.getSocialLinks())),
+                    request.name(),
+                    request.description(),
+                    request.address(),
+                    request.phoneNumber(),
+                    SocialLinksRequest.toDomain(request.socialLinks())),
                 new OrganizationInfo(
-                    location.getName(),
-                    location.getDescription(),
-                    location.getAddress(),
-                    location.getPhoneNumber(),
-                    SocialLinksRequest.toDomain(location.getSocialLinks())),
-                request.getPositions().stream()
+                    location.name(),
+                    location.description(),
+                    location.address(),
+                    location.phoneNumber(),
+                    SocialLinksRequest.toDomain(location.socialLinks())),
+                request.positions().stream()
                     .map(
                         position ->
                             new PositionSeed(
-                                position.getName(),
-                                position.getRoleIds().stream()
+                                position.name(),
+                                position.roleIds().stream()
                                     .map(IamRoleId::new)
                                     .collect(Collectors.toSet()),
-                                Set.copyOf(position.getPermissions())))
+                                Set.copyOf(position.permissions())))
                     .toList(),
                 new Creator(
-                    request.getCreator().getFirstName(),
-                    request.getCreator().getLastName(),
-                    request.getCreator().getPositionName()),
+                    request.creator().firstName(),
+                    request.creator().lastName(),
+                    request.creator().positionName()),
                 jwt.getSubject(),
                 TokenClaims.email(jwt),
                 TokenClaims.emailVerified(jwt)));

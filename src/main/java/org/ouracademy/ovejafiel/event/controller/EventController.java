@@ -127,7 +127,7 @@ public class EventController {
       @PathVariable UUID id,
       @RequestBody @Valid EventDeleteRequest request) {
     authorizeOnEvent(jwt, id, AccessLevel.MANAGER);
-    deleteEventCommandHandler.handle(new DeleteEventCommand(new EventId(id), request.getOption()));
+    deleteEventCommandHandler.handle(new DeleteEventCommand(new EventId(id), request.option()));
   }
 
   @PutMapping("{id}")
