@@ -6,6 +6,6 @@
 - [x] T004 `event`: `EditEventCommand`/`Result`, `EditEventCommandHandlerImpl` (suelto, `THIS_EVENT`, en el lugar, regenerar, correos) y `validateSchedule` (punto de extensión).
 - [x] T005 `EventController.edit` pasa los datos y devuelve `EditEventResponse`.
 - [x] T006 Pruebas: handler (`EditEventCommandHandlerImplTests`), controlador (`EventControllerTests`), integración (`EditEventsIntegrationTests`).
-- [x] T007 `docs/redesign.md`: quitar la deuda 16 y anotar 35 a 37.
+- [x] T007 `docs/redesign.md`: quitar la deuda 16 y anotar 36 a 38.
 - [x] T008 `./mvnw -B -ntp verify` y `python3 scripts/check-language.py` en verde.
 - [ ] T009 UI (`srtomy-ui`, `specs/013-edit-events`): ver su `tasks.md`.
