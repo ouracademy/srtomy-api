@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -13,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQuery;
 import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQueryHandler;
 import org.ouracademy.ovejafiel.accountability.query.get_member_growth.MemberGrowthResult;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth_for_range.GetMemberGrowthForRangeQuery;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth_for_range.GetMemberGrowthForRangeQueryHandler;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth_for_range.MemberGrowthRangeResult;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.domain.PredefinedRoles;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQuery;
@@ -42,6 +46,7 @@ import org.ouracademy.ovejafiel.organization.query.find_organization_children.Fi
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
+import org.ouracademy.ovejafiel.shared.BucketUnit;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
@@ -73,6 +78,7 @@ class OrganizationControllerTests {
   @MockitoBean FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   @MockitoBean FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
   @MockitoBean GetMemberGrowthQueryHandler getMemberGrowthQueryHandler;
+  @MockitoBean GetMemberGrowthForRangeQueryHandler getMemberGrowthForRangeQueryHandler;
   @MockitoBean FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
 
@@ -383,6 +389,90 @@ class OrganizationControllerTests {
                 .header("Authorization", bearer()))
         .hasStatus(403);
     org.mockito.Mockito.verifyNoInteractions(getMemberGrowthQueryHandler);
+  }
+
+  @Test
+  void growthRangeReturnsTheCurrentCountsAndTheBuckets() {
+    var id = PartyId.generate();
+    var below = PartyId.generate();
+    given(findOrganizationSubtreeQueryHandler.handle(any()))
+        .willReturn(new FindOrganizationSubtreeResult(List.of(id, below)));
+    given(getMemberGrowthForRangeQueryHandler.handle(any()))
+        .willReturn(
+            new MemberGrowthRangeResult(
+                new MemberGrowthRangeResult.StateCounts(4, 3, 10),
+                List.of(
+                    new MemberGrowthRangeResult.Bucket(
+                        LocalDate.of(2026, 10, 1),
+                        LocalDate.of(2026, 10, 1),
+                        "2026-10-01",
+                        5,
+                        2,
+                        1,
+                        1,
+                        17,
+                        10))));
+
+    var response =
+        assertThat(
+                mvc.get()
+                    .uri(
+                        "/v1/organizations/"
+                            + id.value()
+                            + "/growth-range?startDate=2026-10-01&endDate=2026-10-01")
+                    .header("Authorization", bearer()))
+            .hasStatusOk()
+            .bodyJson();
+    response.extractingPath("$.current.members").isEqualTo(10);
+    response.extractingPath("$.current.total").isEqualTo(17);
+    response.extractingPath("$.buckets[0].label").isEqualTo("2026-10-01");
+    response.extractingPath("$.buckets[0].membersAtEnd").isEqualTo(10);
+
+    org.mockito.Mockito.verify(getMemberGrowthForRangeQueryHandler)
+        .handle(
+            new GetMemberGrowthForRangeQuery(
+                List.of(id, below),
+                LocalDate.of(2026, 10, 1).atStartOfDay(ZoneOffset.UTC).toInstant(),
+                LocalDate.of(2026, 10, 1)
+                    .plusDays(1)
+                    .atStartOfDay(ZoneOffset.UTC)
+                    .minusNanos(1)
+                    .toInstant(),
+                BucketUnit.DAY));
+    org.mockito.Mockito.verify(authorizeQueryHandler)
+        .handle(new AuthorizeQuery("test-user", id, Permission.MEMBERS_READ));
+  }
+
+  @Test
+  void growthRangeNeedsMembersRead() {
+    org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("no"))
+        .when(authorizeQueryHandler)
+        .handle(any());
+
+    assertThat(
+            mvc.get()
+                .uri(
+                    "/v1/organizations/"
+                        + PartyId.generate().value()
+                        + "/growth-range?startDate=2026-10-01&endDate=2026-10-02")
+                .header("Authorization", bearer()))
+        .hasStatus(403);
+    verifyNoInteractions(getMemberGrowthForRangeQueryHandler);
+  }
+
+  @Test
+  void growthRangeWithStartAfterEndIsBadRequest() {
+    var id = PartyId.generate();
+
+    assertThat(
+            mvc.get()
+                .uri(
+                    "/v1/organizations/"
+                        + id.value()
+                        + "/growth-range?startDate=2026-10-05&endDate=2026-10-01")
+                .header("Authorization", bearer()))
+        .hasStatus(400);
+    verifyNoInteractions(getMemberGrowthForRangeQueryHandler);
   }
 
   @Test

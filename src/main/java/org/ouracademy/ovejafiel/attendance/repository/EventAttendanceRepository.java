@@ -1,5 +1,7 @@
 package org.ouracademy.ovejafiel.attendance.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.ouracademy.ovejafiel.attendance.domain.EventAttendance;
@@ -11,6 +13,10 @@ import org.springframework.data.jpa.repository.Query;
 public interface EventAttendanceRepository extends JpaRepository<EventAttendance, EventId> {
 
   Optional<EventAttendance> findByEventId(EventId id);
+
+  /** The attendance sheets of several events, e.g. to aggregate stats over a date range. */
+  @Query("select a from EventAttendance a where a.event.id in :eventIds")
+  List<EventAttendance> findByEventIds(Collection<EventId> eventIds);
 
   /** Makes sure the event has its attendance sheet, even when two people mark at the same time. */
   @Modifying
