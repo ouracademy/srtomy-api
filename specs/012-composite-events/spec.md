@@ -20,7 +20,7 @@
 4. **Cupos y tickets viven donde se configuran.** Los del mega evento están en el padre; un hijo `OWN` tiene los suyos. `Seats` no cambia.
 5. **La asistencia sigue siendo por evento** (`event_attendance` es 1:1 con `event`): cada sub-evento tiene su lista. El QR de un hijo marca en ese hijo; el QR del padre es la entrada general del mega evento.
 6. **Check-in por ticket heredado.** Escanear el `ticket_code` de la inscripción del padre en un hijo `INHERIT` deja ingresada la asistencia de **ese hijo**; en un hijo `OWN` sin ticket propio responde 400. Si la inscripción no tiene una persona de la iglesia vinculada también responde 400, porque la asistencia de un hijo es por persona (deuda técnica 39).
-7. **Reglas de forma.** Sin ciclos; el padre no puede ser hijo; el hijo pertenece a la misma `organization` del padre o a un descendiente; las fechas del hijo caen dentro del rango del padre. Se validan al crear. Validar al cambiar las fechas del padre depende de `PUT /events/{id}`, que sigue sin implementarse (deuda técnica).
+7. **Reglas de forma.** Sin ciclos; el padre no puede ser hijo; el hijo pertenece a la misma `organization` del padre o a un descendiente; las fechas del hijo caen dentro del rango del padre. Se validan al crear y al editar (013): un sub-evento editado sigue dentro de su mega evento, y un mega evento no puede editarse dejando un sub-evento fuera (el mensaje nombra el sub-evento). No se puede cambiar el mega evento de un sub-evento, y ni uno ni otro puede empezar a repetirse. Mover un mega evento completo con sus sub-eventos es deuda técnica (41).
 8. **Sin recurrencia en la primera versión.** Ni el padre ni un hijo pueden pertenecer a una serie (`series_id`): se rechaza con `DomainValidationException`. Repetir el mega evento cada año se hace duplicándolo.
 9. **Borrado.** Borrar (lógico) el padre oculta a sus hijos y sus asistencias.
 10. **Calendario y Mi espacio.** El contenedor se ve como banda multi-día y sus hijos como eventos con el nombre del padre como contexto. En `me/events` y el feed `.ics` aparecen los hijos individualmente.
@@ -56,7 +56,7 @@
 ## Requirements
 
 - **FR-001**: Un hijo MUST NOT tener hijos.
-- **FR-002**: Las fechas de un hijo MUST caer dentro del rango del padre al crearlo.
+- **FR-002**: Las fechas de un hijo MUST caer dentro del rango del padre al crearlo y al editarlo, y editar el padre MUST validarse contra sus hijos.
 - **FR-003**: El acceso heredado MUST resolver el registro efectivo subiendo un nivel al padre y MUST NOT dar lugar en un hijo `OWN`.
 - **FR-004**: El check-in por ticket MUST ser idempotente y marcar solo el evento donde se escaneó.
 - **FR-005**: La página pública MUST NOT exponer inscritos ni códigos de cancelación al mostrar el programa.

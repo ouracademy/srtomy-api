@@ -134,12 +134,17 @@ public class Event extends DomainObject {
     if (container.series != null || series != null) {
       throw new DomainValidationException("Un evento compuesto no puede repetirse");
     }
-    if (start.isBefore(container.start) || end.isAfter(container.end)) {
-      throw new DomainValidationException(
-          "El sub-evento debe estar dentro de las fechas del evento");
-    }
+    requireInside(container);
     this.parent = container;
     this.generalAccess = container.generalAccess;
+  }
+
+  /** A sub-event stays inside the dates of its mega event, when created and when edited. */
+  public void requireInside(Event container) {
+    if (start.isBefore(container.start) || end.isAfter(container.end)) {
+      throw new DomainValidationException(
+          "El sub-evento «" + title + "» debe estar dentro de las fechas del evento");
+    }
   }
 
   public boolean isChild() {

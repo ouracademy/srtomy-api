@@ -22,6 +22,9 @@
 - [x] T011 `program` en la página pública.
 - [x] T012 Hijos heredados en `me/events` y título con el padre en el feed `.ics`.
 
+## Edición (013)
+- [x] T016 Con la edición de eventos: rangos de fechas, sin repetición, sin cambiar de mega evento, `registrationMode` y aviso a los inscritos del mega evento (`EditEventCommandHandlerImpl`), con pruebas de handler e integración.
+
 ## Cierre
 - [x] T013 Prueba de integración `CompositeEventsIntegrationTests`.
 - [x] T014 `docs/redesign.md` §7 y §10.

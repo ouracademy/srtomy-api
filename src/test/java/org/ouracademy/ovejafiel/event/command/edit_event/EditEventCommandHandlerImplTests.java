@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.ovejafiel.event.EventFixtures.childOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.eventBetween;
 import static org.ouracademy.ovejafiel.event.EventFixtures.eventSeries;
 import static org.ouracademy.ovejafiel.event.EventFixtures.registration;
@@ -40,7 +41,9 @@ import org.ouracademy.ovejafiel.event.domain.EventChangeOption;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventSeries;
 import org.ouracademy.ovejafiel.event.domain.Recurrence;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
+import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.ouracademy.ovejafiel.event.repository.EventSeriesRepository;
@@ -80,6 +83,7 @@ class EditEventCommandHandlerImplTests {
             eventRepository,
             eventSeriesRepository,
             eventRegistrationRepository,
+            new EffectiveRegistration(),
             findPeopleByIdsQueryHandler,
             findEventIdsWithAttendanceQueryHandler,
             deleteAttendanceForEventsCommandHandler,
@@ -138,6 +142,8 @@ class EditEventCommandHandlerImplTests {
         church.getId(),
         List.of(),
         recurrence,
+        null,
+        null,
         null,
         NOW);
   }
@@ -198,6 +204,8 @@ class EditEventCommandHandlerImplTests {
             List.of(),
             null,
             null,
+            null,
+            null,
             NOW);
 
     assertThatThrownBy(() -> handler.handle(moved))
@@ -223,6 +231,8 @@ class EditEventCommandHandlerImplTests {
             true,
             c.organizationId(),
             List.of(),
+            null,
+            null,
             null,
             null,
             NOW);
@@ -267,6 +277,8 @@ class EditEventCommandHandlerImplTests {
             false,
             c.organizationId(),
             List.of(PartyId.generate()),
+            null,
+            null,
             null,
             null,
             NOW);
@@ -536,5 +548,203 @@ class EditEventCommandHandlerImplTests {
                         "2026-01-07T17:00:00Z",
                         never)))
         .isInstanceOf(DomainValidationException.class);
+  }
+
+  // ---- composite events (spec 012)
+
+  private Event megaEvent() {
+    var from = ZonedDateTime.parse("2026-03-01T00:00:00Z");
+    return eventBetween(
+        EventId.generate(),
+        "Mega evento",
+        church,
+        from,
+        ZonedDateTime.parse("2026-03-03T23:00:00Z"));
+  }
+
+  private Event subEventOf(Event mega, RegistrationMode mode) {
+    var from = ZonedDateTime.parse("2026-03-02T10:00:00Z");
+    var child = childOf(mega, EventId.generate(), "Taller", from, from.plusHours(2));
+    child.setRegistrationMode(mode);
+    return child;
+  }
+
+  private EditEventCommand within(
+      Event event, String start, String end, EventId parentEventId, RegistrationMode mode) {
+    var base = command(event, EventChangeOption.THIS_EVENT, event.getTitle(), start, end, null);
+    return new EditEventCommand(
+        base.id(),
+        base.option(),
+        base.name(),
+        base.startTime(),
+        base.endTime(),
+        base.address(),
+        base.description(),
+        base.isACourse(),
+        base.organizationId(),
+        base.speakerIds(),
+        null,
+        null,
+        parentEventId,
+        mode,
+        NOW);
+  }
+
+  @Test
+  void aSubEventCanMoveInsideItsMegaEvent() {
+    var mega = megaEvent();
+    var child = subEventOf(mega, RegistrationMode.INHERIT);
+    given(child);
+
+    handler.handle(within(child, "2026-03-03T09:00:00Z", "2026-03-03T11:00:00Z", null, null));
+
+    assertThat(child.getStart()).isEqualTo(ZonedDateTime.parse("2026-03-03T09:00:00Z[UTC]"));
+  }
+
+  @Test
+  void aSubEventCannotLeaveItsMegaEvent() {
+    var mega = megaEvent();
+    var child = subEventOf(mega, RegistrationMode.INHERIT);
+    given(child);
+
+    assertThatThrownBy(
+            () ->
+                handler.handle(
+                    within(child, "2026-03-04T09:00:00Z", "2026-03-04T11:00:00Z", null, null)))
+        .isInstanceOf(DomainValidationException.class)
+        .hasMessageContaining("«Taller»");
+  }
+
+  @Test
+  void aMegaEventCanGrowButNotLeaveASubEventOut() {
+    var mega = megaEvent();
+    var child = subEventOf(mega, RegistrationMode.INHERIT);
+    given(mega);
+    when(eventRepository.findByParentOrderByStart(mega)).thenReturn(List.of(child));
+
+    handler.handle(within(mega, "2026-02-28T00:00:00Z", "2026-03-05T00:00:00Z", null, null));
+    assertThat(mega.getEnd()).isEqualTo(ZonedDateTime.parse("2026-03-05T00:00:00Z[UTC]"));
+
+    assertThatThrownBy(
+            () ->
+                handler.handle(
+                    within(mega, "2026-03-03T00:00:00Z", "2026-03-04T00:00:00Z", null, null)))
+        .isInstanceOf(DomainValidationException.class)
+        .hasMessageContaining("«Taller»");
+  }
+
+  @Test
+  void aMegaEventOrASubEventCannotStartRepeating() {
+    var mega = megaEvent();
+    var child = subEventOf(mega, RegistrationMode.INHERIT);
+    given(mega);
+    given(child);
+    when(eventRepository.existsByParent(mega)).thenReturn(true);
+    var daily =
+        Recurrence.of(Recurrence.Frequency.DAILY, 1, null, null, Recurrence.EndType.COUNT, null, 3);
+
+    for (var event : List.of(mega, child)) {
+      var plain = within(event, "2026-03-02T10:00:00Z", "2026-03-02T12:00:00Z", null, null);
+      var repeating =
+          new EditEventCommand(
+              plain.id(),
+              plain.option(),
+              plain.name(),
+              plain.startTime(),
+              plain.endTime(),
+              plain.address(),
+              plain.description(),
+              plain.isACourse(),
+              plain.organizationId(),
+              plain.speakerIds(),
+              daily,
+              null,
+              null,
+              null,
+              NOW);
+
+      assertThatThrownBy(() -> handler.handle(repeating))
+          .isInstanceOf(DomainValidationException.class)
+          .hasMessageContaining("no puede repetirse");
+    }
+    verify(eventSeriesRepository, never()).save(any(EventSeries.class));
+  }
+
+  @Test
+  void aSubEventCannotBeMovedToAnotherEvent() {
+    var mega = megaEvent();
+    var child = subEventOf(mega, RegistrationMode.INHERIT);
+    given(child);
+
+    assertThatThrownBy(
+            () ->
+                handler.handle(
+                    within(
+                        child,
+                        "2026-03-02T10:00:00Z",
+                        "2026-03-02T12:00:00Z",
+                        EventId.generate(),
+                        null)))
+        .isInstanceOf(DomainValidationException.class);
+    // Naming its own mega event, or none, is "as it is".
+    handler.handle(
+        within(child, "2026-03-02T10:00:00Z", "2026-03-02T12:00:00Z", mega.getId(), null));
+    handler.handle(within(child, "2026-03-02T10:00:00Z", "2026-03-02T12:00:00Z", null, null));
+  }
+
+  @Test
+  void theRegistrationModeOfASubEventChangesButAStandaloneEventIgnoresIt() {
+    var mega = megaEvent();
+    var child = subEventOf(mega, RegistrationMode.INHERIT);
+    var standalone = oneOff();
+    given(child);
+    given(standalone);
+
+    handler.handle(
+        within(child, "2026-03-02T10:00:00Z", "2026-03-02T12:00:00Z", null, RegistrationMode.OWN));
+    handler.handle(
+        within(
+            standalone,
+            "2026-02-02T15:00:00Z",
+            "2026-02-02T17:00:00Z",
+            null,
+            RegistrationMode.OPEN));
+
+    assertThat(child.getRegistrationMode()).isEqualTo(RegistrationMode.OWN);
+    assertThat(standalone.getRegistrationMode()).isEqualTo(RegistrationMode.INHERIT);
+  }
+
+  @Test
+  void movingASubEventThatInheritsEmailsThePeopleOfTheMegaEvent() {
+    var mega = megaEvent();
+    var child = subEventOf(mega, RegistrationMode.INHERIT);
+    given(child);
+    givenSignedUp(mega, "Lu@Example.com");
+
+    var result =
+        handler.handle(within(child, "2026-03-03T09:00:00Z", "2026-03-03T11:00:00Z", null, null));
+
+    assertThat(result.notifiedPeople()).isEqualTo(1);
+    var ids = ArgumentCaptor.forClass(java.util.Collection.class);
+    verify(eventRegistrationRepository)
+        .findByEventIdInAndStatusNot(ids.capture(), any(RegistrationStatus.class));
+    assertThat(ids.getValue()).containsExactly(mega.getId());
+    var email = ArgumentCaptor.forClass(SendEmailCommand.class);
+    verify(sendEmailCommandHandler).handle(email.capture());
+    assertThat(email.getValue().to()).isEqualTo("lu@example.com");
+    assertThat(email.getValue().subject()).isEqualTo("Cambió la fecha de «Taller»");
+  }
+
+  @Test
+  void movingAnOpenSubEventEmailsNobody() {
+    var mega = megaEvent();
+    var child = subEventOf(mega, RegistrationMode.OPEN);
+    given(child);
+
+    var result =
+        handler.handle(within(child, "2026-03-03T09:00:00Z", "2026-03-03T11:00:00Z", null, null));
+
+    assertThat(result.notifiedPeople()).isZero();
+    verify(sendEmailCommandHandler, never()).handle(any());
   }
 }

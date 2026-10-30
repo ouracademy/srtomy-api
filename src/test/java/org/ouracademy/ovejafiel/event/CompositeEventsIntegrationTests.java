@@ -23,6 +23,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -40,6 +41,7 @@ class CompositeEventsIntegrationTests {
   @Autowired JwtEncoder jwtEncoder;
   @Autowired SyncCurrentUserCommandHandler syncCurrentUserCommandHandler;
   @Autowired LinkUserToPersonCommandHandler linkUserToPersonCommandHandler;
+  @Autowired JdbcTemplate jdbc;
 
   RestTestClient client;
   String alice;
@@ -235,6 +237,129 @@ class CompositeEventsIntegrationTests {
         .isEqualTo(200);
     assertThat(status(alice, HttpMethod.GET, "/events/" + workshop)).isEqualTo(404);
     assertThat(status(alice, HttpMethod.GET, "/events/" + conference)).isEqualTo(404);
+  }
+
+  /** The PUT body that keeps the data of the event and changes its dates. */
+  String editJson(String name, String start, String end, String extra) {
+    return ("{\"name\":\"%s\",\"startTime\":\"%s\",\"endTime\":\"%s\","
+            + "\"organizationId\":\"%s\",\"isACourse\":false,\"option\":\"THIS_EVENT\"%s}")
+        .formatted(name, start, end, location, extra);
+  }
+
+  @Test
+  void editingASubEventKeepsItInsideItsMegaEventAndLetsItChangeHowItIsEntered() {
+    var workshop = subEvent("Taller", "INHERIT");
+    var path = "/events/" + workshop;
+
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                path,
+                editJson("Taller", "2030-01-08T10:00:00Z", "2030-01-08T12:00:00Z", "")))
+        .isEqualTo(400);
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                path,
+                editJson(
+                    "Taller",
+                    "2030-01-07T09:00:00Z",
+                    "2030-01-07T11:00:00Z",
+                    ",\"registrationMode\":\"OWN\"")))
+        .isEqualTo(200);
+
+    var edited = json(alice, path);
+    assertThat(edited.get("start").asText()).startsWith("2030-01-07T09:00");
+    assertThat(edited.get("registrationMode").asText()).isEqualTo("OWN");
+    assertThat(edited.get("parentEventId").asText()).isEqualTo(conference);
+  }
+
+  @Test
+  void aMegaEventCannotBeEditedLeavingASubEventOutNorMovedToAnotherEventNorRepeat() {
+    var workshop = subEvent("Taller", "INHERIT");
+    var path = "/events/" + conference;
+
+    // The workshop is on the 6th: the mega event cannot end on the 5th.
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                path,
+                editJson("Mega evento", "2030-01-05T00:00:00Z", "2030-01-05T23:00:00Z", "")))
+        .isEqualTo(400);
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                path,
+                editJson(
+                    "Mega evento",
+                    "2030-01-05T00:00:00Z",
+                    "2030-01-07T23:00:00Z",
+                    ",\"recurrence\":{\"frequency\":\"DAILY\",\"interval\":1,"
+                        + "\"endType\":\"COUNT\",\"count\":2}")))
+        .isEqualTo(400);
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                "/events/" + workshop,
+                editJson(
+                    "Taller",
+                    "2030-01-06T10:00:00Z",
+                    "2030-01-06T12:00:00Z",
+                    ",\"parentEventId\":\"" + UUID.randomUUID() + "\"")))
+        .isEqualTo(400);
+    // It can grow, and the sub-event is still its child.
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                path,
+                editJson("Mega evento", "2030-01-04T00:00:00Z", "2030-01-08T23:00:00Z", "")))
+        .isEqualTo(200);
+    assertThat(json(alice, path).get("children")).hasSize(1);
+  }
+
+  @Test
+  void movingASubEventEmailsThePeopleOfTheMegaEventOnceAndNobodyForAnOpenOne() {
+    var workshop = subEvent("Taller", "INHERIT");
+    var open = subEvent("Culto", "OPEN");
+    var ticket = openRegistration(conference);
+    // Unique, because the outbox table keeps what earlier runs sent.
+    var email = "carol-" + UUID.randomUUID() + "@example.org";
+    body(
+        carol,
+        HttpMethod.POST,
+        "/public/events/" + conferenceSlug + "/registrations",
+        register(ticket, email));
+
+    var moved =
+        read(
+            body(
+                alice,
+                HttpMethod.PUT,
+                "/events/" + workshop,
+                editJson("Taller", "2030-01-07T09:00:00Z", "2030-01-07T11:00:00Z", "")));
+    var openMoved =
+        read(
+            body(
+                alice,
+                HttpMethod.PUT,
+                "/events/" + open,
+                editJson("Culto", "2030-01-07T09:00:00Z", "2030-01-07T11:00:00Z", "")));
+
+    assertThat(moved.get("notifiedPeople").asInt()).isEqualTo(1);
+    assertThat(openMoved.get("notifiedPeople").asInt()).isZero();
+    assertThat(
+            jdbc.queryForList(
+                "select recipient from outbox_message where type = 'EVENT_RESCHEDULED' "
+                    + "and recipient = ?",
+                String.class,
+                email))
+        .hasSize(1);
   }
 
   JsonNode find(JsonNode list, String title) {
