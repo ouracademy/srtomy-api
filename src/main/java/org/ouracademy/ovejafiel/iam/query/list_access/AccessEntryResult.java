@@ -30,8 +30,6 @@ public record AccessEntryResult(
     /** A binding made on the node itself; in practice, Owner. */
     DIRECT,
     /** The permissions of a position the user's person holds. */
-    POSITION,
-    /** Leading a group or ministry. */
-    LEADER
+    POSITION
   }
 }

@@ -1,5 +1,6 @@
 package org.ouracademy.ovejafiel.accountability.domain;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public class SystemAccountabilityTypes {
@@ -15,10 +16,21 @@ public class SystemAccountabilityTypes {
   public static final AccountabilityTypeId[] MEMBER_PROGRESS_STATES =
       new AccountabilityTypeId[] {VISITOR, MEMBERSHIP_IN_PROGRESS, MEMBER};
 
+  /** The name of a progress state ({@code VISITOR}, ...), empty for any other type. */
+  public static Optional<String> progressStateName(AccountabilityTypeId typeId) {
+    if (VISITOR.equals(typeId)) {
+      return Optional.of("VISITOR");
+    }
+    if (MEMBERSHIP_IN_PROGRESS.equals(typeId)) {
+      return Optional.of("MEMBERSHIP_IN_PROGRESS");
+    }
+    if (MEMBER.equals(typeId)) {
+      return Optional.of("MEMBER");
+    }
+    return Optional.empty();
+  }
+
   // Party and Org
   public static final AccountabilityTypeId IS_PART_OF =
       new AccountabilityTypeId(UUID.fromString("1d6e887a-9cd0-461e-b11d-c5d357497ce2"));
-  // Person to group/ministry
-  public static final AccountabilityTypeId LEADER =
-      new AccountabilityTypeId(UUID.fromString("6e0cebd8-4a7a-4ac5-b9dd-658c23708672"));
 }

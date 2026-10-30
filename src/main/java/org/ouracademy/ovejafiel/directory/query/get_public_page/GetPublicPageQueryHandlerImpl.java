@@ -37,9 +37,9 @@ class GetPublicPageQueryHandlerImpl implements GetPublicPageQueryHandler {
   }
 
   private GetPublicPageResult page(Organization node) {
-    var leaders =
+    var team =
         reader
-            .leadersByNode(List.of(node.getId()), Audience.PUBLIC)
+            .teamByNode(List.of(node.getId()), Audience.PUBLIC)
             .getOrDefault(node.getId(), List.of());
     var social = node.getSocialLinks();
     if (node.isGroupOrMinistry()) {
@@ -51,7 +51,7 @@ class GetPublicPageQueryHandlerImpl implements GetPublicPageQueryHandler {
           null,
           null,
           social,
-          leaders,
+          team,
           reader.membersOf(node.getId(), Audience.PUBLIC),
           List.of(),
           null);
@@ -64,7 +64,7 @@ class GetPublicPageQueryHandlerImpl implements GetPublicPageQueryHandler {
         node.getAddress(),
         node.getPhoneNumber(),
         social,
-        leaders,
+        team,
         null,
         reader.positionsOf(node.getId(), Audience.PUBLIC).entrySet().stream()
             .map(entry -> new PositionPeople(entry.getKey(), entry.getValue()))
@@ -72,38 +72,38 @@ class GetPublicPageQueryHandlerImpl implements GetPublicPageQueryHandler {
         node.isShowOrgChart() ? orgChart(node) : null);
   }
 
-  /** The tree below the node, without the nodes that only leaders can see (nor their subtrees). */
+  /** The tree below the node, without the nodes that only team can see (nor their subtrees). */
   private OrgChartNode orgChart(Organization root) {
     var ids =
         findOrganizationSubtreeQueryHandler
             .handle(new FindOrganizationSubtreeQuery(root.getId()))
             .ids();
     var nodes = reader.nodes(ids);
-    var leaders = reader.leadersByNode(ids, Audience.PUBLIC);
+    var team = reader.teamByNode(ids, Audience.PUBLIC);
     var childrenByParent =
         nodes.stream()
             .filter(node -> node.getParent() != null)
             .filter(node -> node.getMemberVisibility() != MemberVisibility.LEADERS)
             .collect(Collectors.groupingBy(node -> node.getParent().getId()));
-    return chart(root, childrenByParent, leaders);
+    return chart(root, childrenByParent, team);
   }
 
   private OrgChartNode chart(
       Organization node,
       Map<PartyId, List<Organization>> childrenByParent,
-      Map<PartyId, List<String>> leaders) {
+      Map<PartyId, List<String>> team) {
     Collection<Organization> children = childrenByParent.getOrDefault(node.getId(), List.of());
     return new OrgChartNode(
         node.getName(),
         node.getType(),
         node.getMemberVisibility() == MemberVisibility.PUBLIC ? node.getSlug() : null,
-        leaders.getOrDefault(node.getId(), List.of()),
+        team.getOrDefault(node.getId(), List.of()),
         children.stream()
             .sorted(
                 java.util.Comparator.comparing(
                     Organization::getName,
                     java.util.Comparator.nullsLast(String::compareToIgnoreCase)))
-            .map(child -> chart(child, childrenByParent, leaders))
+            .map(child -> chart(child, childrenByParent, team))
             .toList());
   }
 }

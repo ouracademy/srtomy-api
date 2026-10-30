@@ -40,6 +40,9 @@ public interface AccountabilityRepository extends JpaRepository<Accountability, 
   int endByChildIdAndParentIdIn(
       PartyId childId, Collection<PartyId> parentIds, LocalDateTime endedAt);
 
+  List<Accountability> findByChildIdAndParentIdInAndTypeIdIn(
+      PartyId childId, Collection<PartyId> parentIds, Collection<AccountabilityTypeId> typeIds);
+
   List<Accountability> findByChildIdAndTypeId(PartyId childId, AccountabilityTypeId typeId);
 
   /** How many different people hold each of the positions. */

@@ -6,10 +6,9 @@ import org.ouracademy.ovejafiel.organization.domain.SocialLinks;
 
 /**
  * What the public page of a node shows. Only people known to be adults are named. A group or
- * ministry shows its leaders and members; a church or location its ministerial positions and, when
- * the node allows it, the org chart. {@code members}, {@code positions} and {@code orgChart} are
- * empty or null when they do not apply. Address and phone are only given for churches and
- * locations.
+ * ministry shows its team and members; a church or location its ministerial positions and, when the
+ * node allows it, the org chart. {@code members}, {@code positions} and {@code orgChart} are empty
+ * or null when they do not apply. Address and phone are only given for churches and locations.
  */
 public record GetPublicPageResult(
     String name,
@@ -19,7 +18,7 @@ public record GetPublicPageResult(
     String address,
     String phoneNumber,
     SocialLinks socialLinks,
-    List<String> leaders,
+    List<String> team,
     List<String> members,
     List<PositionPeople> positions,
     OrgChartNode orgChart) {
@@ -31,6 +30,6 @@ public record GetPublicPageResult(
       String name,
       Organization.Type type,
       String slug,
-      List<String> leaders,
+      List<String> team,
       List<OrgChartNode> children) {}
 }

@@ -6,12 +6,8 @@ import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 
 /**
- * Creates a group or ministry under a location, group or ministry, with its members (IS_PART_OF)
- * and leaders (LEADER).
+ * Creates a group or ministry under a location, group or ministry, with the people who start in it
+ * (as members, with their church knowing them too).
  */
 public record CreateLocationChildCommand(
-    OrganizationInfo info,
-    PartyId parentId,
-    Organization.Type type,
-    List<PartyId> memberIds,
-    List<PartyId> leaderIds) {}
+    OrganizationInfo info, PartyId parentId, Organization.Type type, List<PartyId> memberIds) {}

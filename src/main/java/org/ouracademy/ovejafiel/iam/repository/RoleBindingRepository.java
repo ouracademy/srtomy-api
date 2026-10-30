@@ -179,7 +179,7 @@ public interface RoleBindingRepository extends JpaRepository<RoleBinding, RoleBi
 
     String getOrganizationName();
 
-    /** {@code DIRECT}, {@code POSITION} or {@code LEADER}. */
+    /** {@code DIRECT} or {@code POSITION}. */
     String getSource();
 
     /** The position the access comes from; only set for {@code POSITION}. */

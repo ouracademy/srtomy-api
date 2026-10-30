@@ -1,15 +1,13 @@
 package org.ouracademy.ovejafiel.person.command.restore_person;
 
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-
-import java.util.List;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommand;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommandHandler;
-import org.ouracademy.ovejafiel.accountability.command.create_accountability.CreateAccountabilityCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQuery;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQuery;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQueryHandler;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
 import org.ouracademy.ovejafiel.shared.domain.ConflictException;
@@ -22,7 +20,8 @@ class RestorePersonCommandHandlerImpl implements RestorePersonCommandHandler {
 
   private final PersonRepository personRepository;
   private final FindOrganizationsOfMemberQueryHandler findOrganizationsOfMemberQueryHandler;
-  private final CreateAccountabilitiesCommandHandler createAccountabilitiesCommandHandler;
+  private final SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
+  private final FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
 
   @Override
   @Transactional
@@ -43,13 +42,14 @@ class RestorePersonCommandHandlerImpl implements RestorePersonCommandHandler {
     }
 
     person.restore();
-    createAccountabilitiesCommandHandler.handle(
-        new CreateAccountabilitiesCommand(
-            List.of(
-                new CreateAccountabilityCommand(
-                    command.personId(), command.organizationId(), MemberState.VISITOR.typeId()),
-                new CreateAccountabilityCommand(
-                    command.personId(), command.organizationId(), IS_PART_OF))));
+    setNodeMembershipCommandHandler.handle(
+        new SetNodeMembershipCommand(
+            command.personId(),
+            command.organizationId(),
+            findOrganizationAncestorsQueryHandler
+                .handle(new FindOrganizationAncestorsQuery(command.organizationId()))
+                .ids(),
+            MemberState.VISITOR.typeId()));
     return new RestorePersonResult(command.personId());
   }
 }

@@ -3,7 +3,6 @@ package org.ouracademy.ovejafiel.directory.query.get_my_nodes;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -92,7 +91,6 @@ class GetMyNodesQueryHandlerImpl implements GetMyNodesQueryHandler {
                   node.type(),
                   church.id(),
                   church.name(),
-                  links.stream().anyMatch(link -> link.typeId().equals(LEADER)),
                   links.stream()
                       .map(PersonAccountabilityResult::position)
                       .filter(Objects::nonNull)
@@ -103,11 +101,9 @@ class GetMyNodesQueryHandlerImpl implements GetMyNodesQueryHandler {
         .toList();
   }
 
-  /** Leading, belonging or holding a position; other system accountabilities are not links. */
+  /** Belonging (being on the list) or holding a position; a bare state is not a link. */
   private static boolean isNodeLink(PersonAccountabilityResult link) {
-    return link.position() != null
-        || link.typeId().equals(LEADER)
-        || link.typeId().equals(IS_PART_OF);
+    return link.position() != null || link.typeId().equals(IS_PART_OF);
   }
 
   /** Whether {@code nodeId} is the church or hangs from it, walking up the visible tree. */

@@ -3,6 +3,7 @@ package org.ouracademy.ovejafiel.person.controller.dto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.query.FindPersonResult;
 
 /** Same JSON fields the endpoints returned when they serialized the Person entity. */
@@ -20,9 +21,16 @@ public record PersonResponse(
     LocalDate birthdate,
     Boolean hasBeenBaptized,
     LocalDateTime createDate,
-    LocalDateTime lastModifiedDate) {
+    LocalDateTime lastModifiedDate,
+    MemberState memberState) {
 
+  /** The person alone, without how they stand in any node. */
   public static PersonResponse from(FindPersonResult result) {
+    return from(result, null);
+  }
+
+  /** The person and, when given, their state in the node that was listed. */
+  public static PersonResponse from(FindPersonResult result, MemberState state) {
     return new PersonResponse(
         result.id().value(),
         result.name(),
@@ -37,6 +45,7 @@ public record PersonResponse(
         result.birthdate(),
         result.hasBeenBaptized(),
         result.createDate(),
-        result.lastModifiedDate());
+        result.lastModifiedDate(),
+        state);
   }
 }

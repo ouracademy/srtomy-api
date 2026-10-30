@@ -7,12 +7,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.ovejafiel.accountability.domain.AccountabilityId;
-import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQuery;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQueryHandler;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth.MemberGrowthResult;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.domain.PredefinedRoles;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQuery;
@@ -39,12 +39,8 @@ import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
 import org.ouracademy.ovejafiel.organization.query.PersonDetails;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_children.FindOrganizationChildrenQueryHandler;
-import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQuery;
-import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQueryHandler;
-import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenResult;
-import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberStateQuery;
-import org.ouracademy.ovejafiel.organization.query.get_member_state.GetMemberStateQueryHandler;
-import org.ouracademy.ovejafiel.organization.query.get_member_state.MemberStateResult;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
@@ -76,8 +72,8 @@ class OrganizationControllerTests {
   @MockitoBean DeleteOrganizationCommandHandler deleteOrganizationCommandHandler;
   @MockitoBean FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   @MockitoBean FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
-  @MockitoBean GetLocationChildrenQueryHandler getLocationChildrenQueryHandler;
-  @MockitoBean GetMemberStateQueryHandler getMemberStateQueryHandler;
+  @MockitoBean GetMemberGrowthQueryHandler getMemberGrowthQueryHandler;
+  @MockitoBean FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
 
   static final PersonDetails ANA_DETAILS =
@@ -330,14 +326,7 @@ class OrganizationControllerTests {
                 .uri("/v1/organizations/locations/childs/" + PartyId.generate().value())
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"name\":\"Youth\",\"type\":\"MINISTRY\","
-                        + "\"leaderIds\":[\""
-                        + PartyId.generate().value()
-                        + "\"],"
-                        + "\"memberIds\":[\""
-                        + PartyId.generate().value()
-                        + "\"]}"))
+                .content("{\"name\":\"Youth\",\"type\":\"MINISTRY\"}"))
         .hasStatus(404);
   }
 
@@ -348,15 +337,52 @@ class OrganizationControllerTests {
                 .uri("/v1/organizations/locations/childs/" + PartyId.generate().value())
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"name\":\"Church\",\"type\":\"CHURCH\","
-                        + "\"leaderIds\":[\""
-                        + PartyId.generate().value()
-                        + "\"],"
-                        + "\"memberIds\":[\""
-                        + PartyId.generate().value()
-                        + "\"]}"))
+                .content("{\"name\":\"Church\",\"type\":\"CHURCH\"}"))
         .hasStatus(400);
+  }
+
+  @Test
+  void growthReturnsTheCurrentCountsAndTheMonthsAndClampsTheRange() {
+    var id = PartyId.generate();
+    var below = PartyId.generate();
+    given(findOrganizationSubtreeQueryHandler.handle(any()))
+        .willReturn(new FindOrganizationSubtreeResult(List.of(id, below)));
+    given(getMemberGrowthQueryHandler.handle(any()))
+        .willReturn(
+            new MemberGrowthResult(
+                new MemberGrowthResult.StateCounts(4, 3, 10),
+                List.of(new MemberGrowthResult.Month("2026-10", 5, 2, 1, 1, 17, 10))));
+
+    var response =
+        assertThat(
+                mvc.get()
+                    .uri("/v1/organizations/" + id.value() + "/growth?months=999")
+                    .header("Authorization", bearer()))
+            .hasStatusOk()
+            .bodyJson();
+    response.extractingPath("$.current.members").isEqualTo(10);
+    response.extractingPath("$.current.total").isEqualTo(17);
+    response.extractingPath("$.months[0].month").isEqualTo("2026-10");
+    response.extractingPath("$.months[0].membersAtEnd").isEqualTo(10);
+
+    org.mockito.Mockito.verify(getMemberGrowthQueryHandler)
+        .handle(new GetMemberGrowthQuery(List.of(id, below), 36));
+    org.mockito.Mockito.verify(authorizeQueryHandler)
+        .handle(new AuthorizeQuery("test-user", id, Permission.MEMBERS_READ));
+  }
+
+  @Test
+  void growthNeedsMembersRead() {
+    org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("no"))
+        .when(authorizeQueryHandler)
+        .handle(any());
+
+    assertThat(
+            mvc.get()
+                .uri("/v1/organizations/" + PartyId.generate().value() + "/growth")
+                .header("Authorization", bearer()))
+        .hasStatus(403);
+    org.mockito.Mockito.verifyNoInteractions(getMemberGrowthQueryHandler);
   }
 
   @Test
@@ -376,65 +402,5 @@ class OrganizationControllerTests {
     given(deleteOrganizationCommandHandler.handle(command))
         .willReturn(new DeleteOrganizationResult(Outcome.NOT_FOUND));
     assertThat(mvc.delete().uri(uri).header("Authorization", bearer())).hasStatus(404);
-  }
-
-  @Test
-  void locationChildMembersAreGroupedByTypeName() {
-    var groupId = PartyId.generate();
-    var memberId = PartyId.generate();
-    given(getLocationChildrenQueryHandler.handle(new GetLocationChildrenQuery(groupId)))
-        .willReturn(
-            new GetLocationChildrenResult(
-                Map.of(
-                    "IS_PART_OF",
-                    List.of(
-                        new GetLocationChildrenResult.Child(memberId, "Ana Diaz", ANA_DETAILS),
-                        new GetLocationChildrenResult.Child(
-                            PartyId.generate(), "Sin ficha", null)))));
-
-    var response =
-        assertThat(
-                mvc.get()
-                    .uri("/v1/organizations/locations/childs/" + groupId.value() + "/members")
-                    .header("Authorization", bearer()))
-            .hasStatusOk()
-            .bodyJson();
-    response.extractingPath("$.IS_PART_OF[0].name").isEqualTo("Ana Diaz");
-    response.doesNotHavePath("$.IS_PART_OF[0].kind");
-    response.extractingPath("$.IS_PART_OF[0].firstName").isEqualTo("Ana");
-    response.extractingPath("$.IS_PART_OF[0].lastName").isEqualTo("Diaz");
-    response.extractingPath("$.IS_PART_OF[0].age").isEqualTo(30);
-    response.extractingPath("$.IS_PART_OF[0].birthdate").isEqualTo("1995-05-17");
-    response.extractingPath("$.IS_PART_OF[1].firstName").isNull();
-  }
-
-  @Test
-  void memberStateKeepsTheNestedChildAndTypeNames() {
-    var orgId = PartyId.generate();
-    given(getMemberStateQueryHandler.handle(new GetMemberStateQuery(orgId)))
-        .willReturn(
-            List.of(
-                new MemberStateResult(
-                    AccountabilityId.generate(),
-                    PartyId.generate(),
-                    "Ana",
-                    orgId,
-                    AccountabilityTypeId.generate(),
-                    "VISITOR",
-                    ANA_DETAILS)));
-
-    var response =
-        assertThat(
-                mvc.get()
-                    .uri("/v1/organizations/" + orgId.value() + "/member-state")
-                    .header("Authorization", bearer()))
-            .hasStatusOk()
-            .bodyJson();
-    response.extractingPath("$[0].child.name").isEqualTo("Ana");
-    response.extractingPath("$[0].type.name").isEqualTo("VISITOR");
-    response.extractingPath("$[0].child.firstName").isEqualTo("Ana");
-    response.extractingPath("$[0].child.lastName").isEqualTo("Diaz");
-    response.extractingPath("$[0].child.age").isEqualTo(30);
-    response.extractingPath("$[0].child.birthdate").isEqualTo("1995-05-17");
   }
 }
