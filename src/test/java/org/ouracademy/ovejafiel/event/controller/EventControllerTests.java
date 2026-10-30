@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
-import org.apache.commons.lang3.NotImplementedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -26,7 +25,9 @@ import org.ouracademy.ovejafiel.event.command.create_event.CreateEventResult;
 import org.ouracademy.ovejafiel.event.command.delete_event.DeleteEventCommand;
 import org.ouracademy.ovejafiel.event.command.delete_event.DeleteEventCommandHandler;
 import org.ouracademy.ovejafiel.event.command.delete_event.DeleteEventResult;
+import org.ouracademy.ovejafiel.event.command.edit_event.EditEventCommand;
 import org.ouracademy.ovejafiel.event.command.edit_event.EditEventCommandHandler;
+import org.ouracademy.ovejafiel.event.command.edit_event.EditEventResult;
 import org.ouracademy.ovejafiel.event.domain.AccessLevel;
 import org.ouracademy.ovejafiel.event.domain.EventChangeOption;
 import org.ouracademy.ovejafiel.event.domain.EventId;
@@ -47,6 +48,7 @@ import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
+import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -292,10 +294,112 @@ class EventControllerTests {
         .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
   }
 
-  @Test
-  void editIsNotImplementedYet() {
-    given(editEventCommandHandler.handle(any())).willThrow(new NotImplementedException("TODO:"));
+  private static String editBody(UUID organizationId, String extra) {
+    return """
+        {"name": "Servicio", "startTime": "2026-01-05T10:00:00-05:00",
+         "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s",
+         "address": "Av. Lima 1", "description": "Culto", "isACourse": true,
+         "speakerIds": ["%s"] %s}
+        """
+        .formatted(organizationId, speakerId, extra);
+  }
 
+  static final UUID speakerId = UUID.randomUUID();
+
+  @Test
+  void editPassesAllTheDataToTheHandlerAndReturnsWhatItDid() {
+    var eventId = EventId.generate();
+    var organizationId = UUID.randomUUID();
+    given(editEventCommandHandler.handle(any())).willReturn(new EditEventResult(eventId, 3, 2));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + eventId.value())
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    editBody(
+                        organizationId,
+                        """
+                        , "option": "ALL_EVENTS", "timeZone": "America/Lima",
+                        "recurrence": {"frequency": "DAILY", "endType": "COUNT", "count": 4}""")))
+        .hasStatusOk()
+        .bodyJson()
+        .extractingPath("$.keptEvents")
+        .isEqualTo(3);
+
+    var captor = ArgumentCaptor.forClass(EditEventCommand.class);
+    verify(editEventCommandHandler).handle(captor.capture());
+    var command = captor.getValue();
+    assertThat(command.id()).isEqualTo(eventId);
+    assertThat(command.option()).isEqualTo(EventChangeOption.ALL_EVENTS);
+    assertThat(command.name()).isEqualTo("Servicio");
+    assertThat(command.startTime()).isEqualTo(OffsetDateTime.parse("2026-01-05T10:00:00-05:00"));
+    assertThat(command.address()).isEqualTo("Av. Lima 1");
+    assertThat(command.description()).isEqualTo("Culto");
+    assertThat(command.isACourse()).isTrue();
+    assertThat(command.organizationId()).isEqualTo(new PartyId(organizationId));
+    assertThat(command.speakerIds()).containsExactly(new PartyId(speakerId));
+    assertThat(command.recurrence().getFrequency()).isEqualTo(Recurrence.Frequency.DAILY);
+    assertThat(command.timeZone()).isEqualTo(ZoneId.of("America/Lima"));
+    assertThat(command.now()).isNotNull();
+  }
+
+  @Test
+  void editWithoutOptionOrRecurrenceEditsOnlyThisEventAndKeepsTheRule() {
+    var eventId = EventId.generate();
+    given(editEventCommandHandler.handle(any())).willReturn(new EditEventResult(eventId, 0, 0));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + eventId.value())
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(editBody(UUID.randomUUID(), "")))
+        .hasStatusOk();
+
+    var captor = ArgumentCaptor.forClass(EditEventCommand.class);
+    verify(editEventCommandHandler).handle(captor.capture());
+    assertThat(captor.getValue().option()).isEqualTo(EventChangeOption.THIS_EVENT);
+    assertThat(captor.getValue().recurrence()).isNull();
+    assertThat(captor.getValue().timeZone()).isNull();
+  }
+
+  @Test
+  void editNeedsAnEditorOfTheEvent() {
+    var id = UUID.randomUUID();
+    given(
+            authorizeEventQueryHandler.handle(
+                new AuthorizeEventQuery("test-user", new EventId(id), AccessLevel.EDITOR)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + id)
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(editBody(UUID.randomUUID(), "")))
+        .hasStatus(403);
+    verifyNoInteractions(editEventCommandHandler);
+  }
+
+  @Test
+  void editingAnEventThatChangesTheNodeOrTheKindIsABadRequest() {
+    given(editEventCommandHandler.handle(any()))
+        .willThrow(new DomainValidationException("No se puede cambiar la iglesia"));
+
+    assertThat(
+            mvc.put()
+                .uri("/v1/events/" + UUID.randomUUID())
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(editBody(UUID.randomUUID(), "")))
+        .hasStatus(400)
+        .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+  }
+
+  @Test
+  void editWithoutANameIsABadRequest() {
     assertThat(
             mvc.put()
                 .uri("/v1/events/" + UUID.randomUUID())
@@ -303,13 +407,12 @@ class EventControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"name": "Servicio", "startTime": "2026-01-05T10:00:00-05:00",
-                     "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s",
-                     "option": "THIS_EVENT"}
+                    {"startTime": "2026-01-05T10:00:00-05:00",
+                     "endTime": "2026-01-05T12:00:00-05:00", "organizationId": "%s"}
                     """
                         .formatted(UUID.randomUUID())))
-        .hasStatus(500)
-        .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+        .hasStatus(400);
+    verifyNoInteractions(editEventCommandHandler);
   }
 
   @Test
