@@ -139,7 +139,7 @@ class EditEventsIntegrationTests {
     assertThat(json(alice, "/events/" + id + "/registrations")).hasSize(2);
     assertThat(
             jdbc.queryForList(
-                "select recipient from outbox_message where type = 'EVENT_RESCHEDULED' "
+                "select recipient from outbox_message where type = 'EVENT_CHANGED' "
                     + "and recipient in (?, ?) order by recipient",
                 String.class,
                 email("lucia"),
@@ -148,20 +148,37 @@ class EditEventsIntegrationTests {
   }
 
   @Test
-  void changingOnlyTheDataEmailsNobody() {
+  void aNewNameOrPlaceEmailsWhoSignedUpButTheSameDataDoesNot() {
     var day = nextDay(5);
     var id = createEvent("Retiro", day, null);
     signUpFor(id, openRegistration(id), email("sin-aviso"));
+    var sameData = editJson("Retiro", at(day, 15), null, "THIS_EVENT", group(), false);
 
-    var response = edit(id, "Retiro 2", at(day, 15), null, "THIS_EVENT");
-
-    assertThat(response.get("notifiedPeople").asInt()).isZero();
+    // Same name, place (Av. 1) and time: nothing to tell.
+    var quiet =
+        read(
+            body(
+                alice,
+                HttpMethod.PUT,
+                "/events/" + id,
+                sameData.replace("Nueva dirección", "Av. 1")));
+    assertThat(quiet.get("notifiedPeople").asInt()).isZero();
     assertThat(
             jdbc.queryForObject(
                 "select count(*) from outbox_message where recipient = ?",
                 Integer.class,
                 email("sin-aviso")))
         .isZero();
+
+    // Another place: they are told.
+    var loud = edit(id, "Retiro", at(day, 15), null, "THIS_EVENT");
+    assertThat(loud.get("notifiedPeople").asInt()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from outbox_message where recipient = ? and type = 'EVENT_CHANGED'",
+                Integer.class,
+                email("sin-aviso")))
+        .isEqualTo(1);
   }
 
   @Test

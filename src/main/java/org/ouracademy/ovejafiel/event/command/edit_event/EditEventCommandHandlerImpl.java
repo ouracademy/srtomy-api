@@ -16,7 +16,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommand;
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommandHandler;
@@ -73,17 +75,24 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
 
   /** What the request asks for, in the form the events store it. */
   private record Edit(
-      EditEventCommand command, ZonedDateTime start, ZonedDateTime end, List<Person> speakers) {
+      EditEventCommand command,
+      ZonedDateTime start,
+      ZonedDateTime end,
+      List<Person> speakers,
+      List<String> speakerNames) {
 
     Duration duration() {
       return Duration.between(start, end);
     }
   }
 
-  /** What a run changed: how many occurrences it left alone and which ones moved in time. */
+  /** What changed in one occurrence that matters to whoever signed up for it. */
+  private record Notice(Event event, boolean time, boolean name, boolean place, boolean speakers) {}
+
+  /** What a run changed: how many occurrences it left alone and what changed in the others. */
   private static final class Outcome {
     int kept;
-    final List<Event> rescheduled = new ArrayList<>();
+    final List<Notice> notices = new ArrayList<>();
   }
 
   @Override
@@ -110,7 +119,7 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
       editSeries(event, series, edit, outcome);
     }
     validateSchedule(event, edit);
-    var notified = notifyRegistrations(outcome.rescheduled, displayZone);
+    var notified = notifyRegistrations(outcome.notices, edit, displayZone);
     return new EditEventResult(event.getId(), outcome.kept, notified);
   }
 
@@ -128,7 +137,15 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
     if (end.isBefore(start)) {
       throw new DomainValidationException("La hora de fin no puede ser anterior a la de inicio");
     }
-    return new Edit(command, start, end, speakersOf(command.speakerIds()));
+    var people = findPeople(command.speakerIds());
+    return new Edit(
+        command,
+        start,
+        end,
+        command.speakerIds().stream()
+            .map(id -> entityManager.getReference(Person.class, id))
+            .toList(),
+        people.stream().map(FindPersonResult::name).toList());
   }
 
   /**
@@ -329,20 +346,28 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
 
   // ---- helpers
 
-  /** Writes the edit into the event, with the given times, and remembers whether they changed. */
+  /**
+   * Writes the edit into the event, with the given times, and remembers what changed that the
+   * people signed up for it should know: the time, the name, the place and the speakers (not the
+   * description).
+   */
   private void apply(
       Event event, Edit edit, ZonedDateTime start, ZonedDateTime end, Outcome outcome) {
-    var moved = !sameInstant(event.getStart(), start) || !sameInstant(event.getEnd(), end);
+    var command = edit.command();
+    var time = !sameInstant(event.getStart(), start) || !sameInstant(event.getEnd(), end);
+    var name = !Objects.equals(event.getTitle(), command.name());
+    var place = !Objects.equals(blankToNull(event.getAddress()), blankToNull(command.address()));
+    var oldSpeakers = event.getSpeakers().stream().map(Person::getId).collect(Collectors.toSet());
+    var speakers = !oldSpeakers.equals(new HashSet<>(command.speakerIds()));
     event.edit(
-        edit.command().name(),
-        start,
-        end,
-        edit.command().address(),
-        edit.command().description(),
-        edit.speakers());
-    if (moved) {
-      outcome.rescheduled.add(event);
+        command.name(), start, end, command.address(), command.description(), edit.speakers());
+    if (time || name || place || speakers) {
+      outcome.notices.add(new Notice(event, time, name, place, speakers));
     }
+  }
+
+  private static String blankToNull(String text) {
+    return text == null || text.isBlank() ? null : text.trim();
   }
 
   private void fillSeries(EventSeries series, Edit edit) {
@@ -364,62 +389,79 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
     return LocalDate.ofInstant(edit.command().now(), zone);
   }
 
-  private List<Person> speakersOf(List<PartyId> speakerIds) {
-    var found =
-        findPeopleByIdsQueryHandler.handle(new FindPeopleByIdsQuery(speakerIds)).stream()
-            .map(FindPersonResult::id)
-            .toList();
+  private List<FindPersonResult> findPeople(List<PartyId> speakerIds) {
+    var found = findPeopleByIdsQueryHandler.handle(new FindPeopleByIdsQuery(speakerIds));
     var missing = new HashSet<>(speakerIds);
-    found.forEach(missing::remove);
+    found.stream().map(FindPersonResult::id).forEach(missing::remove);
     if (!missing.isEmpty()) {
       throw new NoSuchElementException(
           "Speakers not found: " + missing.stream().map(PartyId::value).toList());
     }
-    return speakerIds.stream().map(id -> entityManager.getReference(Person.class, id)).toList();
+    return found;
   }
 
   // ---- email to whoever signed up
 
-  /** One email per person listing the occurrences they signed up for whose time changed. */
-  private int notifyRegistrations(List<Event> rescheduled, ZoneId zone) {
-    if (rescheduled.isEmpty()) {
+  /** One email per person listing what changed and the dates of their occurrences. */
+  private int notifyRegistrations(List<Notice> notices, Edit edit, ZoneId zone) {
+    if (notices.isEmpty()) {
       return 0;
     }
+    var byId = new LinkedHashMap<EventId, Notice>();
+    notices.forEach(notice -> byId.put(notice.event().getId(), notice));
     var registrations =
         eventRegistrationRepository.findByEventIdInAndStatusNot(
-            rescheduled.stream().map(Event::getId).toList(), RegistrationStatus.CANCELLED);
-    var byPerson = new LinkedHashMap<String, List<Event>>();
+            List.copyOf(byId.keySet()), RegistrationStatus.CANCELLED);
+    var byPerson = new LinkedHashMap<String, List<Notice>>();
     var names = new LinkedHashMap<String, String>();
     for (var registration : registrations) {
       var email = registration.getEmail().trim().toLowerCase();
-      byPerson.computeIfAbsent(email, k -> new ArrayList<>()).add(registration.getEvent());
+      byPerson
+          .computeIfAbsent(email, k -> new ArrayList<>())
+          .add(byId.get(registration.getEvent().getId()));
       names.putIfAbsent(email, registration.getFirstName());
     }
     byPerson.forEach(
-        (email, events) -> {
-          events.sort(Comparator.comparing(e -> e.getStart().toInstant()));
+        (email, theirs) -> {
+          theirs.sort(Comparator.comparing(n -> n.event().getStart().toInstant()));
+          var title = theirs.getFirst().event().getTitle();
           sendEmailCommandHandler.handle(
               new SendEmailCommand(
-                  "EVENT_RESCHEDULED",
+                  "EVENT_CHANGED",
                   email,
-                  (events.size() == 1 ? "Cambió la fecha de «" : "Cambiaron las fechas de «")
-                      + events.getFirst().getTitle()
-                      + "»",
-                  body(names.get(email), events, zone)));
+                  "Cambios en «" + title + "»",
+                  body(names.get(email), theirs, edit, zone)));
         });
     return byPerson.size();
   }
 
-  private String body(String firstName, List<Event> events, ZoneId zone) {
+  private String body(String firstName, List<Notice> notices, Edit edit, ZoneId zone) {
+    var command = edit.command();
+    var first = notices.getFirst().event();
     var text = new StringBuilder("Hola " + firstName + ",\n\n");
-    text.append(
-        events.size() == 1
-            ? "Cambió la fecha de «" + events.getFirst().getTitle() + "», al que te inscribiste. "
-            : "Cambiaron las fechas de «"
-                + events.getFirst().getTitle()
-                + "», a los que te inscribiste. ");
-    text.append("Ahora es (hora de ").append(zone.getId()).append("):\n\n");
-    for (var event : events) {
+    text.append("Hubo cambios en «")
+        .append(first.getTitle())
+        .append("», al que te inscribiste:\n\n");
+    if (notices.stream().anyMatch(Notice::time)) {
+      text.append("• Cambió la fecha u hora (ver abajo).\n");
+    }
+    if (notices.stream().anyMatch(Notice::name)) {
+      text.append("• Nuevo nombre: «").append(command.name()).append("».\n");
+    }
+    if (notices.stream().anyMatch(Notice::place)) {
+      var place = blankToNull(command.address());
+      text.append(
+          place == null ? "• Ya no hay un lugar definido.\n" : "• Nuevo lugar: " + place + ".\n");
+    }
+    if (notices.stream().anyMatch(Notice::speakers)) {
+      text.append(
+          edit.speakerNames().isEmpty()
+              ? "• Ya no hay ponentes definidos.\n"
+              : "• Ponentes: " + String.join(", ", edit.speakerNames()) + ".\n");
+    }
+    text.append("\nTu inscripción es para (hora de ").append(zone.getId()).append("):\n\n");
+    for (var notice : notices) {
+      var event = notice.event();
       text.append("• ")
           .append(WHEN.format(event.getStart().withZoneSameInstant(zone)))
           .append(" a ")

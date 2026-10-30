@@ -11,7 +11,7 @@
    - evento suelto → se edita en el lugar; con `recurrence` se vuelve la primera ocurrencia de una serie nueva;
    - `THIS_EVENT` → se edita y sale de la serie;
    - `THIS_AND_THE_FOLLOWING_EVENTS`/`ALL_EVENTS` → **en el lugar** si no cambió regla, zona ni día; **regenerar** si cambió alguna (ver spec, decisión 4).
-   Después envía un correo por persona (`SendEmailCommandHandler`, tipo `EVENT_RESCHEDULED`) con las ocurrencias suyas cuyo inicio o fin cambió.
+   Después envía un correo por persona (`SendEmailCommandHandler`, tipo `EVENT_CHANGED`) con lo que cambió (hora, nombre, lugar o ponentes) y las fechas de sus ocurrencias.
 5. **Cruce de módulos**: asistencia se consulta con `attendance.query.find_event_ids_with_attendance` (nuevo, devuelve solo ids con alguien presente o visitantes contados); la asistencia de lo que se reemplaza se borra con `DeleteAttendanceForEventsCommandHandler`, como en borrar. Las inscripciones están en el propio módulo (`EventRegistrationRepository.findByEventIdInAndStatusNot`).
 6. **Punto de extensión**: `validateSchedule(event, edit)` en el handler, vacío, para los eventos compuestos (spec 012).
 7. Sin migración: ninguna columna nueva.
