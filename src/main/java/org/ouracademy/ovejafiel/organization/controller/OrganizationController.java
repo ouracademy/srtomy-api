@@ -2,6 +2,9 @@ package org.ouracademy.ovejafiel.organization.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -9,6 +12,8 @@ import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQuery;
 import org.ouracademy.ovejafiel.accountability.query.get_member_growth.GetMemberGrowthQueryHandler;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth_for_range.GetMemberGrowthForRangeQuery;
+import org.ouracademy.ovejafiel.accountability.query.get_member_growth_for_range.GetMemberGrowthForRangeQueryHandler;
 import org.ouracademy.ovejafiel.iam.domain.IamRoleId;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQuery;
@@ -33,6 +38,7 @@ import org.ouracademy.ovejafiel.organization.command.update_location_child.Updat
 import org.ouracademy.ovejafiel.organization.controller.dto.CreateChurchRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.CreateLocationRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.LocationChildRequest;
+import org.ouracademy.ovejafiel.organization.controller.dto.MemberGrowthRangeResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.MemberGrowthResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.OrganizationRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.OrganizationResponse;
@@ -45,7 +51,10 @@ import org.ouracademy.ovejafiel.organization.query.find_organization_children.Fi
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
+import org.ouracademy.ovejafiel.shared.BucketUnit;
 import org.ouracademy.ovejafiel.shared.TokenClaims;
+import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -81,6 +90,7 @@ public class OrganizationController {
   FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
   GetMemberGrowthQueryHandler getMemberGrowthQueryHandler;
+  GetMemberGrowthForRangeQueryHandler getMemberGrowthForRangeQueryHandler;
   FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
@@ -227,6 +237,43 @@ public class OrganizationController {
     return MemberGrowthResponse.from(
         getMemberGrowthQueryHandler.handle(
             new GetMemberGrowthQuery(subtree.ids(), Math.clamp(months, 1, 36))));
+  }
+
+  /**
+   * Same idea as {@link #growth}, but over an explicit {@code [startDate, endDate]} range instead
+   * of the last N calendar months. The bucket is chosen from the length of the range: a day for up
+   * to a month, a week for up to about four months, a month beyond that.
+   */
+  @GetMapping("{id}/growth-range")
+  public MemberGrowthRangeResponse growthRange(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+    authorize(jwt, id, Permission.MEMBERS_READ);
+    if (startDate.isAfter(endDate)) {
+      throw new DomainValidationException("La fecha de inicio no puede ser posterior a la de fin");
+    }
+    var subtree =
+        findOrganizationSubtreeQueryHandler.handle(
+            new FindOrganizationSubtreeQuery(new PartyId(id)));
+    var start = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+    var end = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).minusNanos(1).toInstant();
+    return MemberGrowthRangeResponse.from(
+        getMemberGrowthForRangeQueryHandler.handle(
+            new GetMemberGrowthForRangeQuery(
+                subtree.ids(), start, end, bucketFor(startDate, endDate))));
+  }
+
+  private static BucketUnit bucketFor(LocalDate startDate, LocalDate endDate) {
+    var days = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+    if (days <= 31) {
+      return BucketUnit.DAY;
+    }
+    if (days <= 120) {
+      return BucketUnit.WEEK;
+    }
+    return BucketUnit.MONTH;
   }
 
   @DeleteMapping("{id}")
