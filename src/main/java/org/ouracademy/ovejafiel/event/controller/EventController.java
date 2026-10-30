@@ -162,6 +162,8 @@ public class EventController {
                 request.getSpeakerIds().stream().map(PartyId::new).toList(),
                 request.getRecurrence() == null ? null : request.getRecurrence().toRecurrence(),
                 request.getTimeZone() == null ? null : request.zone(),
+                request.getParentEventId() == null ? null : new EventId(request.getParentEventId()),
+                request.getRegistrationMode(),
                 Instant.now()));
     return new EditEventResponse(result.id().value(), result.keptEvents(), result.notifiedPeople());
   }
