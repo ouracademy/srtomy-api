@@ -1,7 +1,6 @@
 package org.ouracademy.ovejafiel.directory.query;
 
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -36,21 +35,39 @@ public class DirectoryReader {
 
   private final DirectoryRepository directoryRepository;
 
-  public Map<PartyId, List<String>> leadersByNode(Collection<PartyId> nodeIds, Audience audience) {
-    return namesByNode(directoryRepository.findPeople(nodeIds, LEADER), audience);
+  /**
+   * The people who hold a position (cargo) in each node, once each: whoever runs it, from its
+   * leaders to its treasurer. Ministerial positions are the only notion of "who is in charge".
+   */
+  public Map<PartyId, List<String>> teamByNode(Collection<PartyId> nodeIds, Audience audience) {
+    return namesByNode(holdersOf(nodeIds), audience);
   }
 
-  /** The people of the node who do not lead it: the leaders are listed apart. */
+  /** The people of the node who are not on its team: the team is listed apart. */
   public List<String> membersOf(PartyId nodeId, Audience audience) {
-    var leaders =
-        directoryRepository.findPeople(List.of(nodeId), LEADER).stream()
-            .map(PersonRow::personId)
-            .collect(Collectors.toSet());
+    var team =
+        holdersOf(List.of(nodeId)).stream().map(PersonRow::personId).collect(Collectors.toSet());
     var members =
         directoryRepository.findPeople(List.of(nodeId), IS_PART_OF).stream()
-            .filter(row -> !leaders.contains(row.personId()))
+            .filter(row -> !team.contains(row.personId()))
             .toList();
     return namesByNode(members, audience).getOrDefault(nodeId, List.of());
+  }
+
+  private List<PersonRow> holdersOf(Collection<PartyId> nodeIds) {
+    var seen = new java.util.HashSet<List<PartyId>>();
+    return directoryRepository.findHeldPositions(nodeIds).stream()
+        .filter(held -> seen.add(List.of(held.nodeId(), held.personId())))
+        .map(
+            held ->
+                new PersonRow(
+                    held.nodeId(),
+                    held.personId(),
+                    held.firstName(),
+                    held.lastName(),
+                    held.age(),
+                    held.birthdate()))
+        .toList();
   }
 
   /** Position name to the people who hold it, in the given node. */

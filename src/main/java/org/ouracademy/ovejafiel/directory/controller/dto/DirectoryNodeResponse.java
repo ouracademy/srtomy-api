@@ -14,7 +14,7 @@ public record DirectoryNodeResponse(
     String description,
     String schedule,
     MemberVisibility memberVisibility,
-    List<String> leaders) {
+    List<String> team) {
 
   public static DirectoryNodeResponse from(DirectoryNodeResult result) {
     return new DirectoryNodeResponse(
@@ -25,6 +25,6 @@ public record DirectoryNodeResponse(
         result.description(),
         result.schedule(),
         result.memberVisibility(),
-        result.leaders());
+        result.team());
   }
 }

@@ -80,7 +80,7 @@ class DirectoryControllerTests {
             .bodyJson();
     body.extractingPath("$[0].name").isEqualTo("Jóvenes");
     body.extractingPath("$[0].memberVisibility").isEqualTo("MEMBERS");
-    body.extractingPath("$[0].leaders[0]").isEqualTo("Ana Ruiz");
+    body.extractingPath("$[0].team[0]").isEqualTo("Ana Ruiz");
     verify(getChurchDirectoryQueryHandler).handle(new GetChurchDirectoryQuery("test-user", church));
   }
 

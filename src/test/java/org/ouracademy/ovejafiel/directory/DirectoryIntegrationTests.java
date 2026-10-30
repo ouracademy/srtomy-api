@@ -85,11 +85,26 @@ class DirectoryIntegrationTests {
                 HttpMethod.POST,
                 "/organizations/locations/childs",
                 ("{\"name\":\"Jóvenes\",\"type\":\"GROUP\",\"parentId\":\"%s\","
-                        + "\"schedule\":\"Sábados 5 pm\",\"leaderIds\":[\"%s\"],"
-                        + "\"memberIds\":[\"%s\",\"%s\",\"%s\"]}")
+                        + "\"schedule\":\"Sábados 5 pm\","
+                        + "\"memberIds\":[\"%s\",\"%s\",\"%s\",\"%s\"]}")
                     .formatted(location, adultLeader, adultMember, minorMember, unknownAgeMember)))
             .get("id")
             .asText();
+    // The team of a group is whoever holds a position in it: here, its leader.
+    var leaderPosition =
+        read(
+            body(
+                alice,
+                HttpMethod.POST,
+                "/organizations/" + churchId + "/positions",
+                "{\"name\":\"Líder de grupo o ministerio\"}"));
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/people/" + adultLeader,
+        ("{\"firstName\":\"Lía\",\"lastName\":\"Líder\",\"birthdate\":\"%s\","
+                + "\"organizationId\":\"%s\",\"positionIds\":[\"%s\"]}")
+            .formatted(LocalDate.now().minusYears(35), group, leaderPosition.get("id").asText()));
   }
 
   @Test
@@ -105,7 +120,7 @@ class DirectoryIntegrationTests {
   }
 
   @Test
-  void theDirectoryShowsEveryNodeWithItsLeadersToAnyoneInTheChurch() {
+  void theDirectoryShowsEveryNodeWithItsTeamToAnyoneInTheChurch() {
     setVisibility(group, "LEADERS");
     // Bob only has a label-level access in another group of the church.
     var other = createGroup("Otro");
@@ -118,7 +133,7 @@ class DirectoryIntegrationTests {
     assertThat(names).contains("Iglesia", "Sede", "Jóvenes", "Otro");
     var youth = find(directory, "Jóvenes");
     assertThat(youth.get("schedule").asText()).isEqualTo("Sábados 5 pm");
-    assertThat(youth.get("leaders").get(0).asText()).isEqualTo("Lía Líder");
+    assertThat(youth.get("team").get(0).asText()).isEqualTo("Lía Líder");
     assertThat(youth.get("memberVisibility").asText()).isEqualTo("LEADERS");
   }
 
@@ -179,7 +194,7 @@ class DirectoryIntegrationTests {
     var page = publicPage(slug);
 
     assertThat(page.get("name").asText()).isEqualTo("Jóvenes");
-    assertThat(values(page.get("leaders"))).containsExactly("Lía Líder");
+    assertThat(values(page.get("team"))).containsExactly("Lía Líder");
     assertThat(values(page.get("members")))
         .containsExactly("Marta Adulta")
         .doesNotContain("Pablo Menor", "Sara SinEdad");
@@ -264,8 +279,8 @@ class DirectoryIntegrationTests {
 
   String updateBody(String visibility) {
     return ("{\"name\":\"Jóvenes\",\"type\":\"GROUP\",\"memberVisibility\":\"%s\","
-            + "\"leaderIds\":[\"%s\"],\"memberIds\":[\"%s\"]}")
-        .formatted(visibility, adultLeader, adultMember);
+            + "\"schedule\":\"Sábados 5 pm\"}")
+        .formatted(visibility);
   }
 
   void setVisibility(String nodeId, String visibility) {
@@ -274,14 +289,8 @@ class DirectoryIntegrationTests {
         HttpMethod.PUT,
         "/organizations/locations/childs/" + nodeId,
         ("{\"name\":\"%s\",\"type\":\"GROUP\",\"memberVisibility\":\"%s\","
-                + "\"schedule\":\"Sábados 5 pm\",\"leaderIds\":[\"%s\"],\"memberIds\":[\"%s\",\"%s\",\"%s\"]}")
-            .formatted(
-                json(alice, "/organizations/" + nodeId).get("name").asText(),
-                visibility,
-                adultLeader,
-                adultMember,
-                minorMember,
-                unknownAgeMember));
+                + "\"schedule\":\"Sábados 5 pm\"}")
+            .formatted(json(alice, "/organizations/" + nodeId).get("name").asText(), visibility));
   }
 
   List<String> permissions(String subject, String nodeId) {

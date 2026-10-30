@@ -1,13 +1,9 @@
 package org.ouracademy.ovejafiel.organization.command.create_location_child;
 
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 
 import java.util.LinkedHashSet;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommand;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommandHandler;
-import org.ouracademy.ovejafiel.accountability.command.create_accountability.CreateAccountabilityCommand;
 import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommand;
 import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.organization.command.OrganizationWriter;
@@ -24,7 +20,6 @@ class CreateLocationChildCommandHandlerImpl implements CreateLocationChildComman
   private final OrganizationWriter organizationWriter;
   private final OrganizationRepository organizationRepository;
   private final SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
-  private final CreateAccountabilitiesCommandHandler createAccountabilitiesCommandHandler;
 
   @Override
   @Transactional
@@ -35,18 +30,9 @@ class CreateLocationChildCommandHandlerImpl implements CreateLocationChildComman
     // The nodes above the new one, the church first: its people are in them too.
     var above =
         organizationRepository.findAncestorIds(childId.value()).stream().map(PartyId::new).toList();
-    var people = new LinkedHashSet<>(command.memberIds());
-    people.addAll(command.leaderIds());
-    for (var personId : people) {
+    for (var personId : new LinkedHashSet<>(command.memberIds())) {
       setNodeMembershipCommandHandler.handle(
           new SetNodeMembershipCommand(personId, childId, above, MEMBER));
-    }
-    if (!command.leaderIds().isEmpty()) {
-      createAccountabilitiesCommandHandler.handle(
-          new CreateAccountabilitiesCommand(
-              command.leaderIds().stream()
-                  .map(id -> new CreateAccountabilityCommand(id, childId, LEADER))
-                  .toList()));
     }
     return new CreateLocationChildResult(FindOrganizationResult.from(locationChild));
   }

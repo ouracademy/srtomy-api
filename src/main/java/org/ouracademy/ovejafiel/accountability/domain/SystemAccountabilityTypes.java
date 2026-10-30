@@ -33,7 +33,4 @@ public class SystemAccountabilityTypes {
   // Party and Org
   public static final AccountabilityTypeId IS_PART_OF =
       new AccountabilityTypeId(UUID.fromString("1d6e887a-9cd0-461e-b11d-c5d357497ce2"));
-  // Person to group/ministry
-  public static final AccountabilityTypeId LEADER =
-      new AccountabilityTypeId(UUID.fromString("6e0cebd8-4a7a-4ac5-b9dd-658c23708672"));
 }

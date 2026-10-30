@@ -1,11 +1,8 @@
 package org.ouracademy.ovejafiel.organization.controller;
 
-import static java.util.stream.Collectors.toMap;
-
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,7 +32,6 @@ import org.ouracademy.ovejafiel.organization.command.update_location_child.Updat
 import org.ouracademy.ovejafiel.organization.command.update_location_child.UpdateLocationChildCommandHandler;
 import org.ouracademy.ovejafiel.organization.controller.dto.CreateChurchRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.CreateLocationRequest;
-import org.ouracademy.ovejafiel.organization.controller.dto.LocationChildMemberResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.LocationChildRequest;
 import org.ouracademy.ovejafiel.organization.controller.dto.MemberGrowthResponse;
 import org.ouracademy.ovejafiel.organization.controller.dto.OrganizationRequest;
@@ -48,8 +44,6 @@ import org.ouracademy.ovejafiel.organization.query.find_organization_children.Fi
 import org.ouracademy.ovejafiel.organization.query.find_organization_children.FindOrganizationChildrenQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
-import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQuery;
-import org.ouracademy.ovejafiel.organization.query.get_location_children.GetLocationChildrenQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.TokenClaims;
 import org.springframework.http.HttpStatus;
@@ -86,7 +80,6 @@ public class OrganizationController {
   DeleteOrganizationCommandHandler deleteOrganizationCommandHandler;
   FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   FindOrganizationChildrenQueryHandler findOrganizationChildrenQueryHandler;
-  GetLocationChildrenQueryHandler getLocationChildrenQueryHandler;
   GetMemberGrowthQueryHandler getMemberGrowthQueryHandler;
   FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
@@ -176,22 +169,6 @@ public class OrganizationController {
             .map(result -> OrganizationResponse.from(result.organization())));
   }
 
-  @GetMapping("/locations/childs/{id}/members")
-  public Map<String, List<LocationChildMemberResponse>> getLocationChilds(
-      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-    authorize(jwt, id, Permission.MEMBERS_READ);
-    return getLocationChildrenQueryHandler
-        .handle(new GetLocationChildrenQuery(new PartyId(id)))
-        .childrenByType()
-        .entrySet()
-        .stream()
-        .collect(
-            toMap(
-                Map.Entry::getKey,
-                entry ->
-                    entry.getValue().stream().map(LocationChildMemberResponse::from).toList()));
-  }
-
   /** A group or ministry under a location, group or ministry. */
   @PostMapping("/locations/childs")
   @ResponseStatus(code = HttpStatus.CREATED)
@@ -204,8 +181,7 @@ public class OrganizationController {
                 info(request),
                 parentId(request),
                 request.getType(),
-                request.getMemberIds().stream().map(PartyId::new).toList(),
-                request.getLeaderIds().stream().map(PartyId::new).toList()));
+                request.getMemberIds().stream().map(PartyId::new).toList()));
     return OrganizationResponse.from(result.organization());
   }
 

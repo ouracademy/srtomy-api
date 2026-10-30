@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.accountability.AccountabilityFixtures.party;
 import static org.ouracademy.ovejafiel.accountability.AccountabilityFixtures.withId;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 
 import jakarta.persistence.EntityManager;
@@ -58,12 +57,12 @@ class CreateAccountabilitiesCommandHandlerImplTests {
     var leader = party(leaderId, "Leader");
     var group = party(groupId, "Group");
     var isPartOf = withId(new AccountabilityType("IS_PART_OF", null, null), IS_PART_OF);
-    var leads = withId(new AccountabilityType("LEADER", null, null), LEADER);
+    var leads = withId(new AccountabilityType("MEMBER", null, null), MEMBER);
     when(entityManager.getReference(Party.class, memberId)).thenReturn(member);
     when(entityManager.getReference(Party.class, leaderId)).thenReturn(leader);
     when(entityManager.getReference(Party.class, groupId)).thenReturn(group);
     when(accountabilityTypeRepository.getReferenceById(IS_PART_OF)).thenReturn(isPartOf);
-    when(accountabilityTypeRepository.getReferenceById(LEADER)).thenReturn(leads);
+    when(accountabilityTypeRepository.getReferenceById(MEMBER)).thenReturn(leads);
     when(accountabilityRepository.saveAll(anyList()))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -72,7 +71,7 @@ class CreateAccountabilitiesCommandHandlerImplTests {
             new CreateAccountabilitiesCommand(
                 List.of(
                     new CreateAccountabilityCommand(memberId, groupId, IS_PART_OF),
-                    new CreateAccountabilityCommand(leaderId, groupId, LEADER))));
+                    new CreateAccountabilityCommand(leaderId, groupId, MEMBER))));
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Accountability>> captor = ArgumentCaptor.forClass(List.class);
@@ -112,7 +111,7 @@ class CreateAccountabilitiesCommandHandlerImplTests {
 
     handler.handle(
         new CreateAccountabilitiesCommand(
-            List.of(new CreateAccountabilityCommand(PartyId.generate(), groupId, LEADER))));
+            List.of(new CreateAccountabilityCommand(PartyId.generate(), groupId, IS_PART_OF))));
 
     verifyNoInteractions(memberStateEvents);
   }

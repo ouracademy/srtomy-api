@@ -53,7 +53,7 @@ class GetPublicPageQueryHandlerImplTests {
         .thenReturn(
             new FindOrganizationSubtreeResult(all.stream().map(Organization::getId).toList()));
     when(reader.nodes(any())).thenReturn(all);
-    when(reader.leadersByNode(any(), any(Audience.class)))
+    when(reader.teamByNode(any(), any(Audience.class)))
         .thenReturn(Map.of(open.getId(), List.of("Ana Ruiz")));
     var positions = new LinkedHashMap<String, List<String>>();
     positions.put("Pastor", List.of("Luis Paz"));
@@ -93,7 +93,7 @@ class GetPublicPageQueryHandlerImplTests {
     assertThat(chart.name()).isEqualTo("Iglesia");
     assertThat(chart.children()).extracting(c -> c.name()).containsExactly("Abierta");
     var location = chart.children().get(0);
-    assertThat(location.leaders()).containsExactly("Ana Ruiz");
+    assertThat(location.team()).containsExactly("Ana Ruiz");
     // The leader-only group and everything below it are left out.
     assertThat(location.children()).extracting(c -> c.name()).containsExactly("Solo iglesia");
   }
@@ -122,13 +122,13 @@ class GetPublicPageQueryHandlerImplTests {
     group.setPhoneNumber("111");
     group.setSchedule("Viernes");
     when(repository.findBySlug("group")).thenReturn(Optional.of(group));
-    when(reader.leadersByNode(List.of(group.getId()), Audience.PUBLIC))
+    when(reader.teamByNode(List.of(group.getId()), Audience.PUBLIC))
         .thenReturn(Map.of(group.getId(), List.of("Ana Ruiz")));
     when(reader.membersOf(group.getId(), Audience.PUBLIC)).thenReturn(List.of("Beto Paz"));
 
     var page = handler.handle(new GetPublicPageQuery("group")).orElseThrow();
 
-    assertThat(page.leaders()).containsExactly("Ana Ruiz");
+    assertThat(page.team()).containsExactly("Ana Ruiz");
     assertThat(page.members()).containsExactly("Beto Paz");
     assertThat(page.schedule()).isEqualTo("Viernes");
     assertThat(page.address()).isNull();
