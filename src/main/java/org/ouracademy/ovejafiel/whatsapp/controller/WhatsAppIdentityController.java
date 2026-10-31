@@ -3,12 +3,16 @@ package org.ouracademy.ovejafiel.whatsapp.controller;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.ouracademy.ovejafiel.whatsapp.command.link_whatsapp.LinkWhatsAppCommand;
+import org.ouracademy.ovejafiel.whatsapp.command.link_whatsapp.LinkWhatsAppCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.opt_out.OptOutCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.opt_out.OptOutCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.resolve_identity.ResolveIdentityCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.resolve_identity.ResolveIdentityCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.resolve_identity.ResolveIdentityResult;
 import org.ouracademy.ovejafiel.whatsapp.controller.dto.IdentityRequest;
+import org.ouracademy.ovejafiel.whatsapp.controller.dto.LinkWhatsAppRequest;
+import org.ouracademy.ovejafiel.whatsapp.controller.dto.LinkWhatsAppResponse;
 import org.ouracademy.ovejafiel.whatsapp.controller.dto.OptOutResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,11 +30,21 @@ public class WhatsAppIdentityController {
 
   ResolveIdentityCommandHandler resolveIdentityCommandHandler;
   OptOutCommandHandler optOutCommandHandler;
+  LinkWhatsAppCommandHandler linkWhatsAppCommandHandler;
 
   @PostMapping("internal/whatsapp/identity")
   public ResolveIdentityResult identity(@RequestBody @Valid IdentityRequest request) {
     return resolveIdentityCommandHandler.handle(
         new ResolveIdentityCommand(request.phoneNumberId(), request.from()));
+  }
+
+  /** Someone sent the code they got in the portal: the number becomes theirs, or it does not. */
+  @PostMapping("internal/whatsapp/link")
+  public LinkWhatsAppResponse link(@RequestBody @Valid LinkWhatsAppRequest request) {
+    var result =
+        linkWhatsAppCommandHandler.handle(
+            new LinkWhatsAppCommand(request.phoneNumberId(), request.from(), request.code()));
+    return new LinkWhatsAppResponse(result.status(), result.churchName());
   }
 
   @PostMapping("internal/whatsapp/opt-out")

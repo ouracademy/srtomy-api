@@ -60,6 +60,18 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
+  public String displayNumber(String phoneNumberId) {
+    var response =
+        platform.get().uri("/whatsapp/phone_numbers/" + phoneNumberId).retrieve().body(Map.class);
+    if (response == null) {
+      return null;
+    }
+    // The number may come inside "data" or at the top.
+    var body = response.get("data") instanceof Map<?, ?> data ? data : response;
+    return (String) body.get("display_phone_number");
+  }
+
+  @Override
   public SetupLink createSetupLink(String customerId, ConnectionMode mode, String language) {
     var link = new LinkedHashMap<String, Object>();
     link.put("allowed_connection_types", List.of(mode.kapsoValue()));

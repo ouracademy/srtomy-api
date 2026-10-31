@@ -22,6 +22,11 @@ class LoggingWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
+  public String displayNumber(String phoneNumberId) {
+    return null;
+  }
+
+  @Override
   public SetupLink createSetupLink(String customerId, ConnectionMode mode, String language) {
     log.info("WhatsApp setup link for {} ({}) not made, no provider configured", customerId, mode);
     return new SetupLink(

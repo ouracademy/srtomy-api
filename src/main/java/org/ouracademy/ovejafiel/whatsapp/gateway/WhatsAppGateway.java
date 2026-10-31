@@ -16,6 +16,9 @@ public interface WhatsAppGateway {
    */
   String createCustomer(String externalId, String name);
 
+  /** The number as people read it ("+51 999 888 777"), or null when it cannot be read. */
+  String displayNumber(String phoneNumberId);
+
   SetupLink createSetupLink(String customerId, ConnectionMode mode, String language);
 
   /**

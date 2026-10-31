@@ -25,10 +25,13 @@ import org.ouracademy.ovejafiel.person.command.set_whatsapp_consent.SetWhatsAppC
 import org.ouracademy.ovejafiel.person.query.find_people_by_phone.FindPeopleByPhoneQuery;
 import org.ouracademy.ovejafiel.person.query.find_people_by_phone.FindPeopleByPhoneQueryHandler;
 import org.ouracademy.ovejafiel.person.query.find_people_by_phone.FindPeopleByPhoneResult;
+import org.ouracademy.ovejafiel.person.query.find_person_by_id.FindPersonByIdQueryHandler;
 import org.ouracademy.ovejafiel.shared.DelegatedTokens;
 import org.ouracademy.ovejafiel.user.command.resolve_whatsapp_user.ResolveWhatsAppUserCommand;
 import org.ouracademy.ovejafiel.user.command.resolve_whatsapp_user.ResolveWhatsAppUserCommandHandler;
 import org.ouracademy.ovejafiel.user.command.resolve_whatsapp_user.ResolveWhatsAppUserResult;
+import org.ouracademy.ovejafiel.user.query.find_linked_person.FindLinkedPersonQueryHandler;
+import org.ouracademy.ovejafiel.user.query.find_user_by_id.FindUserByIdQueryHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.opt_out.OptOutCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.opt_out.OptOutCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.resolve_identity.ResolveIdentityCommand;
@@ -37,6 +40,7 @@ import org.ouracademy.ovejafiel.whatsapp.command.resolve_identity.ResolveIdentit
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
 import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppConnection;
 import org.ouracademy.ovejafiel.whatsapp.repository.WhatsAppConnectionRepository;
+import org.ouracademy.ovejafiel.whatsapp.repository.WhatsAppLinkRepository;
 import org.springframework.beans.factory.ObjectProvider;
 
 /** Who writes, and who asks to stop: the two ways in for the WhatsApp agent. */
@@ -50,6 +54,10 @@ class IdentityHandlersTests {
   ResolveWhatsAppUserCommandHandler resolveUser = mock(ResolveWhatsAppUserCommandHandler.class);
   SetWhatsAppConsentCommandHandler setConsent = mock(SetWhatsAppConsentCommandHandler.class);
   FindOrganizationByIdQueryHandler findOrganization = mock(FindOrganizationByIdQueryHandler.class);
+  WhatsAppLinkRepository links = mock(WhatsAppLinkRepository.class);
+  FindUserByIdQueryHandler findUserById = mock(FindUserByIdQueryHandler.class);
+  FindLinkedPersonQueryHandler findLinkedPerson = mock(FindLinkedPersonQueryHandler.class);
+  FindPersonByIdQueryHandler findPerson = mock(FindPersonByIdQueryHandler.class);
   DelegatedTokens tokens;
 
   @SuppressWarnings("unchecked")
@@ -76,6 +84,10 @@ class IdentityHandlersTests {
         findPeople,
         resolveUser,
         findOrganization,
+        links,
+        findUserById,
+        findLinkedPerson,
+        findPerson,
         provider);
   }
 

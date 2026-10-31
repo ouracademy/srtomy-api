@@ -8,6 +8,7 @@ import java.util.UUID;
  * @param churchSlug the slug of the public page of the church, set whenever the number belongs to a
  *     connected church: anyone may ask about what that page shows, known or not
  * @param name only for {@link Status#LINKED}: the name of the person
+ * @param level only for {@link Status#LINKED}: how far the token reaches
  */
 public record ResolveIdentityResult(
     Status status,
@@ -17,7 +18,15 @@ public record ResolveIdentityResult(
     UUID churchId,
     String churchName,
     String churchSlug,
-    String name) {
+    String name,
+    Level level) {
+
+  public enum Level {
+    /** Known by the phone on their record: the Member level and nothing more. */
+    MEMBER,
+    /** Proved the number from their account: everything their account can do. */
+    ACCOUNT
+  }
 
   public enum Status {
     /** The person is known: the token has their rights (Member level, nothing more). */
@@ -28,19 +37,19 @@ public record ResolveIdentityResult(
     UNKNOWN,
     /** Several people share that phone: the agent cannot tell who writes. */
     AMBIGUOUS,
-    /** The person has a real account: its rights need the phone to be verified from the portal. */
+    /** The person has an account: its rights need the number to be linked from the portal. */
     NEEDS_VERIFICATION
   }
 
   /** Nobody is identified: no token, no person. */
   static ResolveIdentityResult of(Status status) {
-    return new ResolveIdentityResult(status, null, null, null, null, null, null, null);
+    return new ResolveIdentityResult(status, null, null, null, null, null, null, null, null);
   }
 
   /** The church is known but the person is not (or cannot be taken for sure). */
   static ResolveIdentityResult ofChurch(
       Status status, UUID churchId, String churchName, String churchSlug) {
     return new ResolveIdentityResult(
-        status, null, null, null, churchId, churchName, churchSlug, null);
+        status, null, null, null, churchId, churchName, churchSlug, null, null);
   }
 }

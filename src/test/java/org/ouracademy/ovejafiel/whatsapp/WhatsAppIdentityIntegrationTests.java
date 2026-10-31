@@ -353,7 +353,190 @@ class WhatsAppIdentityIntegrationTests {
     assertThat(identity("51999111222").get("status").asText()).isEqualTo("NEEDS_VERIFICATION");
   }
 
+  // --- linking a number to an account with a code
+
+  @Test
+  void aSignedInPersonProvesTheirNumberAndThenActsWithAllTheirRights() {
+    var phone0 = freshPhone();
+    var phone1 = freshPhone();
+    var code = linkCode(alice);
+
+    assertThat(linkStatus(phone0, code.toLowerCase().replace("-", " "))).isEqualTo("LINKED");
+
+    var identity = identity(phone0);
+    assertThat(identity.get("status").asText()).isEqualTo("LINKED");
+    assertThat(identity.get("level").asText()).isEqualTo("ACCOUNT");
+    assertThat(identity.get("name").asText()).isEqualTo("Ana Diaz");
+    // Her account is an Administrator: through the proven number she can do what it can.
+    var token = identity.get("token").asText();
+    assertThat(status(token, HttpMethod.GET, "/v1/people?organizationId=" + churchId))
+        .isEqualTo(200);
+    // The code was used up.
+    assertThat(linkStatus(phone1, code)).isEqualTo("INVALID_CODE");
+    // The portal shows it linked, with the number hidden.
+    var link =
+        read(call(alice, HttpMethod.GET, "/v1/organizations/" + churchId + "/whatsapp/link", null));
+    assertThat(link.get("linked").asBoolean()).isTrue();
+    assertThat(link.get("maskedPhone").asText())
+        .endsWith(phone0.substring(phone0.length() - 4))
+        .doesNotContain(phone0.substring(0, 8));
+  }
+
+  @Test
+  void aWrongCodeLinksNothingAndTooManyBlockEvenTheRightOne() {
+    var phone2 = freshPhone();
+    var phone3 = freshPhone();
+    var code = linkCode(alice);
+
+    for (var i = 0; i < 5; i++) {
+      assertThat(linkStatus(phone2, "ZZZZ-000" + i)).isEqualTo("INVALID_CODE");
+    }
+    assertThat(linkStatus(phone2, code)).isEqualTo("RATE_LIMITED");
+    assertThat(identity(phone2).get("level").isNull()).isTrue();
+    // Another number is not blocked by what the first one did.
+    assertThat(linkStatus(phone3, code)).isEqualTo("LINKED");
+  }
+
+  @Test
+  void anExpiredCodeIsRefused() {
+    var phone4 = freshPhone();
+    var code = linkCode(alice);
+    jdbc.update("update whatsapp_link_code set expires_at = now() - interval '1 minute'");
+
+    assertThat(linkStatus(phone4, code)).isEqualTo("INVALID_CODE");
+  }
+
+  @Test
+  void aCodeOfAnotherChurchDoesNotWorkHere() {
+    var code = linkCode(alice);
+    var otherNumber = "pn-other-" + UUID.randomUUID();
+    var otherChurch =
+        read(call(
+                alice,
+                HttpMethod.POST,
+                "/v1/organizations",
+                "{\"name\":\"Otra\",\"location\":{\"name\":\"Sede\"},\"positions\":[],"
+                    + "\"creator\":{\"firstName\":\"Ana\",\"lastName\":\"Otra\"}}"))
+            .get("id")
+            .asText();
+    jdbc.update(
+        "insert into whatsapp_connection(organization_id, kapso_customer_id, mode, status,"
+            + " phone_number_id, display_number, connected_at, create_date, last_modified_date)"
+            + " values (?::uuid, ?, 'DEDICATED', 'CONNECTED', ?, '+51 2', now(), now(), now())",
+        otherChurch,
+        "cus-" + UUID.randomUUID(),
+        otherNumber);
+
+    var body = "{\"phoneNumberId\":\"%s\",\"from\":\"%s\",\"code\":\"%s\"}";
+    var answer =
+        client
+            .post()
+            .uri("/v1/internal/whatsapp/link")
+            .headers(h -> h.setBearerAuth(TestSecurityConfig.agentToken(jwtEncoder)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body.formatted(otherNumber, freshPhone(), code))
+            .exchange()
+            .expectBody(String.class)
+            .returnResult()
+            .getResponseBody();
+
+    assertThat(read(answer).get("status").asText()).isEqualTo("INVALID_CODE");
+  }
+
+  @Test
+  void unlinkingTakesTheAccountBackToAGuess() {
+    var phone5 = freshPhone();
+    linkStatus(phone5, linkCode(alice));
+    assertThat(identity(phone5).get("level").asText()).isEqualTo("ACCOUNT");
+
+    call(alice, HttpMethod.DELETE, "/v1/organizations/" + churchId + "/whatsapp/link", null);
+
+    assertThat(identity(phone5).get("status").asText()).isEqualTo("UNKNOWN");
+  }
+
+  @Test
+  void onlyAPersonOfTheChurchGetsACodeAndOnlyWhenSignedIn() {
+    var bob = signUp("bob");
+
+    assertThat(
+            status(
+                TestSecurityConfig.validToken(jwtEncoder, bob),
+                HttpMethod.POST,
+                "/v1/organizations/" + churchId + "/whatsapp/link-code"))
+        .isEqualTo(400);
+    assertThat(
+            client
+                .post()
+                .uri("/v1/organizations/" + churchId + "/whatsapp/link-code")
+                .exchange()
+                .returnResult(String.class)
+                .getStatus()
+                .value())
+        .isEqualTo(401);
+  }
+
+  @Test
+  void theCodeIsNotKeptAndTheEndpointOfTheAgentIsClosedToEveryoneElse() {
+    var code = linkCode(alice);
+
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from whatsapp_link_code where code_hash like '%' || ? || '%'",
+                Integer.class, code.replace("-", "")))
+        .isZero();
+    var body = "{\"phoneNumberId\":\"%s\",\"from\":\"%s\",\"code\":\"%s\"}";
+    var status =
+        client
+            .post()
+            .uri("/v1/internal/whatsapp/link")
+            .headers(h -> h.setBearerAuth(TestSecurityConfig.validToken(jwtEncoder, alice)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body.formatted(phoneNumberId, freshPhone(), code))
+            .exchange()
+            .returnResult(String.class)
+            .getStatus()
+            .value();
+    assertThat(status).isEqualTo(401);
+  }
+
   // --- helpers
+
+  /** A number never used before: the wrong tries from a number are remembered for an hour. */
+  static String freshPhone() {
+    return "519"
+        + java.util.concurrent.ThreadLocalRandom.current().nextLong(10_000_000L, 99_999_999L);
+  }
+
+  /** The code the portal shows to a signed-in person. */
+  String linkCode(String subject) {
+    return read(call(
+            subject,
+            HttpMethod.POST,
+            "/v1/organizations/" + churchId + "/whatsapp/link-code",
+            null))
+        .get("code")
+        .asText();
+  }
+
+  /** The agent tells the API that {@code from} sent {@code code}; returns the status. */
+  String linkStatus(String from, String code) {
+    return read(client
+            .post()
+            .uri("/v1/internal/whatsapp/link")
+            .headers(h -> h.setBearerAuth(TestSecurityConfig.agentToken(jwtEncoder)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(
+                "{\"phoneNumberId\":\"%s\",\"from\":\"%s\",\"code\":\"%s\"}"
+                    .formatted(phoneNumberId, from, code))
+            .exchange()
+            .expectStatus()
+            .isOk()
+            .expectBody(String.class)
+            .returnResult()
+            .getResponseBody())
+        .get("status")
+        .asText();
+  }
 
   JsonNode identity(String from) {
     return read(identityBody(TestSecurityConfig.agentToken(jwtEncoder), phoneNumberId, from));
