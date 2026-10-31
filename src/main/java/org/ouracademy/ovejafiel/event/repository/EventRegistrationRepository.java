@@ -1,5 +1,6 @@
 package org.ouracademy.ovejafiel.event.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.ouracademy.ovejafiel.event.domain.EventId;
@@ -26,6 +27,9 @@ public interface EventRegistrationRepository
   Optional<EventRegistration> findByCancelCode(String cancelCode);
 
   Optional<EventRegistration> findByTicketCode(String ticketCode);
+
+  List<EventRegistration> findByEventIdInAndStatusNot(
+      Collection<EventId> eventIds, RegistrationStatus status);
 
   boolean existsByTicketTypeId(TicketTypeId ticketTypeId);
 
