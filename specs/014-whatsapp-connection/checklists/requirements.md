@@ -11,7 +11,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain (1 left: FR-009, consentimiento)
+- [x] No [NEEDS CLARIFICATION] markers remain (FR-009 resuelto por el dueño)
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Edge cases are identified
@@ -20,4 +20,3 @@
 
 ## Notes
 
-- Resolve FR-009 with the product owner before `/speckit-plan`.

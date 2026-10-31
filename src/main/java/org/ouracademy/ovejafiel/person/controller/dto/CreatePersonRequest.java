@@ -31,6 +31,11 @@ public class CreatePersonRequest {
   Boolean hasBeenBaptized;
 
   /**
+   * Accepts WhatsApp notices. Optional: absent keeps the current choice (true for a new person).
+   */
+  Boolean whatsappConsent;
+
+  /**
    * How involved the person is: visitor, membership in progress or member. Optional (a new person
    * is a visitor); whoever holds a position is a member whatever it says.
    */

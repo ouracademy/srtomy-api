@@ -20,6 +20,7 @@ public record PersonResponse(
     Integer age,
     LocalDate birthdate,
     Boolean hasBeenBaptized,
+    boolean whatsappConsent,
     LocalDateTime createDate,
     LocalDateTime lastModifiedDate,
     MemberState memberState) {
@@ -44,6 +45,7 @@ public record PersonResponse(
         result.age(),
         result.birthdate(),
         result.hasBeenBaptized(),
+        result.whatsappConsent(),
         result.createDate(),
         result.lastModifiedDate(),
         state);

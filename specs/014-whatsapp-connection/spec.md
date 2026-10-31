@@ -58,7 +58,7 @@
 - **FR-006**: errores del proveedor que no se arreglan reintentando (4xx salvo 408/409/425/429, número inválido) lanzan `PermanentDeliveryException`; los demás son transitorios.
 - **FR-007**: catálogo de plantillas en español (`event_reminder`, `welcome`) versionado en el código, con su categoría (utility) y variables.
 - **FR-008**: todo envío pasa por el outbox (nunca dentro de la transacción), como manda `AGENTS.md`.
-- **FR-009**: solo se encola un aviso a quien tiene teléfono y consentimiento para WhatsApp [NEEDS CLARIFICATION: ¿el consentimiento ya existe como dato de la persona o hay que agregarlo en esta spec?].
+- **FR-009**: la persona tiene `whatsappConsent` (booleano, **verdadero por defecto**, editable al crear y editar la persona; ausente en la petición conserva el valor actual). Solo se encola un aviso a quien tiene teléfono y `whatsappConsent` verdadero; quien pide parar lo deja en falso.
 - **FR-010**: la llave y el secreto del webhook vienen de Secret Manager; en local y pruebas se usan valores falsos.
 
 ### Key Entities

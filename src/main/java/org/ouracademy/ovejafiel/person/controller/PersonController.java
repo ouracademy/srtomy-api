@@ -292,7 +292,8 @@ public class PersonController {
         request.getEmail(),
         request.getAge(),
         request.getBirthdate(),
-        request.getHasBeenBaptized());
+        request.getHasBeenBaptized(),
+        request.getWhatsappConsent());
   }
 
   private boolean canRead(Jwt jwt, PartyId organizationId) {
