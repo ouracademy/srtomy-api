@@ -1,5 +1,6 @@
 package org.ouracademy.ovejafiel.event.repository;
 
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +44,17 @@ public interface EventRegistrationRepository
       "select count(r) from EventRegistration r "
           + "where r.event.id = :eventId and r.checkedInAt is not null")
   long countCheckedIn(EventId eventId);
+
+  /**
+   * The sign-ups to remind of an event that starts in the window: with a seat, with a phone and not
+   * yet checked in. The event query hides the deleted ones.
+   */
+  @Query(
+      "select r from EventRegistration r join fetch r.event e "
+          + "where r.status = org.ouracademy.ovejafiel.event.domain.RegistrationStatus.CONFIRMED "
+          + "and r.checkedInAt is null and r.phoneNumber is not null and r.phoneNumber <> '' "
+          + "and e.start >= :from and e.start < :to order by e.start, r.createDate")
+  List<EventRegistration> findToRemind(ZonedDateTime from, ZonedDateTime to);
 
   void deleteByEventId(EventId eventId);
 

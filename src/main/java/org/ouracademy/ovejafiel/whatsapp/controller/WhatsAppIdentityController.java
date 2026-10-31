@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.ouracademy.ovejafiel.whatsapp.command.link_whatsapp.LinkWhatsAppCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.link_whatsapp.LinkWhatsAppCommandHandler;
+import org.ouracademy.ovejafiel.whatsapp.command.opt_in.OptInCommand;
+import org.ouracademy.ovejafiel.whatsapp.command.opt_in.OptInCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.opt_out.OptOutCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.opt_out.OptOutCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.resolve_identity.ResolveIdentityCommand;
@@ -31,6 +33,7 @@ public class WhatsAppIdentityController {
   ResolveIdentityCommandHandler resolveIdentityCommandHandler;
   OptOutCommandHandler optOutCommandHandler;
   LinkWhatsAppCommandHandler linkWhatsAppCommandHandler;
+  OptInCommandHandler optInCommandHandler;
 
   @PostMapping("internal/whatsapp/identity")
   public ResolveIdentityResult identity(@RequestBody @Valid IdentityRequest request) {
@@ -45,6 +48,14 @@ public class WhatsAppIdentityController {
         linkWhatsAppCommandHandler.handle(
             new LinkWhatsAppCommand(request.phoneNumberId(), request.from(), request.code()));
     return new LinkWhatsAppResponse(result.status(), result.churchName());
+  }
+
+  /** Someone who stopped the notices asked for them again (ALTA). */
+  @PostMapping("internal/whatsapp/opt-in")
+  public OptOutResponse optIn(@RequestBody @Valid IdentityRequest request) {
+    var result =
+        optInCommandHandler.handle(new OptInCommand(request.phoneNumberId(), request.from()));
+    return new OptOutResponse(result.people());
   }
 
   @PostMapping("internal/whatsapp/opt-out")

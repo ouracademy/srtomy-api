@@ -26,12 +26,26 @@ class FindPeopleByPhoneQueryHandlerImplTests {
     var match = mock(PhoneMatch.class);
     when(match.getId()).thenReturn(id);
     when(match.getName()).thenReturn("Ana Díaz");
+    when(match.getWhatsappConsent()).thenReturn(true);
     when(repository.findByPhoneInChurch("51999888777", church.value())).thenReturn(List.of(match));
 
     var result = handler.handle(new FindPeopleByPhoneQuery("+51 999-888-777", church));
 
     assertThat(result.people())
         .containsExactly(new FindPeopleByPhoneResult.Match(new PartyId(id), "Ana Díaz"));
+  }
+
+  @Test
+  void whoAskedToStopIsReportedAsSuch() {
+    var match = mock(PhoneMatch.class);
+    when(match.getId()).thenReturn(UUID.randomUUID());
+    when(match.getName()).thenReturn("Luis");
+    when(match.getWhatsappConsent()).thenReturn(false);
+    when(repository.findByPhoneInChurch("51999888777", church.value())).thenReturn(List.of(match));
+
+    var result = handler.handle(new FindPeopleByPhoneQuery("51999888777", church));
+
+    assertThat(result.people()).singleElement().extracting("whatsappConsent").isEqualTo(false);
   }
 
   @Test

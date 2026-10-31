@@ -24,7 +24,10 @@ class FindPeopleByPhoneQueryHandlerImpl implements FindPeopleByPhoneQueryHandler
     }
     return new FindPeopleByPhoneResult(
         personRepository.findByPhoneInChurch(digits, query.churchId().value()).stream()
-            .map(row -> new FindPeopleByPhoneResult.Match(new PartyId(row.getId()), row.getName()))
+            .map(
+                row ->
+                    new FindPeopleByPhoneResult.Match(
+                        new PartyId(row.getId()), row.getName(), row.getWhatsappConsent()))
             .toList());
   }
 

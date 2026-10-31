@@ -137,7 +137,7 @@ public interface PersonRepository extends JpaRepository<Person, PartyId> {
               union
               select o.id from organization o join tree t on o.parent_id = t.id
           )
-          select distinct p.id as id, pa.name as name
+          select distinct p.id as id, pa.name as name, p.whatsapp_consent as whatsappConsent
           from person p
           join party pa on pa.id = p.id
           where p.deleted_time is null
@@ -155,6 +155,8 @@ public interface PersonRepository extends JpaRepository<Person, PartyId> {
     UUID getId();
 
     String getName();
+
+    boolean getWhatsappConsent();
   }
 
   /** The people with that email (ignoring case) who have any accountability in the node. */

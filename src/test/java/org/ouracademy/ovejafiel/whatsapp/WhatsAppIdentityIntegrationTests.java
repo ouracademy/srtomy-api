@@ -314,6 +314,38 @@ class WhatsAppIdentityIntegrationTests {
         .isFalse();
   }
 
+  @Test
+  void altaTurnsTheNoticesBackOnAndOnlyTheAgentCanAskForIt() {
+    var lucia = createPerson("Lucía", "999 111 222", group, null);
+    jdbc.update("update person set whatsapp_consent = false where id = ?::uuid", lucia);
+
+    var answer =
+        client
+            .post()
+            .uri("/v1/internal/whatsapp/opt-in")
+            .headers(h -> h.setBearerAuth(TestSecurityConfig.agentToken(jwtEncoder)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .body("{\"phoneNumberId\":\"%s\",\"from\":\"51999111222\"}".formatted(phoneNumberId))
+            .exchange()
+            .returnResult(String.class);
+
+    assertThat(answer.getStatus().value()).isEqualTo(200);
+    assertThat(
+            jdbc.queryForObject(
+                "select whatsapp_consent from person where id = ?::uuid", Boolean.class, lucia))
+        .isTrue();
+    var stranger =
+        client
+            .post()
+            .uri("/v1/internal/whatsapp/opt-in")
+            .headers(h -> h.setBearerAuth(TestSecurityConfig.schedulerToken(jwtEncoder)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .body("{\"phoneNumberId\":\"%s\",\"from\":\"51999111222\"}".formatted(phoneNumberId))
+            .exchange()
+            .returnResult(String.class);
+    assertThat(stranger.getStatus().value()).isEqualTo(403);
+  }
+
   // --- a real account later
 
   @Test

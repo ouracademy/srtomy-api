@@ -32,6 +32,8 @@ import org.ouracademy.ovejafiel.user.command.resolve_whatsapp_user.ResolveWhatsA
 import org.ouracademy.ovejafiel.user.command.resolve_whatsapp_user.ResolveWhatsAppUserResult;
 import org.ouracademy.ovejafiel.user.query.find_linked_person.FindLinkedPersonQueryHandler;
 import org.ouracademy.ovejafiel.user.query.find_user_by_id.FindUserByIdQueryHandler;
+import org.ouracademy.ovejafiel.whatsapp.command.opt_in.OptInCommand;
+import org.ouracademy.ovejafiel.whatsapp.command.opt_in.OptInCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.opt_out.OptOutCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.opt_out.OptOutCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.resolve_identity.ResolveIdentityCommand;
@@ -262,6 +264,33 @@ class IdentityHandlersTests {
 
     assertThat(result.people()).isEqualTo(2);
     verify(setConsent).handle(new SetWhatsAppConsentCommand(List.of(ana, luis), false));
+  }
+
+  OptInCommandHandler optIn() throws Exception {
+    return build(
+        "org.ouracademy.ovejafiel.whatsapp.command.opt_in.OptInCommandHandlerImpl",
+        connections,
+        findPeople,
+        setConsent);
+  }
+
+  @Test
+  void altaTurnsConsentBackOnForEveryoneWithThatPhone() throws Exception {
+    connected();
+    peopleWithThatPhone(new FindPeopleByPhoneResult.Match(ana, "Ana"));
+
+    var result = optIn().handle(new OptInCommand("pn-1", "51999888777"));
+
+    assertThat(result.people()).isEqualTo(1);
+    verify(setConsent).handle(new SetWhatsAppConsentCommand(List.of(ana), true));
+  }
+
+  @Test
+  void altaFromAnUnknownChurchNumberDoesNothing() throws Exception {
+    when(connections.findByPhoneNumberId("pn-x")).thenReturn(Optional.empty());
+
+    assertThat(optIn().handle(new OptInCommand("pn-x", "51999888777")).people()).isZero();
+    verifyNoInteractions(findPeople, setConsent);
   }
 
   @Test

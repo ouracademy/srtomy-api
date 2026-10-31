@@ -49,7 +49,7 @@ Las tomó el dueño del producto el 31-oct-2026, salvo las marcadas.
 
 - **FR-001**: `POST /v1/internal/whatsapp/identity {phoneNumberId, from}` responde `{status, token?, expiresAt?, personId?, churchId?, churchName?, churchSlug?, name?}`; `churchName` y `churchSlug` vienen siempre que el número sea de una iglesia conectada (incluso en `UNKNOWN`, `AMBIGUOUS` y `NEEDS_VERIFICATION`); `token`, `personId` y `name` solo en `LINKED` con `status` ∈ `LINKED | CHURCH_NOT_CONNECTED | UNKNOWN | AMBIGUOUS | NEEDS_VERIFICATION`.
 - **FR-002**: la iglesia sale de `whatsapp_connection.phone_number_id` (solo conexiones `CONNECTED`); las personas, de su árbol de nodos, activas, comparando **dígitos**: iguales, o el guardado (≥ 8 dígitos, sin ceros a la izquierda) es el final del número de WhatsApp.
-- **FR-003**: `POST /v1/internal/whatsapp/opt-out {phoneNumberId, from}` pone `whatsappConsent=false` y responde `{people}`.
+- **FR-003**: `POST /v1/internal/whatsapp/opt-out {phoneNumberId, from}` pone `whatsappConsent=false` y `POST /v1/internal/whatsapp/opt-in` (ALTA) lo vuelve a poner en verdadero; ambos responden `{people}`.
 - **FR-004**: el token lleva `iss=https://api.srtommy.com/delegated`, `aud=https://api.srtommy.com`, `sub`, `act.sub=srtomy-agent`, `iat`, `exp=iat+10min`; se rechaza si falta `act`, si vence o si lo firmó otra llave. Sin `delegation.private-key` no se emite ni se acepta ninguno.
 - **FR-005**: la vista `user_access` no concede la rama `POSITION` a usuarios `whatsapp:%`.
 - **FR-006**: `LinkUserToPerson` reemplaza al usuario sombra de la persona; una persona vinculada a una cuenta real sigue dando error.

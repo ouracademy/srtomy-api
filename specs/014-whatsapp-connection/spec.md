@@ -83,6 +83,8 @@
 - Los detalles de la API de Kapso (rutas, cabeceras, firma del webhook) se verificaron en `docs.kapso.ai` el 31-oct-2026. Falta probarlos contra una cuenta real de Kapso (fase 0 del plan).
 - El número visible (`displayNumber`) todavía no se llena: el webhook de conexión solo trae `phone_number_id`. Pendiente: leerlo de Kapso o del redirect de éxito.
 - Quién escribe al bot (identidad, token y baja) está en la spec 015.
-- Pendiente de esta spec: encolar el recordatorio de evento y la bienvenida (US3/US4) desde los comandos de eventos y de personas; hoy existe el canal, el manejador y las plantillas, pero nadie encola todavía.
+- **Recordatorio de evento (US3, hecho)**: un trabajo diario de Cloud Scheduler (`POST /v1/internal/events/whatsapp-reminders`, 9:00 hora de Lima) recuerda a quien tiene un cupo confirmado, dejó su teléfono y no ha hecho check-in, de un evento que empieza entre 12 y 36 horas después. Se salta a las iglesias sin WhatsApp conectado y a quien pidió STOP, y no repite un recordatorio (tabla `whatsapp_reminder`, una fila por inscripción). Límite conocido: el teléfono de la inscripción debe tener el código de país; sin él Meta lo rechaza y el mensaje queda `FAILED`.
+- **Bienvenida (US4, pendiente a propósito)**: no se envía todavía. Un teléfono tecleado por el personal no prueba que la persona aceptó recibir mensajes, y Meta exige ese permiso. Se hará cuando exista un opt-in explícito (por ejemplo la persona que se inscribe por el enlace público o que vincula su WhatsApp).
+- Las plantillas `event_reminder` y `welcome` hay que crearlas y aprobarlas en Meta para la cuenta de WhatsApp de cada iglesia antes de poder enviarlas.
 - Los números de teléfono de las personas ya se guardan o se pueden guardar en formato internacional.
 - El teléfono del destinatario es el del campo de contacto existente de `person`.
