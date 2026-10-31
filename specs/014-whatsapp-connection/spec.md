@@ -11,9 +11,10 @@
 ## Decisiones
 
 1. **Una conexión por nodo iglesia.** Las sedes hijas usan la de su iglesia mientras no tengan la suya (fuera de alcance conectar una por sede en esta spec).
-2. **Quién conecta**: quien tenga el permiso de administrar la estructura del nodo iglesia (propietario y administrador; rol `OWNER`/`ADMIN` de `PredefinedRoles`). Los demás no ven la pantalla ni los endpoints (403).
+2. **Quién conecta**: quien tenga el permiso `org.update` sobre el nodo (propietario y administrador). Los demás reciben 403.
 3. **Proveedor intercambiable**: la API habla con Kapso solo a través de una interfaz `WhatsAppGateway` (como `EmailGateway`), con una implementación de Kapso, una de registro en log para local y pruebas. Cambiar de proveedor no toca el dominio.
-4. **La llave de Kapso solo vive en la API** (Secret Manager); nunca llega al navegador.
+4. **La llave de Kapso solo vive en la API** (Secret Manager: `kapso-api-key` y `kapso-webhook-secret`); nunca llega al navegador.
+4b. **Quién paga a Meta** (decidido por el dueño, 31-oct-2026): nosotros, con créditos prepago de Kapso (`meta_billing_mode: partner_managed`), y se lo cobramos a cada iglesia. No se puede cambiar después en esa cuenta de WhatsApp. Consultar el funding, registrar el uso por iglesia y alertar saldo bajo queda para la spec 015; el cobro (Culqi) para otra.
 5. **Dos modos de conexión**: *Coexistence* (el pastor sigue usando la app de WhatsApp Business en su celular) o *Dedicated* (solo API). Lo elige el pastor al pedir el enlace.
 6. **Avisos que inicia el sistema** (recordatorio de evento, bienvenida) van **siempre con plantilla aprobada por Meta**; una plantilla es un texto fijo con variables. Las respuestas libres dentro de la ventana de 24 h pertenecen al bot (otra spec).
 7. **Fuera de alcance**: el bot/agente en Python (`srtomy-agent`), la bandeja de conversaciones, vincular teléfono con persona, una conexión propia por sede, cobrar el costo de Kapso/Meta, y la pantalla del portal (spec `014` de `srtomy-ui`).
@@ -50,11 +51,11 @@
 
 ## Requirements
 
-- **FR-001**: `POST /v1/organizations/{id}/whatsapp/setup-link` (modo `COEXISTENCE|DEDICATED`) crea el enlace en el proveedor y devuelve `{url, expiresAt}`; deja la conexión `PENDING`.
+- **FR-001**: `POST /v1/organizations/{id}/whatsapp/setup-link` (modo `COEXISTENCE|DEDICATED`) crea, si hace falta, el cliente de la iglesia en el proveedor y el enlace, y devuelve `{url, expiresAt}`; deja la conexión `PENDING`. `{id}` puede ser una sede: la conexión es de su iglesia.
 - **FR-002**: `GET /v1/organizations/{id}/whatsapp` devuelve `{status, displayNumber, mode, inherited}`.
-- **FR-003**: `DELETE /v1/organizations/{id}/whatsapp` desconecta y cancela los mensajes pendientes del canal para esa iglesia.
-- **FR-004**: `POST /v1/webhooks/whatsapp` recibe los avisos del proveedor, **verifica la firma** y es idempotente por id de evento; es el único endpoint fuera del JWT de Auth0 de esta función y solo responde a firmas válidas.
-- **FR-005**: `WhatsAppOutboxHandler` implementa `OutboxMessageHandler` para `WHATSAPP`: lee el payload (plantilla + variables), llama a `WhatsAppGateway.sendTemplate` con el id del mensaje como clave de idempotencia y devuelve el id del proveedor.
+- **FR-003**: `DELETE /v1/organizations/{id}/whatsapp` desconecta (`DISCONNECTED`). Los mensajes que aún esperan fallan de inmediato con un motivo claro cuando les toca, porque la iglesia ya no tiene conexión.
+- **FR-004**: `POST /v1/webhooks/whatsapp` recibe los avisos del proveedor: **verifica la firma** (HMAC-SHA256 del cuerpo crudo, cabecera `X-Webhook-Signature`) y es idempotente por `X-Idempotency-Key`. Es el único endpoint de esta función fuera del JWT de Auth0; sin secreto configurado rechaza todo. Solo actúa sobre `whatsapp.phone_number.created`; los demás eventos se aceptan y se ignoran.
+- **FR-005**: `WhatsAppOutboxHandler` implementa `OutboxMessageHandler` para `WHATSAPP`: lee el payload (`organizationId`, plantilla, variables), usa el número conectado de la iglesia y llama a `WhatsAppGateway.sendTemplate`; devuelve el id del proveedor. Kapso no documenta clave de idempotencia para envíos, así que tras un tiempo de espera agotado un reintento podría duplicar un mensaje (entrega al menos una vez).
 - **FR-006**: errores del proveedor que no se arreglan reintentando (4xx salvo 408/409/425/429, número inválido) lanzan `PermanentDeliveryException`; los demás son transitorios.
 - **FR-007**: catálogo de plantillas en español (`event_reminder`, `welcome`) versionado en el código, con su categoría (utility) y variables.
 - **FR-008**: todo envío pasa por el outbox (nunca dentro de la transacción), como manda `AGENTS.md`.
@@ -79,6 +80,8 @@
 ## Assumptions
 
 - Hay una cuenta de Kapso de Sr. Tommy con un cliente por iglesia; el costo de Meta lo paga el WABA de cada iglesia.
-- Los detalles de la API de Kapso (rutas, cabeceras, firma del webhook) **no pudieron verificarse** porque `docs.kapso.ai` está fuera de la red permitida de la sesión; la implementación del gateway de Kapso espera esa verificación. Todo lo demás (dominio, outbox, endpoints, pruebas con un gateway falso) no depende de ella.
+- Los detalles de la API de Kapso (rutas, cabeceras, firma del webhook) se verificaron en `docs.kapso.ai` el 31-oct-2026. Falta probarlos contra una cuenta real de Kapso (fase 0 del plan).
+- El número visible (`displayNumber`) todavía no se llena: el webhook de conexión solo trae `phone_number_id`. Pendiente: leerlo de Kapso o del redirect de éxito.
+- Pendiente de esta spec: encolar el recordatorio de evento y la bienvenida (US3/US4) desde los comandos de eventos y de personas; hoy existe el canal, el manejador y las plantillas, pero nadie encola todavía.
 - Los números de teléfono de las personas ya se guardan o se pueden guardar en formato internacional.
 - El teléfono del destinatario es el del campo de contacto existente de `person`.

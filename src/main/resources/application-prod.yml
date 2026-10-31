@@ -18,6 +18,14 @@ resend:
   from: ${RESEND_FROM:Sr. Tommy <invitaciones@ovejafiel.com>}
   reply-to: ${RESEND_REPLY_TO:}
 
+# Kapso (https://kapso.ai) connects the WhatsApp of each church and delivers the messages. Without
+# the key nothing leaves the log. The webhook secret signs what Kapso calls us with.
+kapso:
+  api-key: ${sm@kapso-api-key:}
+  webhook-secret: ${sm@kapso-webhook-secret:}
+  success-redirect-url: ${KAPSO_SUCCESS_REDIRECT_URL:}
+  failure-redirect-url: ${KAPSO_FAILURE_REDIRECT_URL:}
+
 # Signs the code in the attendance QR of an event (Terraform generates the secret). Without it the
 # QR cannot be made.
 attendance:
