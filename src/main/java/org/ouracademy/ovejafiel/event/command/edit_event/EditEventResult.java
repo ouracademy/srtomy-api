@@ -4,6 +4,7 @@ import org.ouracademy.ovejafiel.event.domain.EventId;
 
 /**
  * {@code keptEvents}: occurrences with sign-ups, attendance or already past that a change of the
- * rule left untouched, as one-off events. {@code notifiedPeople}: people emailed about a new time.
+ * rule left untouched, as one-off events. {@code notifiedPeople}: people emailed about a change in
+ * the time, name, place or speakers.
  */
 public record EditEventResult(EventId id, int keptEvents, int notifiedPeople) {}

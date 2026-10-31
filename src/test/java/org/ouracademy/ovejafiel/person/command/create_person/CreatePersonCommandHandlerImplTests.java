@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBERSHIP_IN_PROGRESS;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.VISITOR;
@@ -22,15 +21,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommand;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommandHandler;
-import org.ouracademy.ovejafiel.accountability.command.create_accountability.CreateAccountabilityCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommand;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommandHandler;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.command.PersonInfo;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
@@ -46,18 +46,23 @@ class CreatePersonCommandHandlerImplTests {
   @Mock PersonRepository personRepository;
   @Mock FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
   @Mock SyncPersonPositionsCommandHandler syncPersonPositionsCommandHandler;
-  @Mock CreateAccountabilitiesCommandHandler createAccountabilitiesCommandHandler;
+  @Mock SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
+  @Mock FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
 
   CreatePersonCommandHandlerImpl handler;
 
   @BeforeEach
   void setUp() {
+    org.mockito.Mockito.lenient()
+        .when(findOrganizationAncestorsQueryHandler.handle(any()))
+        .thenReturn(new FindOrganizationAncestorsResult(List.of()));
     handler =
         new CreatePersonCommandHandlerImpl(
             personRepository,
             findChurchOfOrganizationQueryHandler,
             syncPersonPositionsCommandHandler,
-            createAccountabilitiesCommandHandler);
+            setNodeMembershipCommandHandler,
+            findOrganizationAncestorsQueryHandler);
   }
 
   @Test
@@ -89,12 +94,8 @@ class CreatePersonCommandHandlerImplTests {
         .handle(
             new SyncPersonPositionsCommand(
                 "me", result.id(), organizationId, churchId, Set.of(pastor)));
-    verify(createAccountabilitiesCommandHandler)
-        .handle(
-            new CreateAccountabilitiesCommand(
-                List.of(
-                    new CreateAccountabilityCommand(result.id(), organizationId, MEMBER),
-                    new CreateAccountabilityCommand(result.id(), organizationId, IS_PART_OF))));
+    verify(setNodeMembershipCommandHandler)
+        .handle(new SetNodeMembershipCommand(result.id(), organizationId, List.of(), MEMBER));
   }
 
   private void churchOf(PartyId organizationId) {
@@ -111,12 +112,8 @@ class CreatePersonCommandHandlerImplTests {
 
     var result = handler.handle(new CreatePersonCommand("me", INFO, organizationId, Set.of()));
 
-    verify(createAccountabilitiesCommandHandler)
-        .handle(
-            new CreateAccountabilitiesCommand(
-                List.of(
-                    new CreateAccountabilityCommand(result.id(), organizationId, VISITOR),
-                    new CreateAccountabilityCommand(result.id(), organizationId, IS_PART_OF))));
+    verify(setNodeMembershipCommandHandler)
+        .handle(new SetNodeMembershipCommand(result.id(), organizationId, List.of(), VISITOR));
   }
 
   @Test
@@ -129,13 +126,10 @@ class CreatePersonCommandHandlerImplTests {
             new CreatePersonCommand(
                 "me", INFO, organizationId, Set.of(), MemberState.MEMBERSHIP_IN_PROGRESS));
 
-    verify(createAccountabilitiesCommandHandler)
+    verify(setNodeMembershipCommandHandler)
         .handle(
-            new CreateAccountabilitiesCommand(
-                List.of(
-                    new CreateAccountabilityCommand(
-                        result.id(), organizationId, MEMBERSHIP_IN_PROGRESS),
-                    new CreateAccountabilityCommand(result.id(), organizationId, IS_PART_OF))));
+            new SetNodeMembershipCommand(
+                result.id(), organizationId, List.of(), MEMBERSHIP_IN_PROGRESS));
   }
 
   @Test
@@ -152,12 +146,8 @@ class CreatePersonCommandHandlerImplTests {
                 Set.of(AccountabilityTypeId.generate()),
                 MemberState.VISITOR));
 
-    verify(createAccountabilitiesCommandHandler)
-        .handle(
-            new CreateAccountabilitiesCommand(
-                List.of(
-                    new CreateAccountabilityCommand(result.id(), organizationId, MEMBER),
-                    new CreateAccountabilityCommand(result.id(), organizationId, IS_PART_OF))));
+    verify(setNodeMembershipCommandHandler)
+        .handle(new SetNodeMembershipCommand(result.id(), organizationId, List.of(), MEMBER));
   }
 
   @Test
@@ -171,6 +161,24 @@ class CreatePersonCommandHandlerImplTests {
             () -> handler.handle(new CreatePersonCommand("me", INFO, organizationId, Set.of())))
         .isInstanceOf(NoSuchElementException.class);
     verifyNoInteractions(
-        personRepository, syncPersonPositionsCommandHandler, createAccountabilitiesCommandHandler);
+        personRepository, syncPersonPositionsCommandHandler, setNodeMembershipCommandHandler);
+  }
+
+  @Test
+  void aPersonIsAlsoKnownByTheNodesAboveTheOneTheyAreRegisteredIn() {
+    var organizationId = PartyId.generate();
+    var churchId = PartyId.generate();
+    when(findChurchOfOrganizationQueryHandler.handle(
+            new FindChurchOfOrganizationQuery(organizationId)))
+        .thenReturn(Optional.of(new FindChurchOfOrganizationResult(churchId)));
+    when(personRepository.save(any(Person.class))).thenAnswer(call -> call.getArgument(0));
+    when(findOrganizationAncestorsQueryHandler.handle(any()))
+        .thenReturn(new FindOrganizationAncestorsResult(List.of(churchId)));
+
+    var result = handler.handle(new CreatePersonCommand("me", INFO, organizationId, Set.of()));
+
+    verify(setNodeMembershipCommandHandler)
+        .handle(
+            new SetNodeMembershipCommand(result.id(), organizationId, List.of(churchId), VISITOR));
   }
 }

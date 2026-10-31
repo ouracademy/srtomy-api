@@ -41,4 +41,19 @@ public interface OrganizationRepository extends JpaRepository<Organization, Part
           """,
       nativeQuery = true)
   List<UUID> findSubtreeIds(UUID id);
+
+  /** The nodes above {@code id}, the church first and the direct parent last; not {@code id}. */
+  @Query(
+      value =
+          """
+          with recursive ancestors as (
+              select o.id, o.parent_id, 0 as depth from organization o where o.id = :id
+              union all
+              select o.id, o.parent_id, a.depth + 1 from organization o
+              join ancestors a on o.id = a.parent_id
+          )
+          select a.id from ancestors a where a.id <> :id order by a.depth desc
+          """,
+      nativeQuery = true)
+  List<UUID> findAncestorIds(UUID id);
 }

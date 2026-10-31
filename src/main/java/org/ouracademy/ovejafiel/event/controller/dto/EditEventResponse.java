@@ -4,6 +4,7 @@ import java.util.UUID;
 
 /**
  * {@code keptEvents}: occurrences left untouched, as one-off events, because they are past or have
- * sign-ups or attendance. {@code notifiedPeople}: people emailed about a new time.
+ * sign-ups or attendance. {@code notifiedPeople}: people emailed about a change in the time, name,
+ * place or speakers.
  */
 public record EditEventResponse(UUID id, int keptEvents, int notifiedPeople) {}

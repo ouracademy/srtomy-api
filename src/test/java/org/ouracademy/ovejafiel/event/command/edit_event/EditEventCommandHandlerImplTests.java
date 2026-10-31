@@ -15,6 +15,7 @@ import static org.ouracademy.ovejafiel.event.EventFixtures.eventSeries;
 import static org.ouracademy.ovejafiel.event.EventFixtures.registration;
 import static org.ouracademy.ovejafiel.event.EventFixtures.ticket;
 import static org.ouracademy.ovejafiel.organization.OrganizationFixtures.organization;
+import static org.ouracademy.ovejafiel.person.PersonFixtures.person;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -158,13 +159,24 @@ class EditEventCommandHandlerImplTests {
         null);
   }
 
+  private final java.util.List<org.ouracademy.ovejafiel.event.domain.EventRegistration>
+      registrations = new java.util.ArrayList<>();
+
+  /** Who signed up; the repository answers only for the events it is asked about. */
   private void givenSignedUp(Event event, String email) {
-    when(eventRegistrationRepository.findByEventIdInAndStatusNot(
-            anyCollection(), org.mockito.ArgumentMatchers.eq(RegistrationStatus.CANCELLED)))
-        .thenReturn(
-            List.of(
-                registration(
-                    event, ticket(event, "General", null), email, RegistrationStatus.CONFIRMED)));
+    registrations.add(
+        registration(event, ticket(event, "General", null), email, RegistrationStatus.CONFIRMED));
+    lenient()
+        .when(
+            eventRegistrationRepository.findByEventIdInAndStatusNot(
+                anyCollection(), org.mockito.ArgumentMatchers.eq(RegistrationStatus.CANCELLED)))
+        .thenAnswer(
+            invocation -> {
+              java.util.Collection<EventId> ids = invocation.getArgument(0);
+              return registrations.stream()
+                  .filter(r -> ids.contains(r.getEvent().getId()))
+                  .toList();
+            });
   }
 
   // ---- validation
@@ -291,17 +303,117 @@ class EditEventCommandHandlerImplTests {
   // ---- one-off event
 
   @Test
-  void editingTheDataOfAOneOffEventSendsNoEmail() {
+  void editingTheDataOfAOneOffEventWritesItAndAnEmptyDescriptionEmailsNobody() {
     var event = oneOff();
     given(event);
+    givenSignedUp(event, "lu@example.com");
+    var same = sameTimes(event, EventChangeOption.THIS_EVENT, event.getTitle());
+    var onlyDescription =
+        new EditEventCommand(
+            same.id(),
+            same.option(),
+            same.name(),
+            same.startTime(),
+            same.endTime(),
+            event.getAddress(),
+            "Otra descripción",
+            false,
+            same.organizationId(),
+            List.of(),
+            null,
+            null,
+            null,
+            null,
+            NOW);
+
+    var result = handler.handle(onlyDescription);
+
+    assertThat(event.getDescription()).isEqualTo("Otra descripción");
+    assertThat(result).isEqualTo(new EditEventResult(event.getId(), 0, 0));
+    verifyNoInteractions(sendEmailCommandHandler);
+  }
+
+  @Test
+  void aNewNameOrPlaceEmailsWhoSignedUp() {
+    var event = oneOff();
+    given(event);
+    givenSignedUp(event, "lu@example.com");
 
     var result =
         handler.handle(sameTimes(event, EventChangeOption.THIS_EVENT, "Retiro de jóvenes"));
 
     assertThat(event.getTitle()).isEqualTo("Retiro de jóvenes");
     assertThat(event.getAddress()).isEqualTo("Nueva dirección");
-    assertThat(event.getDescription()).isEqualTo("Nueva descripción");
-    assertThat(result).isEqualTo(new EditEventResult(event.getId(), 0, 0));
+    assertThat(result.notifiedPeople()).isEqualTo(1);
+    var email = ArgumentCaptor.forClass(SendEmailCommand.class);
+    verify(sendEmailCommandHandler).handle(email.capture());
+    assertThat(email.getValue().text())
+        .contains("Nuevo nombre: «Retiro de jóvenes»", "Nuevo lugar: Nueva dirección")
+        .doesNotContain("Cambió la fecha u hora");
+  }
+
+  @Test
+  void newSpeakersEmailWhoSignedUpWithTheirNames() {
+    var event = oneOff();
+    given(event);
+    givenSignedUp(event, "lu@example.com");
+    var speakerId = PartyId.generate();
+    when(findPeopleByIdsQueryHandler.handle(any()))
+        .thenReturn(
+            List.of(
+                org.ouracademy.ovejafiel.person.query.FindPersonResult.from(
+                    person(speakerId, "Jose", "Mena"))));
+    var same = sameTimes(event, EventChangeOption.THIS_EVENT, event.getTitle());
+    var withSpeaker =
+        new EditEventCommand(
+            same.id(),
+            same.option(),
+            same.name(),
+            same.startTime(),
+            same.endTime(),
+            event.getAddress(),
+            event.getDescription(),
+            false,
+            same.organizationId(),
+            List.of(speakerId),
+            null,
+            null,
+            null,
+            null,
+            NOW);
+
+    handler.handle(withSpeaker);
+
+    var email = ArgumentCaptor.forClass(SendEmailCommand.class);
+    verify(sendEmailCommandHandler).handle(email.capture());
+    assertThat(email.getValue().text()).contains("Ponentes: Jose Mena");
+  }
+
+  @Test
+  void nobodyIsEmailedWhenNothingThatMattersChanged() {
+    var event = oneOff();
+    given(event);
+    givenSignedUp(event, "lu@example.com");
+    var same = sameTimes(event, EventChangeOption.THIS_EVENT, event.getTitle());
+    var untouched =
+        new EditEventCommand(
+            same.id(),
+            same.option(),
+            same.name(),
+            same.startTime(),
+            same.endTime(),
+            event.getAddress(),
+            event.getDescription(),
+            false,
+            same.organizationId(),
+            List.of(),
+            null,
+            null,
+            null,
+            null,
+            NOW);
+
+    assertThat(handler.handle(untouched).notifiedPeople()).isZero();
     verifyNoInteractions(sendEmailCommandHandler);
   }
 
@@ -326,10 +438,15 @@ class EditEventCommandHandlerImplTests {
     var email = ArgumentCaptor.forClass(SendEmailCommand.class);
     verify(sendEmailCommandHandler).handle(email.capture());
     assertThat(email.getValue().to()).isEqualTo("lu@example.com");
-    assertThat(email.getValue().type()).isEqualTo("EVENT_RESCHEDULED");
-    assertThat(email.getValue().subject()).isEqualTo("Cambió la fecha de «Retiro»");
+    assertThat(email.getValue().type()).isEqualTo("EVENT_CHANGED");
+    assertThat(email.getValue().subject()).isEqualTo("Cambios en «Retiro»");
     assertThat(email.getValue().text())
-        .contains("Hola Lu", "martes 3 de febrero de 2026, 15:00", event.getShareSlug());
+        .contains(
+            "Hola Lu",
+            "Cambió la fecha u hora",
+            "martes 3 de febrero de 2026, 15:00",
+            event.getShareSlug())
+        .doesNotContain("Nuevo nombre");
   }
 
   @Test
@@ -444,15 +561,7 @@ class EditEventCommandHandlerImplTests {
     given(target);
     givenTheSeriesEvents();
     var signedUp = occurrences.get(2);
-    when(eventRegistrationRepository.findByEventIdInAndStatusNot(
-            anyCollection(), org.mockito.ArgumentMatchers.eq(RegistrationStatus.CANCELLED)))
-        .thenReturn(
-            List.of(
-                registration(
-                    signedUp,
-                    ticket(signedUp, "General", null),
-                    "ana@example.com",
-                    RegistrationStatus.CONFIRMED)));
+    givenSignedUp(signedUp, "ana@example.com");
     when(findEventIdsWithAttendanceQueryHandler.handle(any()))
         .thenReturn(new FindEventIdsWithAttendanceResult(Set.of()));
     var daily =
@@ -495,6 +604,7 @@ class EditEventCommandHandlerImplTests {
         .containsExactly(
             LocalDate.of(2026, 1, 6), LocalDate.of(2026, 1, 8), LocalDate.of(2026, 1, 9));
     assertThat(created.getValue()).allSatisfy(e -> assertThat(e.getSeries()).isSameAs(next));
+    // Nobody signed up for the edited occurrence, and the ones with people were not touched.
     verifyNoInteractions(sendEmailCommandHandler);
   }
 
@@ -732,7 +842,7 @@ class EditEventCommandHandlerImplTests {
     var email = ArgumentCaptor.forClass(SendEmailCommand.class);
     verify(sendEmailCommandHandler).handle(email.capture());
     assertThat(email.getValue().to()).isEqualTo("lu@example.com");
-    assertThat(email.getValue().subject()).isEqualTo("Cambió la fecha de «Taller»");
+    assertThat(email.getValue().subject()).isEqualTo("Cambios en «Taller»");
   }
 
   @Test

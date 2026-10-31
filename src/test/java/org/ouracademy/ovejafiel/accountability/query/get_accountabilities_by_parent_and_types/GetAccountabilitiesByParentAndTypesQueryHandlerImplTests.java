@@ -5,7 +5,7 @@ import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.accountability.AccountabilityFixtures.party;
 import static org.ouracademy.ovejafiel.accountability.AccountabilityFixtures.withId;
 import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
+import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -29,19 +29,19 @@ class GetAccountabilitiesByParentAndTypesQueryHandlerImplTests {
     var childId = PartyId.generate();
     var parent = party(parentId, "Group");
     var child = party(childId, "Ana");
-    var leader = withId(new AccountabilityType("LEADER", null, null), LEADER);
+    var member = withId(new AccountabilityType("MEMBER", null, null), MEMBER);
     var accountabilityId = AccountabilityId.generate();
-    var accountability = withId(new Accountability(child, parent, leader), accountabilityId);
-    when(accountabilityRepository.findByParentIdAndTypeIdIn(parentId, List.of(IS_PART_OF, LEADER)))
+    var accountability = withId(new Accountability(child, parent, member), accountabilityId);
+    when(accountabilityRepository.findByParentIdAndTypeIdIn(parentId, List.of(IS_PART_OF, MEMBER)))
         .thenReturn(List.of(accountability));
     var handler = new GetAccountabilitiesByParentAndTypesQueryHandlerImpl(accountabilityRepository);
 
     var result =
         handler.handle(
-            new GetAccountabilitiesByParentAndTypesQuery(parentId, List.of(IS_PART_OF, LEADER)));
+            new GetAccountabilitiesByParentAndTypesQuery(parentId, List.of(IS_PART_OF, MEMBER)));
 
     assertThat(result)
         .containsExactly(
-            new AccountabilityResult(accountabilityId, childId, "Ana", parentId, LEADER, "LEADER"));
+            new AccountabilityResult(accountabilityId, childId, "Ana", parentId, MEMBER, "MEMBER"));
   }
 }

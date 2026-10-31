@@ -153,29 +153,6 @@ class InvitationIntegrationTests {
   }
 
   @Test
-  void aLeaderOfAGroupCanInviteSomeoneWhoIsOnlyLeaderThere() {
-    // The leader belongs to the location, not to the group, and leads the group.
-    var location = church.location;
-    var leaderId = createPerson(alice, "Lucía", location);
-    var group =
-        read(body(
-                alice,
-                HttpMethod.POST,
-                "/organizations/locations/childs",
-                "{\"name\":\"Jóvenes\",\"type\":\"GROUP\",\"parentId\":\"%s\",\"leaderIds\":[\"%s\"]}"
-                    .formatted(location, leaderId)))
-            .get("id")
-            .asText();
-
-    invite(alice, group, email(bob), null, leaderId);
-    body(bob, HttpMethod.POST, "/invitations/" + lastToken() + "/accept", null);
-
-    assertThat(permissions(bob, group)).contains("members.write", "invitations.send");
-    // Being a member of the location is only the Member level there.
-    assertThat(permissions(bob, location)).containsExactlyInAnyOrder("org.read", "events.read");
-  }
-
-  @Test
   void nobodyLinksAnAccountToAPersonWhoHoldsMoreAccessThanTheyCanGive() {
     var leader = createPosition(alice, church.id, "Líder", PredefinedRoles.LEADER.value());
     var admin = createPosition(alice, church.id, "Admin", PredefinedRoles.ADMIN.value());

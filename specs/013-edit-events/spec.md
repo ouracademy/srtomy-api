@@ -13,7 +13,7 @@
 Las tres primeras las tomó el dueño del producto; el resto las decide esta spec.
 
 1. **Campos editables**: `name`, `startTime`/`endTime`, `address`, `description`, `speakerIds` y la regla de repetición (`recurrence`, `timeZone`). **No** se pueden cambiar `organizationId` (moverlo cambiaría permisos, compartidos e inscripción) ni `isACourse` («evento» o «curso» queda fijo al crear). El request sigue siendo el `EventRequest` de crear: si `organizationId` o `isACourse` difieren de lo guardado, **400** con mensaje en español; si coinciden, se ignoran.
-2. **Mover la fecha con inscritos o asistencia: se permite y se conserva todo.** Las inscripciones (`event_registration`), el aforo, la asistencia y los enlaces cuelgan de `event_id`, que no cambia. **Se avisa por correo** a cada inscrito no cancelado cuya ocurrencia cambió de fecha u hora (fecha/hora nuevas y el enlace del evento), por el outbox, en la misma transacción (`SendEmailCommandHandler`). Cambiar solo nombre, lugar, ponentes o descripción no envía correos. La UI avisa **antes** de guardar que se enviarán correos.
+2. **Cambiar lo que afecta a los inscritos: se permite, se conserva todo y se avisa por correo.** Las inscripciones (`event_registration`), el aforo, la asistencia y los enlaces cuelgan de `event_id`, que no cambia. Se avisa a cada inscrito no cancelado de la ocurrencia que cambió cuando cambia **la fecha u hora, el nombre, el lugar o los ponentes** (el lugar o el ponente pueden afectar a quien va a asistir). Un solo correo por persona (tipo `EVENT_CHANGED`, por el outbox, en la misma transacción) dice qué cambió (con el lugar nuevo y los nombres de los ponentes) y las fechas de sus ocurrencias. Cambiar solo la descripción no envía correos. La UI avisa **antes** de guardar que se enviarán.
 3. **Cambiar la regla de repetición o el día de una serie: se conserva lo que ya tiene gente.** Las ocurrencias afectadas que ya pasaron o que tienen inscritos (no cancelados) o asistencia **no se borran ni se modifican**: quedan como eventos sueltos (fuera de la serie). Solo se reemplazan las demás. La respuesta dice cuántas se conservaron y la UI lo avisa antes de guardar («las ocurrencias con inscritos o asistencia no cambian») y después. Como esas ocurrencias no cambian, no se envía correo por ellas.
 4. **`EventChangeOption`** (en un evento suelto la opción se ignora):
    - `THIS_EVENT`: se edita solo esa ocurrencia y **sale de la serie** (queda como evento suelto). La `recurrence` del request se ignora. Si cambia la hora, se avisa a sus inscritos.
@@ -32,9 +32,10 @@ Las tres primeras las tomó el dueño del producto; el resto las decide esta spe
 ## User Scenarios & Testing
 
 ### US1 — Corregir los datos de un evento (P1)
-1. **Given** un evento suelto, **When** un Editor cambia nombre, lugar, ponentes y descripción, **Then** `GET /events/{id}` devuelve los nuevos y nadie recibe correo.
-2. **Given** un evento, **When** se envía otro `organizationId` o `isACourse`, **Then** 400 y no cambia nada.
-3. **Given** un usuario sin acceso Editor, **Then** 403; evento inexistente, 404.
+1. **Given** un evento suelto sin inscritos, **When** un Editor cambia nombre, lugar, ponentes y descripción, **Then** `GET /events/{id}` devuelve los nuevos.
+2. **Given** inscritos, **When** cambia solo la descripción, **Then** nadie recibe correo; si cambia el nombre, el lugar o los ponentes, sí.
+3. **Given** un evento, **When** se envía otro `organizationId` o `isACourse`, **Then** 400 y no cambia nada.
+4. **Given** un usuario sin acceso Editor, **Then** 403; evento inexistente, 404.
 
 ### US2 — Mover la fecha de un evento con inscritos (P1)
 1. **Given** un evento con dos inscritos y uno cancelado, **When** se cambia la hora, **Then** el evento se mueve, conserva sus inscritos y asistencia, y se encolan 2 correos (no al cancelado).
@@ -53,7 +54,7 @@ Las tres primeras las tomó el dueño del producto; el resto las decide esta spe
 - **FR-001**: `PUT /events/{id}` recibe `EditEventRequest` (`EventRequest` + `option`) y responde `EditEventResponse {id, keptEvents, notifiedRegistrations}`.
 - **FR-002**: `EditEventCommand` lleva todos los datos; `EditEventCommandHandler.handle` los aplica en una transacción (todo o nada, incluidos los correos del outbox).
 - **FR-003**: validar nombre, fin posterior al inicio, ponentes existentes, repetición válida y que la serie nueva genere al menos una ocurrencia; errores de dominio dan 400.
-- **FR-004**: el correo a inscritos sale solo si el inicio o el fin de su ocurrencia cambió, nunca a inscripciones canceladas, una vez por inscrito.
+- **FR-004**: el correo a inscritos sale solo si cambió el inicio, el fin, el nombre, el lugar o los ponentes de su ocurrencia, nunca a inscripciones canceladas, una vez por inscrito.
 - **FR-005**: nada de lo editado cambia `share_slug`, `general_access`, la inscripción ni los compartidos.
 
 ## Success Criteria
