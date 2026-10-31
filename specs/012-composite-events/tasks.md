@@ -1,7 +1,7 @@
 # Tasks: Eventos compuestos
 
 ## Datos y dominio
-- [x] T001 Migración `V1.16.0__composite_events.sql`.
+- [x] T001 Migración `V1.18.0__composite_events.sql`.
 - [x] T002 `RegistrationMode`, `Event.parent`, `Event.registrationMode`, `Event.attachTo` y pruebas.
 - [x] T003 `EventRepository.findByParentOrderByStart` y `EventFixtures.childOf`.
 

@@ -41,7 +41,7 @@ public interface DirectoryRepository extends Repository<Organization, PartyId> {
 
   List<Organization> findByParentIdOrderByName(PartyId parentId);
 
-  /** The people related to the nodes by one accountability type (members or leaders). */
+  /** The people related to the nodes by one accountability type (members or team). */
   @Query(
       """
       select new org.ouracademy.ovejafiel.directory.repository.DirectoryRepository$PersonRow(

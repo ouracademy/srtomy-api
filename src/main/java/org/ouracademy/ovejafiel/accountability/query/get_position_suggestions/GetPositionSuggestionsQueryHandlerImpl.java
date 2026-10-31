@@ -43,8 +43,7 @@ class GetPositionSuggestionsQueryHandlerImpl implements GetPositionSuggestionsQu
           Template.of("Diaconisa", LEADER),
           Template.of("Evangelista", LEADER),
           Template.of("Misionero", LEADER),
-          Template.of("Líder de alabanza", LEADER),
-          Template.of("Líder de grupo", LEADER),
+          Template.of("Líder de grupo o ministerio", LEADER),
           Template.of(
               "Maestro",
               PredefinedRoles.EVENTS_MANAGER,

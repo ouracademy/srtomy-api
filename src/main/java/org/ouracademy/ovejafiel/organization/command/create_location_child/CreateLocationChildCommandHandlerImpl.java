@@ -1,15 +1,15 @@
 package org.ouracademy.ovejafiel.organization.command.create_location_child;
 
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.IS_PART_OF;
-import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.LEADER;
+import static org.ouracademy.ovejafiel.accountability.domain.SystemAccountabilityTypes.MEMBER;
 
-import java.util.stream.Stream;
+import java.util.LinkedHashSet;
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommand;
-import org.ouracademy.ovejafiel.accountability.command.create_accountabilities.CreateAccountabilitiesCommandHandler;
-import org.ouracademy.ovejafiel.accountability.command.create_accountability.CreateAccountabilityCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommand;
+import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.organization.command.OrganizationWriter;
 import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
+import org.ouracademy.ovejafiel.organization.repository.OrganizationRepository;
+import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 class CreateLocationChildCommandHandlerImpl implements CreateLocationChildCommandHandler {
 
   private final OrganizationWriter organizationWriter;
-  private final CreateAccountabilitiesCommandHandler createAccountabilitiesCommandHandler;
+  private final OrganizationRepository organizationRepository;
+  private final SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
 
   @Override
   @Transactional
@@ -26,16 +27,13 @@ class CreateLocationChildCommandHandlerImpl implements CreateLocationChildComman
     var locationChild =
         organizationWriter.create(command.info(), command.type(), command.parentId());
     var childId = locationChild.getId();
-    // Members and leaders are inserted in a single batch, members first.
-    var accountabilities =
-        Stream.concat(
-                command.memberIds().stream()
-                    .map(id -> new CreateAccountabilityCommand(id, childId, IS_PART_OF)),
-                command.leaderIds().stream()
-                    .map(id -> new CreateAccountabilityCommand(id, childId, LEADER)))
-            .toList();
-    createAccountabilitiesCommandHandler.handle(
-        new CreateAccountabilitiesCommand(accountabilities));
+    // The nodes above the new one, the church first: its people are in them too.
+    var above =
+        organizationRepository.findAncestorIds(childId.value()).stream().map(PartyId::new).toList();
+    for (var personId : new LinkedHashSet<>(command.memberIds())) {
+      setNodeMembershipCommandHandler.handle(
+          new SetNodeMembershipCommand(personId, childId, above, MEMBER));
+    }
     return new CreateLocationChildResult(FindOrganizationResult.from(locationChild));
   }
 }

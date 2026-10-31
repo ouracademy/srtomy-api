@@ -42,17 +42,16 @@ class GetDirectoryEntryQueryHandlerImpl implements GetDirectoryEntryQueryHandler
     var ids = new java.util.ArrayList<PartyId>();
     ids.add(node.getId());
     children.forEach(child -> ids.add(child.getId()));
-    var leaders = reader.leadersByNode(ids, Audience.CHURCH);
+    var team = reader.teamByNode(ids, Audience.CHURCH);
 
     var visible = membersVisible(query.subject(), churchId, node);
     return new GetDirectoryEntryResult(
-        DirectoryNodeResult.of(node, leaders.getOrDefault(node.getId(), List.of())),
+        DirectoryNodeResult.of(node, team.getOrDefault(node.getId(), List.of())),
         visible,
         visible ? reader.membersOf(node.getId(), Audience.CHURCH) : List.of(),
         children.stream()
             .map(
-                child ->
-                    DirectoryNodeResult.of(child, leaders.getOrDefault(child.getId(), List.of())))
+                child -> DirectoryNodeResult.of(child, team.getOrDefault(child.getId(), List.of())))
             .toList());
   }
 

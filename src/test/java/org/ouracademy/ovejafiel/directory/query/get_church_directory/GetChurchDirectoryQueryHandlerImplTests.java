@@ -44,7 +44,7 @@ class GetChurchDirectoryQueryHandlerImplTests {
     var ids = nodes.stream().map(Organization::getId).toList();
     when(subtree.handle(any())).thenReturn(new FindOrganizationSubtreeResult(ids));
     when(reader.nodes(ids)).thenReturn(nodes);
-    when(reader.leadersByNode(ids, Audience.CHURCH))
+    when(reader.teamByNode(ids, Audience.CHURCH))
         .thenReturn(Map.of(group.getId(), List.of("Ana Ruiz")));
   }
 
@@ -60,7 +60,7 @@ class GetChurchDirectoryQueryHandlerImplTests {
         .containsExactly("Iglesia", "alabanza", "Sede Norte");
     // The node that hides its people is still in the directory.
     assertThat(nodes.get(1).memberVisibility()).isEqualTo(MemberVisibility.LEADERS);
-    assertThat(nodes.get(1).leaders()).containsExactly("Ana Ruiz");
+    assertThat(nodes.get(1).team()).containsExactly("Ana Ruiz");
     assertThat(nodes.get(2).parentId()).isEqualTo(churchId);
     verify(churchAccess).requireMember("me", churchId);
   }

@@ -1,6 +1,6 @@
 # Data Model: Eventos compuestos
 
-Migración `V1.16.0__composite_events.sql`.
+Migración `V1.18.0__composite_events.sql`.
 
 | Tabla / columna | Detalle |
 | --- | --- |

@@ -36,8 +36,7 @@ class GetChurchDirectoryQueryHandlerImpl implements GetChurchDirectoryQueryHandl
             .findFirst()
             .filter(node -> node.getType() == Organization.Type.CHURCH)
             .orElseThrow(() -> new NoSuchElementException("Church not found"));
-    var leaders =
-        reader.leadersByNode(nodes.stream().map(Organization::getId).toList(), Audience.CHURCH);
+    var team = reader.teamByNode(nodes.stream().map(Organization::getId).toList(), Audience.CHURCH);
     return new GetChurchDirectoryResult(
         nodes.stream()
             .sorted(
@@ -47,7 +46,7 @@ class GetChurchDirectoryQueryHandlerImpl implements GetChurchDirectoryQueryHandl
             .map(
                 node ->
                     DirectoryNodeResult.of(
-                        node, leaders.getOrDefault(node.getId(), java.util.List.of())))
+                        node, team.getOrDefault(node.getId(), java.util.List.of())))
             .toList());
   }
 }

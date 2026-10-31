@@ -355,7 +355,7 @@ class CompositeEventsIntegrationTests {
     assertThat(openMoved.get("notifiedPeople").asInt()).isZero();
     assertThat(
             jdbc.queryForList(
-                "select recipient from outbox_message where type = 'EVENT_RESCHEDULED' "
+                "select recipient from outbox_message where type = 'EVENT_CHANGED' "
                     + "and recipient = ?",
                 String.class,
                 email))

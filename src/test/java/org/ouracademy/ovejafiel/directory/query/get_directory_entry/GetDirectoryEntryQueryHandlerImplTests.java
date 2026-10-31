@@ -48,7 +48,7 @@ class GetDirectoryEntryQueryHandlerImplTests {
         .thenReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
     when(reader.nodes(List.of(groupId))).thenReturn(List.of(group));
     when(reader.childrenOf(groupId)).thenReturn(List.of(child));
-    when(reader.leadersByNode(any(), any(Audience.class)))
+    when(reader.teamByNode(any(), any(Audience.class)))
         .thenReturn(Map.of(groupId, List.of("Ana Ruiz")));
     when(reader.membersOf(groupId, Audience.CHURCH)).thenReturn(List.of("Beto Paz"));
   }
@@ -64,7 +64,7 @@ class GetDirectoryEntryQueryHandlerImplTests {
 
     assertThat(result.node().name()).isEqualTo("Jóvenes");
     assertThat(result.node().schedule()).isEqualTo("Sábados");
-    assertThat(result.node().leaders()).containsExactly("Ana Ruiz");
+    assertThat(result.node().team()).containsExactly("Ana Ruiz");
     assertThat(result.children()).extracting(c -> c.name()).containsExactly("Sub");
     verify(churchAccess).requireMember("me", church);
   }
