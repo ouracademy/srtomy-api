@@ -105,6 +105,10 @@ public class EventController {
             jwt.getSubject(),
             new PartyId(eventRequest.getOrganizationId()),
             Permission.EVENTS_WRITE));
+    if (eventRequest.getParentEventId() != null) {
+      // Adding to someone's mega event takes edit rights on it, not only on the child's node.
+      authorizeOnEvent(jwt, eventRequest.getParentEventId(), AccessLevel.EDITOR);
+    }
     return createEventCommandHandler
         .handle(
             new CreateEventCommand(
@@ -119,7 +123,11 @@ public class EventController {
                 eventRequest.getRecurrence() == null
                     ? null
                     : eventRequest.getRecurrence().toRecurrence(),
-                eventRequest.zone()))
+                eventRequest.zone(),
+                eventRequest.getParentEventId() == null
+                    ? null
+                    : new EventId(eventRequest.getParentEventId()),
+                eventRequest.getRegistrationMode()))
         .id()
         .value();
   }
@@ -154,6 +162,8 @@ public class EventController {
                 request.getSpeakerIds().stream().map(PartyId::new).toList(),
                 request.getRecurrence() == null ? null : request.getRecurrence().toRecurrence(),
                 request.getTimeZone() == null ? null : request.zone(),
+                request.getParentEventId() == null ? null : new EventId(request.getParentEventId()),
+                request.getRegistrationMode(),
                 Instant.now()));
     return new EditEventResponse(result.id().value(), result.keptEvents(), result.notifiedPeople());
   }

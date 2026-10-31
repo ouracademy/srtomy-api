@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
@@ -30,6 +31,7 @@ import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventSeries;
 import org.ouracademy.ovejafiel.event.domain.Recurrence;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
+import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.ouracademy.ovejafiel.event.repository.EventSeriesRepository;
@@ -64,6 +66,7 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
   private final EventRepository eventRepository;
   private final EventSeriesRepository eventSeriesRepository;
   private final EventRegistrationRepository eventRegistrationRepository;
+  private final EffectiveRegistration effectiveRegistration;
   private final FindPeopleByIdsQueryHandler findPeopleByIdsQueryHandler;
   private final FindEventIdsWithAttendanceQueryHandler findEventIdsWithAttendanceQueryHandler;
   private final DeleteAttendanceForEventsCommandHandler deleteAttendanceForEventsCommandHandler;
@@ -132,6 +135,7 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
       throw new DomainValidationException(
           "No se puede convertir un evento en curso ni un curso en evento");
     }
+    requireSameContainer(command, event);
     var start = command.startTime().atZoneSameInstant(UTC);
     var end = command.endTime().atZoneSameInstant(UTC);
     if (end.isBefore(start)) {
@@ -149,12 +153,34 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
   }
 
   /**
-   * Extension point for composite events (spec 012, still on its own branch): once an event can
-   * have a parent, check here that the new dates of a sub-event stay inside its mega event and that
-   * the sub-events of a mega event stay inside its new dates. Nothing to check until then.
+   * A sub-event stays in its mega event (like the node, it cannot change), and neither can repeat.
+   * A null container means "as it is", like a null recurrence.
+   */
+  private void requireSameContainer(EditEventCommand command, Event event) {
+    var container = event.getParent() == null ? null : event.getParent().getId();
+    if (command.parentEventId() != null && !command.parentEventId().equals(container)) {
+      throw new DomainValidationException("No se puede mover un evento a otro evento ni sacarlo");
+    }
+    if (command.recurrence() != null
+        && (event.isChild() || eventRepository.existsByParent(event))) {
+      throw new DomainValidationException("Un evento compuesto no puede repetirse");
+    }
+  }
+
+  /**
+   * Composite events (spec 012): a sub-event stays inside the dates of its mega event, and a mega
+   * event cannot be edited leaving a sub-event out. How a sub-event is entered is set here too.
    */
   private void validateSchedule(Event event, Edit edit) {
-    // intentionally empty: see the javadoc
+    if (event.isChild()) {
+      event.requireInside(event.getParent());
+      if (edit.command().registrationMode() != null) {
+        event.setRegistrationMode(edit.command().registrationMode());
+      }
+    }
+    eventRepository
+        .findByParentOrderByStart(event)
+        .forEach(subEvent -> subEvent.requireInside(event));
   }
 
   // ---- one-off event
@@ -407,22 +433,33 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
     if (notices.isEmpty()) {
       return 0;
     }
-    var byId = new LinkedHashMap<EventId, Notice>();
-    notices.forEach(notice -> byId.put(notice.event().getId(), notice));
+    // Whoever holds a place is told about the events the place gives them: a
+    // sub-event that inherits the registration of its mega event is told to the
+    // people of the mega event.
+    var coveredBy = new LinkedHashMap<EventId, List<Notice>>();
+    for (var notice : notices) {
+      effectiveRegistration
+          .governing(notice.event())
+          .ifPresent(
+              governing ->
+                  coveredBy.computeIfAbsent(governing.getId(), k -> new ArrayList<>()).add(notice));
+    }
     var registrations =
         eventRegistrationRepository.findByEventIdInAndStatusNot(
-            List.copyOf(byId.keySet()), RegistrationStatus.CANCELLED);
-    var byPerson = new LinkedHashMap<String, List<Notice>>();
+            List.copyOf(coveredBy.keySet()), RegistrationStatus.CANCELLED);
+    var byPerson = new LinkedHashMap<String, Map<EventId, Notice>>();
     var names = new LinkedHashMap<String, String>();
     for (var registration : registrations) {
       var email = registration.getEmail().trim().toLowerCase();
-      byPerson
-          .computeIfAbsent(email, k -> new ArrayList<>())
-          .add(byId.get(registration.getEvent().getId()));
+      var theirNotices = byPerson.computeIfAbsent(email, k -> new LinkedHashMap<>());
+      for (var notice : coveredBy.get(registration.getEvent().getId())) {
+        theirNotices.putIfAbsent(notice.event().getId(), notice);
+      }
       names.putIfAbsent(email, registration.getFirstName());
     }
     byPerson.forEach(
-        (email, theirs) -> {
+        (email, byEvent) -> {
+          var theirs = new ArrayList<>(byEvent.values());
           theirs.sort(Comparator.comparing(n -> n.event().getStart().toInstant()));
           var title = theirs.getFirst().event().getTitle();
           sendEmailCommandHandler.handle(

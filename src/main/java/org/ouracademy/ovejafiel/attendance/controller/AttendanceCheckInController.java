@@ -2,7 +2,9 @@ package org.ouracademy.ovejafiel.attendance.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDateTime;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.ouracademy.ovejafiel.attendance.command.add_visitor.AddVisitorCommand;
@@ -38,6 +40,7 @@ import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventRegistrationId;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.person.command.PersonInfo;
+import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.ouracademy.ovejafiel.user.domain.UserId;
 import org.ouracademy.ovejafiel.user.query.find_user_by_subject.FindUserBySubjectQuery;
 import org.ouracademy.ovejafiel.user.query.find_user_by_subject.FindUserBySubjectQueryHandler;
@@ -115,6 +118,9 @@ public class AttendanceCheckInController {
     var result =
         checkInRegistrationByTicketCommandHandler.handle(
             new CheckInRegistrationByTicketCommand(new EventId(id), request.ticketCode()));
+    if (result.inherited()) {
+      return checkInInInheritedSubEvent(jwt, id, result);
+    }
     markLinkedPerson(jwt, id, result, CheckInSource.QR_TICKET);
     return CheckInResponse.from(result);
   }
@@ -175,6 +181,31 @@ public class AttendanceCheckInController {
         setAttendanceGuestsCommandHandler
             .handle(new SetAttendanceGuestsCommand(new EventId(id), request.guestCount()))
             .guestCount());
+  }
+
+  /**
+   * The ticket is the container's: the sign-up stays as it is and the person is marked in this
+   * sub-event. Without a person of the church linked to the account there is nobody to mark, so it
+   * fails instead of saying they came.
+   */
+  private CheckInResponse checkInInInheritedSubEvent(Jwt jwt, UUID eventId, CheckInResult result) {
+    var marked =
+        Optional.ofNullable(result.userId())
+            .flatMap(
+                userId ->
+                    markUserPresentCommandHandler.handle(
+                        new MarkUserPresentCommand(
+                            new EventId(eventId), userId, CheckInSource.QR_TICKET, markerOf(jwt))))
+            .orElseThrow(
+                () ->
+                    new DomainValidationException(
+                        "Esta inscripción no tiene una persona vinculada: anótela como visitante"));
+    return new CheckInResponse(
+        result.registrationId().value(),
+        result.name(),
+        result.ticketName(),
+        marked.alreadyMarked(),
+        marked.alreadyMarked() ? null : LocalDateTime.now());
   }
 
   /** Whoever signed up with an account that is a person of the church is marked there as well. */

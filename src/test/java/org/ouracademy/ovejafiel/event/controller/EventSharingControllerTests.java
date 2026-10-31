@@ -149,6 +149,8 @@ class EventSharingControllerTests {
                 List.of(new GetSharedEventResult.Ticket(TICKET, "General", 2000, "PEN", true, 5)))
             : null,
         canRegister,
+        null,
+        List.of(),
         null);
   }
 

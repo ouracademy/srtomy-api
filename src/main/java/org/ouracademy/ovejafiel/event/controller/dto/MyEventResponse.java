@@ -22,7 +22,8 @@ public record MyEventResponse(
     String ticketName,
     RegistrationStatus registrationStatus,
     String cancelCode,
-    String ticketCode) {
+    String ticketCode,
+    String parentTitle) {
 
   public static MyEventResponse from(MyEventResult result) {
     return new MyEventResponse(
@@ -37,6 +38,7 @@ public record MyEventResponse(
         result.ticketName(),
         result.registrationStatus(),
         result.cancelCode(),
-        result.ticketCode());
+        result.ticketCode(),
+        result.parentTitle());
   }
 }
