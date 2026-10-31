@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.query.FindEventResult;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
@@ -26,7 +27,31 @@ public record EventResponse(
     Boolean isACourse,
     RecurrenceResponse recurrence,
     LocalDateTime createDate,
-    LocalDateTime lastModifiedDate) {
+    LocalDateTime lastModifiedDate,
+    UUID parentEventId,
+    String parentTitle,
+    RegistrationMode registrationMode,
+    List<ChildResponse> children) {
+
+  /** A sub-event listed inside its container. */
+  public record ChildResponse(
+      UUID id,
+      String title,
+      ZonedDateTime start,
+      ZonedDateTime end,
+      Boolean isACourse,
+      RegistrationMode registrationMode) {
+
+    static ChildResponse from(FindEventResult.ChildResult result) {
+      return new ChildResponse(
+          result.id().value(),
+          result.title(),
+          result.start(),
+          result.end(),
+          result.isACourse(),
+          result.registrationMode());
+    }
+  }
 
   public static EventResponse from(FindEventResult result) {
     return new EventResponse(
@@ -41,7 +66,11 @@ public record EventResponse(
         result.isACourse(),
         RecurrenceResponse.from(result.recurrence()),
         result.createDate(),
-        result.lastModifiedDate());
+        result.lastModifiedDate(),
+        result.parentEventId() == null ? null : result.parentEventId().value(),
+        result.parentTitle(),
+        result.registrationMode(),
+        result.children().stream().map(ChildResponse::from).toList());
   }
 
   /** Same JSON fields as the serialized Person entity. */

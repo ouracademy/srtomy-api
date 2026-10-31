@@ -212,7 +212,9 @@ class EventControllerTests {
                     Recurrence.EndType.UNTIL,
                     java.time.LocalDate.of(2026, 1, 14),
                     null),
-                ZoneId.of("America/Lima")));
+                ZoneId.of("America/Lima"),
+                null,
+                null));
   }
 
   @Test
@@ -423,6 +425,30 @@ class EventControllerTests {
                 .header("Authorization", bearerHeader()))
         .hasStatus(404);
     verifyNoInteractions(findEventByIdQueryHandler);
+  }
+
+  @Test
+  void creatingASubEventNeedsEditingTheContainer() {
+    var parentId = UUID.randomUUID();
+    given(
+            authorizeEventQueryHandler.handle(
+                new AuthorizeEventQuery("test-user", new EventId(parentId), AccessLevel.EDITOR)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/events")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name": "Taller", "startTime": "2026-01-05T10:00:00Z",
+                     "endTime": "2026-01-05T11:00:00Z", "organizationId": "%s",
+                     "parentEventId": "%s", "registrationMode": "OWN"}
+                    """
+                        .formatted(UUID.randomUUID(), parentId)))
+        .hasStatus(403);
+    verifyNoInteractions(createEventCommandHandler);
   }
 
   @Test

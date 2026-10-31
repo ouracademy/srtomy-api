@@ -47,13 +47,20 @@ class GetCalendarFeedQueryHandlerImpl implements GetCalendarFeedQueryHandler {
             });
   }
 
+  /** A sub-event says which mega event it belongs to. */
+  private static String titleOf(Event event) {
+    return event.isChild()
+        ? event.getParent().getTitle() + ": " + event.getTitle()
+        : event.getTitle();
+  }
+
   private IcsCalendar.Entry entry(Event event) {
     var organization = event.getOrganization();
     return new IcsCalendar.Entry(
         event.getId().value() + "@srtomy",
         event.getStart().toInstant(),
         event.getEnd().toInstant(),
-        event.getTitle() + " · " + organization.getName(),
+        titleOf(event) + " · " + organization.getName(),
         event.getAddress(),
         event.getDescription(),
         appUrl.replaceAll("/+$", "")

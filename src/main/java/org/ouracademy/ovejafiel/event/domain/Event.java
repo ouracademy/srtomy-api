@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.time.Duration;
@@ -19,6 +20,7 @@ import org.hibernate.annotations.SQLRestriction;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.shared.domain.DomainObject;
+import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.ouracademy.ovejafiel.shared.domain.RandomSlugs;
 
 @Entity
@@ -66,6 +68,16 @@ public class Event extends DomainObject {
   /** The series this event is an occurrence of; null for a one-off event. */
   @ManyToOne EventSeries series;
 
+  /** The container this event belongs to (one level only); null for a standalone or a container. */
+  @ManyToOne
+  @JoinColumn(name = "parent_event_id")
+  Event parent;
+
+  /** How a child is entered; ignored while there is no parent. */
+  @Setter
+  @Enumerated(EnumType.STRING)
+  RegistrationMode registrationMode = RegistrationMode.INHERIT;
+
   protected Event() {
     // jpa only
   }
@@ -88,7 +100,7 @@ public class Event extends DomainObject {
   // 8 { name: "Servicio Dominical" }, // domingos, 10:00 am y 8pm
   // 9 { name: "Servicios" }, // domingos, 10:00 am y 8pm. miercoles a las 7pm
 
-  // complex / composite events
+  // composite events (see attachTo)
   // 10 { name: "Sobredosis Garden" }, // jueves 27-30 de agosto (ver:
   // https://www.facebook.com/photo/?fbid=673593008144144&set=pcb.673593201477458)
 
@@ -108,6 +120,35 @@ public class Event extends DomainObject {
   /** Revokes the current link: the old address stops working. */
   public void renewShareLink() {
     this.shareSlug = RandomSlugs.next();
+  }
+
+  /**
+   * Makes this event a child of {@code container}. One level only, no recurrence, and the child
+   * fits inside the container's dates. Who can open it starts equal to the container's and is then
+   * managed on its own.
+   */
+  public void attachTo(Event container) {
+    if (container.parent != null) {
+      throw new DomainValidationException("Un sub-evento no puede tener sub-eventos");
+    }
+    if (container.series != null || series != null) {
+      throw new DomainValidationException("Un evento compuesto no puede repetirse");
+    }
+    requireInside(container);
+    this.parent = container;
+    this.generalAccess = container.generalAccess;
+  }
+
+  /** A sub-event stays inside the dates of its mega event, when created and when edited. */
+  public void requireInside(Event container) {
+    if (start.isBefore(container.start) || end.isAfter(container.end)) {
+      throw new DomainValidationException(
+          "El sub-evento «" + title + "» debe estar dentro de las fechas del evento");
+    }
+  }
+
+  public boolean isChild() {
+    return parent != null;
   }
 
   public Duration duration() {

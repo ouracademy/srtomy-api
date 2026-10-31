@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.ovejafiel.event.EventFixtures.childOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.registration;
 import static org.ouracademy.ovejafiel.event.EventFixtures.registrationSetup;
 import static org.ouracademy.ovejafiel.event.EventFixtures.singleEvent;
@@ -26,9 +27,11 @@ import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventRegistration;
 import org.ouracademy.ovejafiel.event.domain.EventRegistrationSetup;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.domain.TicketType;
 import org.ouracademy.ovejafiel.event.domain.TicketTypeId;
+import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
 import org.ouracademy.ovejafiel.event.query.EventAccess;
 import org.ouracademy.ovejafiel.event.query.Seats;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
@@ -54,7 +57,14 @@ class RegisterForEventCommandHandlerImplTests {
   EntityManager entityManager = mock(EntityManager.class);
   RegisterForEventCommandHandlerImpl handler =
       new RegisterForEventCommandHandlerImpl(
-          eventRepository, setups, tickets, registrations, eventAccess, seats, entityManager);
+          eventRepository,
+          setups,
+          tickets,
+          registrations,
+          eventAccess,
+          seats,
+          new EffectiveRegistration(),
+          entityManager);
 
   Event event =
       singleEvent(
@@ -244,5 +254,56 @@ class RegisterForEventCommandHandlerImplTests {
                     new RegisterForEventCommand(
                         "nope", null, general.getId(), "Lu", "Mora", "lu@x.org", null)))
         .isInstanceOf(NoSuchElementException.class);
+  }
+
+  private Event subEvent(RegistrationMode mode) {
+    var child = childOf(event, EventId.generate(), "Taller", event.getStart(), event.getEnd());
+    child.setRegistrationMode(mode);
+    when(eventRepository.findByShareSlug("taller")).thenReturn(Optional.of(child));
+    return child;
+  }
+
+  @Test
+  void aSubEventThatInheritsPointsToTheContainersRegistration() {
+    subEvent(RegistrationMode.INHERIT);
+
+    assertThatThrownBy(
+            () ->
+                handler.handle(
+                    new RegisterForEventCommand(
+                        "taller", null, general.getId(), "Lu", "Mora", "lu@x.org", null)))
+        .isInstanceOf(DomainValidationException.class)
+        .hasMessageContaining("Curso");
+    verify(registrations, never()).save(any());
+  }
+
+  @Test
+  void anOpenSubEventHasNoRegistration() {
+    subEvent(RegistrationMode.OPEN);
+
+    assertThatThrownBy(
+            () ->
+                handler.handle(
+                    new RegisterForEventCommand(
+                        "taller", null, general.getId(), "Lu", "Mora", "lu@x.org", null)))
+        .isInstanceOf(DomainValidationException.class);
+    verify(registrations, never()).save(any());
+  }
+
+  @Test
+  void aSubEventWithItsOwnRegistrationSignsUpAsAnyEvent() {
+    var child = subEvent(RegistrationMode.OWN);
+    var childSetup = registrationSetup(child);
+    var childTicket = ticket(child, "Taller", 5);
+    when(setups.lockByEventId(child.getId())).thenReturn(Optional.of(childSetup));
+    when(tickets.findById(childTicket.getId())).thenReturn(Optional.of(childTicket));
+    when(seats.confirmedByTicket(child.getId())).thenReturn(new HashMap<>());
+
+    var result =
+        handler.handle(
+            new RegisterForEventCommand(
+                "taller", null, childTicket.getId(), "Lu", "Mora", "lu@x.org", null));
+
+    assertThat(result.status()).isEqualTo(RegistrationStatus.CONFIRMED);
   }
 }

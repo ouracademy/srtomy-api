@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.ovejafiel.event.EventFixtures.childOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.eventSeries;
 import static org.ouracademy.ovejafiel.event.EventFixtures.occurrenceOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.singleEvent;
@@ -142,5 +143,39 @@ class DeleteEventCommandHandlerImplTests {
             () -> handler.handle(new DeleteEventCommand(missingId, EventChangeOption.THIS_EVENT)))
         .isInstanceOf(NoSuchElementException.class);
     verifyNoInteractions(deleteAttendanceForEventsCommandHandler);
+  }
+
+  @Test
+  void deletingAContainerDeletesItsSubEventsAndTheirAttendance() {
+    var church = series.getOrganization();
+    var conference = singleEvent(EventId.generate(), "Mega evento", church, List.of());
+    var workshop =
+        childOf(
+            conference, EventId.generate(), "Taller", conference.getStart(), conference.getEnd());
+    when(eventRepository.findById(conference.getId())).thenReturn(Optional.of(conference));
+    when(eventRepository.findByParentOrderByStart(conference)).thenReturn(List.of(workshop));
+
+    handler.handle(new DeleteEventCommand(conference.getId(), EventChangeOption.THIS_EVENT));
+
+    assertThat(conference.getDeletedTime()).isNotNull();
+    assertThat(workshop.getDeletedTime()).isNotNull();
+    verify(deleteAttendanceForEventsCommandHandler)
+        .handle(
+            new DeleteAttendanceForEventsCommand(List.of(conference.getId(), workshop.getId())));
+  }
+
+  @Test
+  void deletingASubEventLeavesItsContainer() {
+    var church = series.getOrganization();
+    var conference = singleEvent(EventId.generate(), "Mega evento", church, List.of());
+    var workshop =
+        childOf(
+            conference, EventId.generate(), "Taller", conference.getStart(), conference.getEnd());
+    when(eventRepository.findById(workshop.getId())).thenReturn(Optional.of(workshop));
+
+    handler.handle(new DeleteEventCommand(workshop.getId(), EventChangeOption.THIS_EVENT));
+
+    assertThat(workshop.getDeletedTime()).isNotNull();
+    assertThat(conference.getDeletedTime()).isNull();
   }
 }

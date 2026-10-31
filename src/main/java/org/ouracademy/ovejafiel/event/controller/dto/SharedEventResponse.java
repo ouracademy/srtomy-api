@@ -3,6 +3,7 @@ package org.ouracademy.ovejafiel.event.controller.dto;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.query.get_shared_event.GetSharedEventResult;
 
@@ -21,7 +22,22 @@ public record SharedEventResponse(
     RecurrenceResponse recurrence,
     RegistrationResponse registration,
     boolean canRegister,
-    RegistrationStatus registrationStatus) {
+    RegistrationStatus registrationStatus,
+    List<ProgramItemResponse> program,
+    ContainerResponse container) {
+
+  /** A sub-event of a mega event; never lists who signed up. */
+  public record ProgramItemResponse(
+      String slug,
+      String title,
+      ZonedDateTime start,
+      ZonedDateTime end,
+      boolean isACourse,
+      RegistrationMode registrationMode,
+      boolean includedInTicket) {}
+
+  /** The mega event a sub-event belongs to. */
+  public record ContainerResponse(String slug, String title) {}
 
   public record RegistrationResponse(
       boolean open, boolean requiresAccount, boolean soldOut, List<TicketResponse> tickets) {}
@@ -59,6 +75,21 @@ public record SharedEventResponse(
                                 ticket.remaining()))
                     .toList()),
         result.canRegister(),
-        result.registrationStatus());
+        result.registrationStatus(),
+        result.program().stream()
+            .map(
+                item ->
+                    new ProgramItemResponse(
+                        item.slug(),
+                        item.title(),
+                        item.start(),
+                        item.end(),
+                        item.isACourse(),
+                        item.registrationMode(),
+                        item.includedInTicket()))
+            .toList(),
+        result.container() == null
+            ? null
+            : new ContainerResponse(result.container().slug(), result.container().title()));
   }
 }

@@ -4,8 +4,11 @@ import jakarta.persistence.EntityManager;
 import java.time.ZonedDateTime;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventRegistration;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
+import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
 import org.ouracademy.ovejafiel.event.query.EventAccess;
 import org.ouracademy.ovejafiel.event.query.Seats;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
@@ -28,6 +31,7 @@ class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandl
   private final EventRegistrationRepository eventRegistrationRepository;
   private final EventAccess eventAccess;
   private final Seats seats;
+  private final EffectiveRegistration effectiveRegistration;
   private final EntityManager entityManager;
 
   @Override
@@ -40,6 +44,7 @@ class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandl
     if (!eventAccess.canOpen(command.subject(), event)) {
       throw new AccessDeniedException("No puede inscribirse en este evento");
     }
+    rejectIfRegistrationIsNotItsOwn(event);
     // The lock keeps two people from taking the last seat at the same time.
     var setup =
         setupRepository
@@ -95,6 +100,18 @@ class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandl
                 RegistrationStatus.CONFIRMED));
     return new RegisterForEventResult(
         false, saved.getStatus(), saved.getCancelCode(), saved.getTicketCode());
+  }
+
+  /** A sub-event that inherits or is open has no registration of its own to sign up for. */
+  private void rejectIfRegistrationIsNotItsOwn(Event event) {
+    if (effectiveRegistration.isOwn(event)) {
+      return;
+    }
+    if (event.getRegistrationMode() == RegistrationMode.OPEN) {
+      throw new DomainValidationException("Este sub-evento no pide inscripción");
+    }
+    throw new DomainValidationException(
+        "Este sub-evento usa la inscripción del evento «" + event.getParent().getTitle() + "»");
   }
 
   private static String required(String value, String message) {
