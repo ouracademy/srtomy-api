@@ -16,6 +16,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
+import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
+import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.command.set_whatsapp_consent.SetWhatsAppConsentCommand;
 import org.ouracademy.ovejafiel.person.command.set_whatsapp_consent.SetWhatsAppConsentCommandHandler;
@@ -46,6 +49,7 @@ class IdentityHandlersTests {
   FindPeopleByPhoneQueryHandler findPeople = mock(FindPeopleByPhoneQueryHandler.class);
   ResolveWhatsAppUserCommandHandler resolveUser = mock(ResolveWhatsAppUserCommandHandler.class);
   SetWhatsAppConsentCommandHandler setConsent = mock(SetWhatsAppConsentCommandHandler.class);
+  FindOrganizationByIdQueryHandler findOrganization = mock(FindOrganizationByIdQueryHandler.class);
   DelegatedTokens tokens;
 
   @SuppressWarnings("unchecked")
@@ -71,6 +75,7 @@ class IdentityHandlersTests {
         connections,
         findPeople,
         resolveUser,
+        findOrganization,
         provider);
   }
 
@@ -93,6 +98,24 @@ class IdentityHandlersTests {
     var connection = new WhatsAppConnection(church, "cus-1", ConnectionMode.DEDICATED);
     connection.markConnected("pn-1", "+51 1", LocalDateTime.now());
     when(connections.findByPhoneNumberId("pn-1")).thenReturn(Optional.of(connection));
+    when(findOrganization.handle(new FindOrganizationByIdQuery(church)))
+        .thenReturn(
+            Optional.of(
+                new FindOrganizationResult(
+                    church,
+                    "Iglesia Central",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    false,
+                    "slug-central",
+                    null,
+                    null)));
   }
 
   void peopleWithThatPhone(FindPeopleByPhoneResult.Match... matches) {
@@ -118,6 +141,8 @@ class IdentityHandlersTests {
 
     assertThat(result.status()).isEqualTo(Status.LINKED);
     assertThat(result.name()).isEqualTo("Ana Díaz");
+    assertThat(result.churchName()).isEqualTo("Iglesia Central");
+    assertThat(result.churchSlug()).isEqualTo("slug-central");
     assertThat(result.personId()).isEqualTo(ana.value());
     assertThat(result.churchId()).isEqualTo(church.value());
     var jwt = tokens.decoder().decode(result.token());
@@ -134,6 +159,7 @@ class IdentityHandlersTests {
 
     assertThat(result.status()).isEqualTo(Status.CHURCH_NOT_CONNECTED);
     assertThat(result.token()).isNull();
+    assertThat(result.churchSlug()).isNull();
     verifyNoInteractions(findPeople, resolveUser);
   }
 
@@ -159,6 +185,11 @@ class IdentityHandlersTests {
 
     assertThat(result.status()).isEqualTo(Status.UNKNOWN);
     assertThat(result.token()).isNull();
+    // Not known, but they may still ask about the church: the public page is theirs to read.
+    assertThat(result.churchSlug()).isEqualTo("slug-central");
+    assertThat(result.churchName()).isEqualTo("Iglesia Central");
+    assertThat(result.name()).isNull();
+    assertThat(result.personId()).isNull();
     verifyNoInteractions(resolveUser);
   }
 
@@ -175,6 +206,7 @@ class IdentityHandlersTests {
     assertThat(result.status()).isEqualTo(Status.AMBIGUOUS);
     assertThat(result.token()).isNull();
     assertThat(result.name()).isNull();
+    assertThat(result.churchSlug()).isEqualTo("slug-central");
     verifyNoInteractions(resolveUser);
   }
 
@@ -189,6 +221,8 @@ class IdentityHandlersTests {
 
     assertThat(result.status()).isEqualTo(Status.NEEDS_VERIFICATION);
     assertThat(result.token()).isNull();
+    assertThat(result.name()).isNull();
+    assertThat(result.churchSlug()).isEqualTo("slug-central");
   }
 
   @Test

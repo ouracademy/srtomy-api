@@ -238,6 +238,29 @@ class WhatsAppIdentityIntegrationTests {
   }
 
   @Test
+  void anyoneEvenIfUnknownCanAskAboutTheChurchThroughItsPublicPage() {
+    var identity = identity("51999000000");
+
+    assertThat(identity.get("status").asText()).isEqualTo("UNKNOWN");
+    assertThat(identity.get("token").isNull()).isTrue();
+    assertThat(identity.get("churchName").asText()).isEqualTo("Iglesia");
+    var slug = identity.get("churchSlug").asText();
+    // No token at all: what the church publishes is for everyone ...
+    var page = client.get().uri("/v1/public/organizations/" + slug).exchange();
+    assertThat(page.returnResult(String.class).getStatus().value()).isEqualTo(200);
+    // ... and nothing else is: people, groups and the like need a person.
+    assertThat(
+            client
+                .get()
+                .uri("/v1/people?organizationId=" + churchId)
+                .exchange()
+                .returnResult(String.class)
+                .getStatus()
+                .value())
+        .isEqualTo(401);
+  }
+
+  @Test
   void aDisconnectedChurchRecognizesNobody() {
     createPerson("Lucía", "999 111 222", group, null);
     jdbc.update(
