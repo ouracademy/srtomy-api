@@ -21,6 +21,9 @@ public class Person extends Party {
   LocalDate birthdate;
   Boolean hasBeenBaptized;
 
+  /** Accepts WhatsApp notices from the church; on until the person asks to stop. */
+  boolean whatsappConsent = true;
+
   /** When the person was removed from the church; null while they belong to it. */
   LocalDateTime deletedTime;
 

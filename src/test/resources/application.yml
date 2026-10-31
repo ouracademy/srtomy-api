@@ -38,3 +38,8 @@ cors_origin: "*"
 
 attendance:
   qr-secret: test-attendance-qr-secret
+
+# The two service accounts that call /v1/internal/**: Cloud Scheduler/Tasks and the WhatsApp agent.
+internal:
+  scheduler-email: api-scheduler@sr-tommy-test.iam.gserviceaccount.com
+  agent-email: srtomy-agent@sr-tommy-test.iam.gserviceaccount.com

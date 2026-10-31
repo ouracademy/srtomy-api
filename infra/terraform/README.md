@@ -19,6 +19,7 @@ image tag is more trouble than it's worth for a service this size.
   daily. Add a job in `var.jobs` for any new calendar work.
 - `modules/tasks/` — the Cloud Tasks queues of the outbox (`outbox-email`, ...), the retry policy, and the
   permissions the API needs to create tasks.
+- `modules/agent/` — the WhatsApp agent's service account and its own secrets (Anthropic, LangSmith, and the secret of the webhook Kapso sends it).
 - `modules/db-secrets/` — wires the Neon module's outputs straight into Secret Manager,
   so the actual DB password never has to pass through a person's hands or a chat.
 - `environments/dev/` — `sr-tommy-dev`.
@@ -55,6 +56,31 @@ your shell before running Terraform:
 export NEON_API_KEY="..."
 export TF_VAR_resend_api_key="re_..."   # Resend API key (invitation and sharing emails)
 ```
+
+**WhatsApp** (specs `014` to `016`; the agent is the repo `ouracademy/srtomy-agent`). Export these too, never commit them:
+
+```sh
+export TF_VAR_kapso_api_key="..."                 # Kapso: Integrations > API keys
+export TF_VAR_kapso_webhook_secret="..."          # secret of the Kapso webhook that points to the API
+export TF_VAR_agent_kapso_webhook_secret="..."    # secret of the Kapso webhook that points to the agent
+export TF_VAR_agent_anthropic_api_key="sk-ant-..." # the agent's model
+export TF_VAR_agent_langsmith_api_key="..."       # optional: leave unset while traces are off
+```
+
+Kapso creates a **project webhook** and shows its secret once it exists, so create both webhooks first (Kapso: Integrations > Webhooks > Platform webhooks), copy each secret, then apply:
+
+| Webhook | URL | Event |
+| --- | --- | --- |
+| API | `https://<api>/v1/webhooks/whatsapp` | `whatsapp.phone_number.created` |
+| Agent | `https://<agent>/webhooks/kapso` | `whatsapp.message.received` |
+
+What Terraform now creates for them:
+
+- In Secret Manager, read by the API: `kapso-api-key`, `kapso-webhook-secret` and `whatsapp-delegation-key`. The last one is **generated** (a 2048-bit RSA key in PKCS#8 PEM, kept in the state) and signs the ten-minute tokens the agent uses to call the API as a member; nobody needs to see it. Replacing it only cuts the tokens in flight.
+- `modules/agent/`: the `srtomy-agent` service account (the only one the API lets call `/v1/internal/whatsapp/**`) and its own secrets `agent-kapso-webhook-secret`, `agent-anthropic-api-key` and `agent-langsmith-api-key`; it also reads the Kapso project key `kapso-api-key`.
+- The deploy workflows of the API pass `INTERNAL_AGENT_EMAIL=srtomy-agent@<project>.iam.gserviceaccount.com`, so the API accepts that account's Google ID tokens. Redeploy the API after the first `apply`.
+
+Not here yet: the agent's own Cloud Run service, container image and deploy workflow (they belong to the agent's repo and need its own Workload Identity binding). When they exist, run the service as `srtomy-agent@<project>.iam.gserviceaccount.com` and mount the three `agent-*` secrets plus `kapso-api-key` as `KAPSO_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY` and `KAPSO_API_KEY`.
 
 ## Cloud Scheduler and Cloud Tasks
 

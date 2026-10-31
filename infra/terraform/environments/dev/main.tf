@@ -32,6 +32,34 @@ variable "resend_api_key" {
   sensitive = true
 }
 
+# Kapso, the WhatsApp provider (specs 014 to 016). Export each as TF_VAR_<name> (never commit them).
+variable "kapso_api_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "kapso_webhook_secret" {
+  type      = string
+  sensitive = true
+}
+
+# The WhatsApp agent (repo srtomy-agent).
+variable "agent_kapso_webhook_secret" {
+  type      = string
+  sensitive = true
+}
+
+variable "agent_anthropic_api_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "agent_langsmith_api_key" {
+  type      = string
+  sensitive = true
+  default   = "not-set"
+}
+
 module "cicd" {
   source = "../../modules/cicd"
 
@@ -48,12 +76,14 @@ module "neon" {
 module "db_secrets" {
   source = "../../modules/db-secrets"
 
-  project_id          = "sr-tommy-dev"
-  jdbc_url            = module.neon.jdbc_url
-  database_user       = module.neon.database_user
-  database_password   = module.neon.database_password
-  resend_api_key      = var.resend_api_key
-  existing_secret_ids = ["auth0-client-id", "auth0-client-secret"]
+  project_id           = "sr-tommy-dev"
+  jdbc_url             = module.neon.jdbc_url
+  database_user        = module.neon.database_user
+  database_password    = module.neon.database_password
+  resend_api_key       = var.resend_api_key
+  kapso_api_key        = var.kapso_api_key
+  kapso_webhook_secret = var.kapso_webhook_secret
+  existing_secret_ids  = ["auth0-client-id", "auth0-client-secret"]
 }
 
 # Cloud Scheduler calls the API's internal endpoints (the outbox that sends emails). The account's
@@ -70,6 +100,19 @@ module "tasks" {
 
   project_id                = "sr-tommy-dev"
   caller_service_account_id = module.scheduler.scheduler_service_account_id
+}
+
+# The WhatsApp agent's identity and secrets. Its account is set as INTERNAL_AGENT_EMAIL in the
+# API's deploy workflow.
+module "agent" {
+  source = "../../modules/agent"
+
+  project_id           = "sr-tommy-dev"
+  kapso_webhook_secret = var.agent_kapso_webhook_secret
+  anthropic_api_key    = var.agent_anthropic_api_key
+  langsmith_api_key    = var.agent_langsmith_api_key
+
+  depends_on = [module.db_secrets]
 }
 
 output "workload_identity_provider" {
@@ -94,4 +137,8 @@ output "scheduler_service_account_email" {
 
 output "api_url" {
   value = module.tasks.api_url
+}
+
+output "agent_service_account_email" {
+  value = module.agent.agent_service_account_email
 }

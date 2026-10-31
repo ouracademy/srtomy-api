@@ -8,6 +8,7 @@ import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.ouracademy.ovejafiel.user.domain.AppUser;
 import org.ouracademy.ovejafiel.user.domain.UserPersonLink;
 import org.ouracademy.ovejafiel.user.repository.UserPersonLinkRepository;
+import org.ouracademy.ovejafiel.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,13 +17,22 @@ import org.springframework.transaction.annotation.Transactional;
 class LinkUserToPersonCommandHandlerImpl implements LinkUserToPersonCommandHandler {
 
   private final UserPersonLinkRepository userPersonLinkRepository;
+  private final UserRepository userRepository;
   private final EntityManager entityManager;
 
   @Override
   @Transactional
   public LinkUserToPersonResult handle(LinkUserToPersonCommand command) {
-    if (userPersonLinkRepository.existsByPersonId(command.personId())) {
-      throw new DomainValidationException("Esa persona ya está vinculada a un usuario");
+    var current = userPersonLinkRepository.findByPersonId(command.personId());
+    if (current.isPresent()) {
+      var linked = current.get().getUser();
+      if (!linked.isWhatsAppIdentity()) {
+        throw new DomainValidationException("Esa persona ya está vinculada a un usuario");
+      }
+      // The user made for WhatsApp steps aside for a real account.
+      userPersonLinkRepository.delete(current.get());
+      userPersonLinkRepository.flush();
+      userRepository.delete(linked);
     }
     if (userPersonLinkRepository.existsByUserIdAndChurchId(command.userId(), command.churchId())) {
       throw new DomainValidationException("Ese usuario ya tiene una persona en esta iglesia");

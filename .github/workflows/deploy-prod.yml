@@ -84,6 +84,7 @@ jobs:
           # APP_URL (the web app's origin) still has to be set here once prod has a domain.
           env_vars: |
             INTERNAL_SCHEDULER_EMAIL=api-scheduler@sr-tommy-prod.iam.gserviceaccount.com
+            INTERNAL_AGENT_EMAIL=srtomy-agent@sr-tommy-prod.iam.gserviceaccount.com
             RESEND_FROM=Sr. Tommy <invitaciones@ovejafiel.com>
             TASKS_PROJECT=sr-tommy-prod
             TASKS_LOCATION=southamerica-east1
