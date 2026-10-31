@@ -9,6 +9,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
@@ -43,18 +44,22 @@ public class TestSecurityConfig {
   }
 
   @Bean
-  public JwtDecoder jwtDecoder(RSAKey rsaKey) throws Exception {
+  public JwtDecoder jwtDecoder(RSAKey rsaKey, ObjectProvider<DelegatedTokens> delegatedTokens)
+      throws Exception {
     var decoder = NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey()).build();
     // No real issuer to validate against here (tokens use a fake test issuer), but the
     // audience check is exactly what SecurityConfigTest exercises, so it must be wired
     // in the same way the production decoder wires it.
     decoder.setJwtValidator(new AudienceValidator(VALID_AUDIENCE));
-    return decoder;
+    // Like production: the tokens the API signs for the WhatsApp agent are accepted too.
+    return DelegatedTokens.routing(decoder, delegatedTokens.getIfAvailable());
   }
 
   /** What Cloud Scheduler's token is checked against: its service account and this audience. */
   public static final String SCHEDULER_EMAIL =
       "api-scheduler@sr-tommy-test.iam.gserviceaccount.com";
+
+  public static final String AGENT_EMAIL = "srtomy-agent@sr-tommy-test.iam.gserviceaccount.com";
 
   public static final String INTERNAL_AUDIENCE = "https://api.srtommy.com/internal";
 
@@ -63,7 +68,8 @@ public class TestSecurityConfig {
   public InternalSecurityConfig.InternalJwtDecoder internalJwtDecoder(RSAKey rsaKey)
       throws Exception {
     var decoder = NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey()).build();
-    decoder.setJwtValidator(InternalSecurityConfig.validators(INTERNAL_AUDIENCE, SCHEDULER_EMAIL));
+    decoder.setJwtValidator(
+        InternalSecurityConfig.validators(INTERNAL_AUDIENCE, SCHEDULER_EMAIL, AGENT_EMAIL));
     return new InternalSecurityConfig.InternalJwtDecoder(decoder);
   }
 
@@ -115,6 +121,10 @@ public class TestSecurityConfig {
             .build();
     var header = JwsHeader.with(SignatureAlgorithm.RS256).build();
     return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+  }
+
+  public static String agentToken(JwtEncoder encoder) {
+    return googleToken(encoder, AGENT_EMAIL, true, INTERNAL_AUDIENCE);
   }
 
   public static String schedulerToken(JwtEncoder encoder) {

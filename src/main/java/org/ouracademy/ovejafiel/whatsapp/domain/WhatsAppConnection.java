@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
@@ -12,6 +13,7 @@ import org.ouracademy.ovejafiel.shared.domain.DomainObject;
 
 /** The WhatsApp number of a church, connected through the provider. */
 @Entity
+@Table(name = "whatsapp_connection")
 @Getter
 public class WhatsAppConnection extends DomainObject {
 

@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.Getter;
+import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.domain.DomainObject;
 
 /**
@@ -13,6 +14,9 @@ import org.ouracademy.ovejafiel.shared.domain.DomainObject;
 @Entity
 @Getter
 public class AppUser extends DomainObject {
+
+  /** Subject of the users made for people who write on WhatsApp and have no account. */
+  public static final String WHATSAPP_SUBJECT_PREFIX = "whatsapp:";
 
   @Id UserId id = UserId.generate();
 
@@ -29,6 +33,15 @@ public class AppUser extends DomainObject {
 
   public AppUser(String subject) {
     this.subject = subject;
+  }
+
+  /** A user for someone known only by their phone: it has the Member level and nothing more. */
+  public static AppUser forWhatsApp(PartyId personId) {
+    return new AppUser(WHATSAPP_SUBJECT_PREFIX + personId.value());
+  }
+
+  public boolean isWhatsAppIdentity() {
+    return subject.startsWith(WHATSAPP_SUBJECT_PREFIX);
   }
 
   /**

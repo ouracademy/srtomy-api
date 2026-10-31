@@ -1,5 +1,6 @@
 package org.ouracademy.ovejafiel.shared;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -86,7 +87,8 @@ public class SecurityConfig {
   @Bean
   @ConditionalOnMissingBean(JwtDecoder.class)
   public JwtDecoder jwtDecoder(
-      @Value("${auth0.url:https://srtommy.us.auth0.com}") String auth0Url) {
+      @Value("${auth0.url:https://srtommy.us.auth0.com}") String auth0Url,
+      ObjectProvider<DelegatedTokens> delegatedTokens) {
     var issuerUri = auth0Url + "/";
     var decoder =
         (org.springframework.security.oauth2.jwt.NimbusJwtDecoder)
@@ -97,6 +99,7 @@ public class SecurityConfig {
     OAuth2TokenValidator<Jwt> withTimestamp = new JwtTimestampValidator();
     decoder.setJwtValidator(
         new DelegatingOAuth2TokenValidator<>(withIssuer, withAudience, withTimestamp));
-    return decoder;
+    // The WhatsApp agent calls as a member with tokens this API signed (see DelegatedTokens).
+    return DelegatedTokens.routing(decoder, delegatedTokens.getIfAvailable());
   }
 }

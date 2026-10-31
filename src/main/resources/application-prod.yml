@@ -26,6 +26,11 @@ kapso:
   success-redirect-url: ${KAPSO_SUCCESS_REDIRECT_URL:}
   failure-redirect-url: ${KAPSO_FAILURE_REDIRECT_URL:}
 
+# Signs the short-lived tokens the WhatsApp agent uses to call this API as a member (PKCS#8 RSA key,
+# PEM). Without it the agent cannot get a token and none is accepted.
+delegation:
+  private-key: ${sm@whatsapp-delegation-key:}
+
 # Signs the code in the attendance QR of an event (Terraform generates the secret). Without it the
 # QR cannot be made.
 attendance:
@@ -47,4 +52,6 @@ outbox:
 # Cloud Scheduler and Cloud Tasks call /v1/internal/** with a Google ID token of this service account (Terraform:
 # modules/scheduler). With no account set, every call is refused.
 internal:
+  # The service account of srtomy-agent, the only one that may call /v1/internal/whatsapp/**.
+  agent-email: ${INTERNAL_AGENT_EMAIL:}
   scheduler-email: ${INTERNAL_SCHEDULER_EMAIL:}

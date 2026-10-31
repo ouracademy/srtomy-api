@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface WhatsAppConnectionRepository extends JpaRepository<WhatsAppConnection, PartyId> {
 
   Optional<WhatsAppConnection> findByKapsoCustomerId(String kapsoCustomerId);
+
+  Optional<WhatsAppConnection> findByPhoneNumberId(String phoneNumberId);
 }

@@ -82,6 +82,7 @@
 - Hay una cuenta de Kapso de Sr. Tommy con un cliente por iglesia; el costo de Meta lo paga el WABA de cada iglesia.
 - Los detalles de la API de Kapso (rutas, cabeceras, firma del webhook) se verificaron en `docs.kapso.ai` el 31-oct-2026. Falta probarlos contra una cuenta real de Kapso (fase 0 del plan).
 - El número visible (`displayNumber`) todavía no se llena: el webhook de conexión solo trae `phone_number_id`. Pendiente: leerlo de Kapso o del redirect de éxito.
+- Quién escribe al bot (identidad, token y baja) está en la spec 015.
 - Pendiente de esta spec: encolar el recordatorio de evento y la bienvenida (US3/US4) desde los comandos de eventos y de personas; hoy existe el canal, el manejador y las plantillas, pero nadie encola todavía.
 - Los números de teléfono de las personas ya se guardan o se pueden guardar en formato internacional.
 - El teléfono del destinatario es el del campo de contacto existente de `person`.

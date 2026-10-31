@@ -124,6 +124,39 @@ public interface PersonRepository extends JpaRepository<Person, PartyId> {
     AccountabilityTypeId getTypeId();
   }
 
+  /**
+   * The active people of the church tree whose phone ends the given digits (see {@code
+   * FindPeopleByPhoneQuery}). Native on purpose: it compares the digits of the stored phone, and
+   * walks the tree of nodes.
+   */
+  @Query(
+      value =
+          """
+          with recursive tree as (
+              select o.id from organization o where o.id = :churchId
+              union
+              select o.id from organization o join tree t on o.parent_id = t.id
+          )
+          select distinct p.id as id, pa.name as name
+          from person p
+          join party pa on pa.id = p.id
+          where p.deleted_time is null
+            and exists (select 1 from accountability a
+                        where a.child_id = p.id and a.deleted_time is null
+                          and a.parent_id in (select id from tree))
+            and length(regexp_replace(regexp_replace(coalesce(pa.phone_number, ''), '[^0-9]', '', 'g'), '^0+', '')) >= 8
+            and :digits like '%' || regexp_replace(regexp_replace(pa.phone_number, '[^0-9]', '', 'g'), '^0+', '')
+          order by pa.name, p.id
+          """,
+      nativeQuery = true)
+  List<PhoneMatch> findByPhoneInChurch(String digits, UUID churchId);
+
+  interface PhoneMatch {
+    UUID getId();
+
+    String getName();
+  }
+
   /** The people with that email (ignoring case) who have any accountability in the node. */
   @Query(
       """
