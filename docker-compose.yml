@@ -1,6 +1,6 @@
 services:
   dbpostgresql:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     ports:
       - "5432:5432" # pc_port:container_port
     environment:
@@ -8,7 +8,7 @@ services:
       - POSTGRES_PASSWORD=somesecretpassword
       - POSTGRES_DB=srtommy
     volumes:
-      - dbvol:/var/lib/postgresql/data
+      - dbvol:/var/lib/postgresql
 volumes:
   dbvol:
     driver: local

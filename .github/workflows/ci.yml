@@ -23,7 +23,7 @@ jobs:
       # as `docker-compose up -d` locally. Tests never touch GCP (see
       # src/test/resources/application.yml).
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: root
           POSTGRES_PASSWORD: somesecretpassword

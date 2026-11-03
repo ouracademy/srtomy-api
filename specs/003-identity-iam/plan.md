@@ -14,7 +14,7 @@ Introduce users, GCP-style access roles inherited down the organization tree, an
 
 - **Language/Version**: Java 21, Spring Boot 4.1.1.
 - **Primary Dependencies**: Spring Web, Spring Data JPA (Hibernate 7), Spring Security OAuth2 resource server, Flyway. One dependency is removed (`spring-cloud-starter-circuitbreaker-resilience4j`) and none is added.
-- **Storage**: PostgreSQL 16.
+- **Storage**: PostgreSQL 18.
   - New tables `app_user`, `iam_role` and `role_binding`.
   - New columns on `organization`.
   - Native `text[]` for permissions, mapped by Hibernate as `List<String>`, the same way `event.days_of_week` is mapped.
