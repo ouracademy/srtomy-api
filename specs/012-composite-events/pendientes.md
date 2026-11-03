@@ -2,7 +2,7 @@
 
 **Fecha**: 2026-10-31
 
-**Alcance**: API ([`srtomy-api#74`](https://github.com/ouracademy/srtomy-api/pull/74)) y UI ([`srtomy-ui#93`](https://github.com/ouracademy/srtomy-ui/pull/93)), rama `ccr-5c538956-covxf8` en ambos repos. Spec: [`spec.md`](./spec.md). Las filas de deuda técnica que se citan están en `docs/redesign.md` §10 (API: 39 a 42; UI: 32).
+**Alcance**: API ([`srtomy-api#74`](https://github.com/ouracademy/srtomy-api/pull/74)) y UI ([`srtomy-ui#93`](https://github.com/ouracademy/srtomy-ui/pull/93)), rama `ccr-5c538956-covxf8` en ambos repos. Spec: [`spec.md`](./spec.md). Las filas de deuda técnica que se citan están en `docs/redesign.md` §10 (API: 39 a 41; UI: 32).
 
 Cada punto dice qué pasa hoy, qué se propone y de qué tamaño es (S: horas, M: un día o dos, L: más). «API» y «UI» indican en qué repo se hace.
 
@@ -16,7 +16,9 @@ Pruebas: la API pasa `./mvnw clean verify` (1027 pruebas) y la UI `pnpm check:fa
 
 Lo demás de este documento es lo que **no** está hecho.
 
-## 2. Corrección pedida: el ingreso con el ticket del mega evento (prioridad 1)
+## 2. ~~Corrección pedida: el ingreso con el ticket del mega evento (prioridad 1)~~ HECHO (3 nov)
+
+> **Hecho en la API (#74) y en la UI (#93).** Lo que sigue describe el defecto y la propuesta tal como estaban; ahora el ingreso se guarda por inscripción y sub-evento (`event_registration_check_in`, migración `V1.19.0`), el ticket, la marca a mano y el QR del evento lo usan, el sub-evento que hereda lista a los esperados con su ingreso y «Asistí» lo cuenta. Queda pendiente la vista de «asistentes» consolidada (personas marcadas + inscripciones ingresadas sin duplicar) como número único.
 
 **Lo pedido por el dueño del producto:** en un sub-evento, escanear el ticket del mega evento debe marcar la inscripción **igual que antes, tenga cuenta o no**.
 
@@ -55,7 +57,7 @@ Por eso el cambio de abajo solo aplica a los sub-eventos que **heredan**: los de
 | --- | --- | --- |
 | **Cambiar el modo de un sub-evento no valida nada.** De «la del evento» a «propia», nadie puede inscribirse hasta configurarla (la API responde que no tiene inscripción). De «propia» a «la del evento» o «sin inscripción», las inscripciones propias quedan guardadas, sin uso y ocultas, sin aviso ni cancelación. | Un organizador puede dejar a gente inscrita en un lugar que ya no existe. | Avisar en la UI al cambiar el modo, y decidir qué pasa con las inscripciones propias existentes (cancelar con aviso o impedir el cambio). M, API y UI. |
 | **Un sub-evento con cupo y precio aparte (`OWN`) funciona, pero no acepta el ticket del mega evento.** Quien quiere entrar tiene que inscribirse aparte a ese sub-evento; no hay una inscripción que exija estar inscrito antes al mega evento. | El caso «uno o dos sub-eventos con cupo y precio extra» está cubierto. Lo que no se puede es «entrada general **y** además un aforo de sala» en el mismo sub-evento (un curso de 30 lugares que también acepta el ticket del congreso). | Permitir el ticket del mega evento y un cupo propio en el mismo sub-evento, y exigir (opcional) la inscripción al mega evento para inscribirse a uno propio. L, API y UI; decidir con el dueño del producto. |
-| **Un solo ticket vale en todos los sub-eventos que heredan** (fila 41). No hay tickets que den acceso a solo algunos ni un resumen de a cuántos sub-eventos fue cada inscrito. | Congresos con entradas por día o por taller. | Tickets por sub-evento y asistencia consolidada por inscrito. L. |
+| **Un solo ticket vale en todos los sub-eventos que heredan** (fila 40). No hay tickets que den acceso a solo algunos ni un resumen de a cuántos sub-eventos fue cada inscrito. | Congresos con entradas por día o por taller. | Tickets por sub-evento y asistencia consolidada por inscrito. L. |
 | **Cancelar la inscripción al mega evento quita el lugar en todos los sub-eventos.** Solo hay un aviso en Mi espacio. | Se pierde de golpe todo el programa. | Cancelación parcial (por sub-evento). M, API y UI. |
 | **Los pagos siguen siendo informativos** (el precio no se cobra; deuda anterior a esta feature). | Un congreso de pago no se puede cobrar desde la plataforma. | Fuera de esta feature. |
 
@@ -64,7 +66,7 @@ Por eso el cambio de abajo solo aplica a los sub-eventos que **heredan**: los de
 | Qué pasa hoy | Propuesta |
 | --- | --- |
 | ~~**Ni el mega evento ni los sub-eventos pueden repetirse** (fila 39). Queda abierta, sin comprometer, la idea de «duplicar con su programa» para el congreso anual.~~ **DESESTIMADO (3 nov, dueño del producto):** repetir un mega evento no se hará. | ~~Repetir el mega evento~~ Ninguna por ahora. |
-| **Mover un mega evento completo no se puede** (fila 42): un mega evento no puede editarse dejando a un sub-evento fuera, así que hay que ampliarlo, mover los sub-eventos uno por uno y acortarlo. | Acción «mover todo» que desplace también a los sub-eventos. M, API y UI. |
+| **Mover un mega evento completo no se puede** (fila 41): un mega evento no puede editarse dejando a un sub-evento fuera, así que hay que ampliarlo, mover los sub-eventos uno por uno y acortarlo. | Acción «mover todo» que desplace también a los sub-eventos. M, API y UI. |
 | **Un solo nivel.** Un curso con varias clases dentro del congreso son varios sub-eventos sueltos, sin agrupar. | Segundo nivel (mega evento, curso, sesiones) si se necesita. L. |
 | **No se puede convertir un evento existente en sub-evento, sacarlo ni cambiarlo de mega evento.** La API responde 400 y la UI no ofrece la acción. | «Mover a otro evento» desde la pantalla del evento. M, API y UI. |
 | **Zonas horarias y horario de verano sin probar** en la banda del calendario (se usa la zona del navegador). | Probar cruces de horario de verano. S. |
@@ -113,12 +115,12 @@ Por eso el cambio de abajo solo aplica a los sub-eventos que **heredan**: los de
 
 | Orden | Qué | Fila de deuda | Tamaño |
 | --- | --- | --- | --- |
-| 1 | Ingreso con el ticket del mega evento, tenga cuenta o no (§2) | 40 (se reescribe como defecto) | M a L |
+| ~~1~~ | ~~Ingreso con el ticket del mega evento, tenga cuenta o no (§2)~~ **HECHO (3 nov)** | ~~40~~ (quitada de la deuda) | M a L |
 | 2 | Compartir a todo el programa (§5) | nueva | M |
-| 3 | Duplicar el congreso con su programa y mover todo (§4) | 42 | M |
+| 3 | Duplicar el congreso con su programa y mover todo (§4) | 41 | M |
 | 4 | Aviso al cambiar el modo de inscripción y al borrar (§3 y §7) | nueva | M |
 | 5 | Medir y arreglar el rendimiento de la página pública (§7) | nueva | S a M |
-| 6 | Tickets por sub-evento y cupo propio (§3) | 41 | L |
+| 6 | Tickets por sub-evento y cupo propio (§3) | 40 | L |
 | ~~7~~ | ~~Repetir un congreso~~ (**desestimado**) y segundo nivel (§4) | 39 | L |
 
 Las filas «nueva» todavía no están en la tabla de deuda de `docs/redesign.md`: cuando el dueño del producto confirme el orden, se agregan allí (regla del repo: lo pendiente va a esa tabla y no se hace nada de ella sin consultarlo).

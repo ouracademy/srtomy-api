@@ -2,7 +2,10 @@ package org.ouracademy.ovejafiel.event.command.check_in_registration_by_ticket;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.event.EventFixtures.childOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.registration;
@@ -19,9 +22,12 @@ import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
+import org.ouracademy.ovejafiel.event.domain.SubEventCheckIn;
 import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
+import org.ouracademy.ovejafiel.event.query.InheritedCheckIns;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
+import org.ouracademy.ovejafiel.event.repository.SubEventCheckInRepository;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
@@ -30,9 +36,17 @@ class CheckInRegistrationByTicketCommandHandlerImplTests {
 
   EventRegistrationRepository repository = mock(EventRegistrationRepository.class);
   EventRepository eventRepository = mock(EventRepository.class);
+  SubEventCheckInRepository subEventCheckIns = mock(SubEventCheckInRepository.class);
+  InheritedCheckIns inheritedCheckIns = new InheritedCheckIns(subEventCheckIns);
+
+  @org.junit.jupiter.api.BeforeEach
+  void saveReturnsWhatItGets() {
+    when(subEventCheckIns.save(any())).thenAnswer(call -> call.getArgument(0));
+  }
+
   CheckInRegistrationByTicketCommandHandlerImpl handler =
       new CheckInRegistrationByTicketCommandHandlerImpl(
-          repository, eventRepository, new EffectiveRegistration());
+          repository, eventRepository, new EffectiveRegistration(), inheritedCheckIns);
 
   Event event =
       singleEvent(
@@ -143,7 +157,29 @@ class CheckInRegistrationByTicketCommandHandlerImplTests {
     assertThat(result.inherited()).isTrue();
     assertThat(result.name()).isEqualTo("Lu Mora");
     assertThat(result.alreadyCheckedIn()).isFalse();
+    assertThat(result.checkedInAt()).isNotNull();
     assertThat(registration.isCheckedIn()).isFalse();
+    verify(subEventCheckIns).save(any());
+  }
+
+  @Test
+  void scanningTheContainersTicketAgainInASubEventKeepsTheFirstTime() {
+    var child = subEvent(RegistrationMode.INHERIT);
+    var registration =
+        registration(event, ticket(event, "General", 5), "lu@x.org", RegistrationStatus.CONFIRMED);
+    when(repository.findByTicketCode(registration.getTicketCode()))
+        .thenReturn(Optional.of(registration));
+    var first = new SubEventCheckIn(registration, child, CheckInSource.QR_TICKET);
+    when(subEventCheckIns.findByRegistrationIdAndEventId(registration.getId(), child.getId()))
+        .thenReturn(Optional.of(first));
+
+    var result =
+        handler.handle(
+            new CheckInRegistrationByTicketCommand(child.getId(), registration.getTicketCode()));
+
+    assertThat(result.alreadyCheckedIn()).isTrue();
+    assertThat(result.checkedInAt()).isEqualTo(first.getCheckedInAt());
+    verify(subEventCheckIns, never()).save(any());
   }
 
   @Test

@@ -29,6 +29,7 @@
 - [x] T013 Prueba de integración `CompositeEventsIntegrationTests`.
 - [x] T014 `docs/redesign.md` §7 y §10.
 - [x] T015 `./mvnw spotless:apply`, `./mvnw verify` y `python3 scripts/check-language.py`.
+- [x] T017 Ingreso por inscripción y sub-evento (`V1.19.0`): ticket, marca a mano y QR del evento, lista de esperados del sub-evento y «Asistí» en Mi espacio.
 
 ## Decisiones tomadas con el dueño del producto
 

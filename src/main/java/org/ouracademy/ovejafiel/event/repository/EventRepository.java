@@ -105,7 +105,10 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
                          and lower(er.email) = lower(cast(:email as text))))
               union all
               -- the sub-events that inherit the ticket of a mega event they signed up for
-              select c.id, true, false, er.id, tt.name, er.status, er.cancel_code, er.ticket_code
+              select c.id, true,
+                     exists (select 1 from event_registration_check_in ci
+                             where ci.registration_id = er.id and ci.event_id = c.id),
+                     er.id, tt.name, er.status, er.cancel_code, er.ticket_code
               from event_registration er
               join ticket_type tt on tt.id = er.ticket_type_id
               join event c on c.parent_event_id = er.event_id

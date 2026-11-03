@@ -199,16 +199,22 @@ class AttendanceCheckInControllerTests {
     verifyNoInteractions(markUserPresentCommandHandler);
   }
 
-  private CheckInResult inheritedCheckIn(UserId account) {
+  private CheckInResult inheritedCheckIn(UserId account, boolean already) {
     return new CheckInResult(
-        EventRegistrationId.generate(), account, "Ana Paz", "General", false, null, true);
+        EventRegistrationId.generate(),
+        account,
+        "Ana Paz",
+        "General",
+        already,
+        java.time.LocalDateTime.of(2030, 1, 6, 10, 0),
+        true);
   }
 
   @Test
   void theContainersTicketMarksThePersonInTheSubEventWithoutTouchingTheSignUp() {
     var account = UserId.generate();
     given(checkInRegistrationByTicketCommandHandler.handle(any()))
-        .willReturn(inheritedCheckIn(account));
+        .willReturn(inheritedCheckIn(account, false));
     given(markUserPresentCommandHandler.handle(any()))
         .willReturn(Optional.of(new MarkUserPresentResult(PartyId.generate(), false)));
 
@@ -232,7 +238,7 @@ class AttendanceCheckInControllerTests {
   void scanningTheContainersTicketAgainInTheSubEventSaysTheyAlreadyCame() {
     var account = UserId.generate();
     given(checkInRegistrationByTicketCommandHandler.handle(any()))
-        .willReturn(inheritedCheckIn(account));
+        .willReturn(inheritedCheckIn(account, true));
     given(markUserPresentCommandHandler.handle(any()))
         .willReturn(Optional.of(new MarkUserPresentResult(PartyId.generate(), true)));
 
@@ -249,21 +255,26 @@ class AttendanceCheckInControllerTests {
   }
 
   @Test
-  void anInheritedTicketWithoutALinkedPersonIsRejectedInsteadOfSayingTheyCame() {
+  void anInheritedTicketIsAcceptedWithOrWithoutAnAccountOrALinkedPerson() {
+    // No account: nobody to mark in the attendance list, but the entry is recorded.
     given(checkInRegistrationByTicketCommandHandler.handle(any()))
-        .willReturn(inheritedCheckIn(null));
-    var withoutAccount =
-        assertThat(
+        .willReturn(inheritedCheckIn(null, false));
+    assertThat(
             mvc.post()
                 .uri("/v1/events/" + id + "/attendance/check-in")
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"ticketCode\":\"abc\"}"));
-    withoutAccount.hasStatus(400);
+                .content("{\"ticketCode\":\"abc\"}"))
+        .hasStatusOk()
+        .bodyJson()
+        .extractingPath("$.checkedInAt")
+        .isNotNull();
+    verifyNoInteractions(markUserPresentCommandHandler);
 
+    // An account that is not linked to a person of the church.
     var account = UserId.generate();
     given(checkInRegistrationByTicketCommandHandler.handle(any()))
-        .willReturn(inheritedCheckIn(account));
+        .willReturn(inheritedCheckIn(account, false));
     given(markUserPresentCommandHandler.handle(any())).willReturn(Optional.empty());
     assertThat(
             mvc.post()
@@ -271,7 +282,7 @@ class AttendanceCheckInControllerTests {
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"ticketCode\":\"abc\"}"))
-        .hasStatus(400);
+        .hasStatusOk();
   }
 
   @Test

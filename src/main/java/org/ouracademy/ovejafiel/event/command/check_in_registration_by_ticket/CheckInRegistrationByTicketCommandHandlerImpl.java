@@ -9,6 +9,7 @@ import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventRegistration;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
+import org.ouracademy.ovejafiel.event.query.InheritedCheckIns;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
@@ -23,6 +24,7 @@ class CheckInRegistrationByTicketCommandHandlerImpl
   private final EventRegistrationRepository eventRegistrationRepository;
   private final EventRepository eventRepository;
   private final EffectiveRegistration effectiveRegistration;
+  private final InheritedCheckIns inheritedCheckIns;
 
   @Override
   @Transactional
@@ -38,7 +40,7 @@ class CheckInRegistrationByTicketCommandHandlerImpl
                         || isValidThroughContainer(candidate, command.eventId()))
             .orElseThrow(() -> new NoSuchElementException("Ticket not found"));
     if (!registration.getEvent().getId().equals(command.eventId())) {
-      return inheritedCheckIn(registration);
+      return inheritedCheckIn(registration, command.eventId());
     }
     var already = registration.isCheckedIn();
     registration.checkIn(CheckInSource.QR_TICKET);
@@ -75,15 +77,20 @@ class CheckInRegistrationByTicketCommandHandlerImpl
     return true;
   }
 
-  /** The sign-up is the container's: the check-in is recorded in the sub-event's attendance. */
-  private CheckInResult inheritedCheckIn(EventRegistration registration) {
+  /**
+   * The sign-up is the container's: it stays as it is and the entry is recorded in the sub-event,
+   * with or without an account.
+   */
+  private CheckInResult inheritedCheckIn(EventRegistration registration, EventId subEventId) {
+    var subEvent = eventRepository.findById(subEventId).orElseThrow();
+    var mark = inheritedCheckIns.mark(registration, subEvent, CheckInSource.QR_TICKET);
     return new CheckInResult(
         registration.getId(),
         registration.getUser() == null ? null : registration.getUser().getId(),
         registration.getFullName(),
         registration.getTicketType().getName(),
-        false,
-        null,
+        mark.already(),
+        mark.checkedInAt(),
         true);
   }
 }

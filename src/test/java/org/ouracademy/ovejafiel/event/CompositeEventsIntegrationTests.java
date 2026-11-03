@@ -198,6 +198,70 @@ class CompositeEventsIntegrationTests {
   }
 
   @Test
+  void theMegaTicketChecksInSomeoneWithoutALinkedPersonAndTheSubEventKnowsWhoIsExpected() {
+    // The database is shared between runs: names that cannot be mistaken for older ones.
+    var run = UUID.randomUUID().toString().substring(0, 8);
+    var workshopName = "Taller " + run;
+    var otherName = "Charla " + run;
+    var workshop = subEvent(workshopName, "INHERIT");
+    var other = subEvent(otherName, "INHERIT");
+    var ticket = openRegistration(conference);
+    // Carol has an account but no person of the church linked to it.
+    var mine =
+        read(
+            body(
+                carol,
+                HttpMethod.POST,
+                "/public/events/" + conferenceSlug + "/registrations",
+                register(ticket, "carol@example.org")));
+    var scan = "{\"ticketCode\":\"%s\"}".formatted(mine.get("ticketCode").asText());
+
+    var expected = json(alice, "/events/" + workshop + "/registrations");
+    assertThat(expected).hasSize(1);
+    assertThat(expected.get(0).get("checkedInAt").isNull()).isTrue();
+
+    var first =
+        read(body(alice, HttpMethod.POST, "/events/" + workshop + "/attendance/check-in", scan));
+    assertThat(first.get("alreadyCheckedIn").asBoolean()).isFalse();
+    var again =
+        read(body(alice, HttpMethod.POST, "/events/" + workshop + "/attendance/check-in", scan));
+    assertThat(again.get("alreadyCheckedIn").asBoolean()).isTrue();
+    assertThat(again.get("checkedInAt").asText()).isEqualTo(first.get("checkedInAt").asText());
+
+    // In this sub-event they came in; in the other and in the mega event they did not.
+    assertThat(
+            json(alice, "/events/" + workshop + "/registrations")
+                .get(0)
+                .get("checkedInAt")
+                .isNull())
+        .isFalse();
+    assertThat(
+            json(alice, "/events/" + other + "/registrations").get(0).get("checkedInAt").isNull())
+        .isTrue();
+    assertThat(
+            json(alice, "/events/" + conference + "/registrations")
+                .get(0)
+                .get("checkedInAt")
+                .isNull())
+        .isTrue();
+    assertThat(find(json(carol, "/me/events"), workshopName).get("attended").asBoolean()).isTrue();
+    assertThat(find(json(carol, "/me/events"), otherName).get("attended").asBoolean()).isFalse();
+
+    // The usher can take the mark back by hand, and mark it again.
+    var registrationId = expected.get(0).get("id").asText();
+    var path = "/events/" + workshop + "/registrations/" + registrationId + "/check-in";
+    body(alice, HttpMethod.PUT, path, "{\"checkedIn\":false}");
+    assertThat(
+            json(alice, "/events/" + workshop + "/registrations")
+                .get(0)
+                .get("checkedInAt")
+                .isNull())
+        .isTrue();
+    body(alice, HttpMethod.PUT, path, "{\"checkedIn\":true}");
+    assertThat(find(json(carol, "/me/events"), workshopName).get("attended").asBoolean()).isTrue();
+  }
+
+  @Test
   void myEventsListTheSubEventsOfAMegaEventIHaveATicketFor() {
     var workshop = subEvent("Taller", "INHERIT");
     var dinner = subEvent("Cena", "OWN");
