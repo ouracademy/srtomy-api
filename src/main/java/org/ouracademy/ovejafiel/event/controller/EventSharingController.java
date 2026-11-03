@@ -123,7 +123,10 @@ public class EventSharingController {
       @RequestBody @Valid EventSharingRequest request) {
     manage(jwt, id);
     setEventSharingCommandHandler.handle(
-        new SetEventSharingCommand(new EventId(id), request.generalAccess()));
+        new SetEventSharingCommand(
+            new EventId(id),
+            request.generalAccess(),
+            Boolean.TRUE.equals(request.applyToProgram())));
     return sharing(jwt, id);
   }
 

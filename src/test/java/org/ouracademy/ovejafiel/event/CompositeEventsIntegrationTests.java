@@ -262,6 +262,26 @@ class CompositeEventsIntegrationTests {
   }
 
   @Test
+  void changingTheAccessOfTheMegaEventReachesItsProgramOnlyWhenAskedTo() {
+    var workshop = subEvent("Taller", "INHERIT");
+    var access =
+        (java.util.function.Function<String, String>)
+            id -> json(alice, "/events/" + id + "/sharing").get("generalAccess").asText();
+    assertThat(access.apply(workshop)).isEqualTo("ANYONE_WITH_LINK");
+
+    body(alice, HttpMethod.PUT, "/events/" + conference + "/sharing", sharing("CHURCH"));
+    assertThat(access.apply(conference)).isEqualTo("CHURCH");
+    assertThat(access.apply(workshop)).isEqualTo("ANYONE_WITH_LINK");
+
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/events/" + conference + "/sharing",
+        "{\"generalAccess\":\"CHURCH\",\"applyToProgram\":true}");
+    assertThat(access.apply(workshop)).isEqualTo("CHURCH");
+  }
+
+  @Test
   void myEventsListTheSubEventsOfAMegaEventIHaveATicketFor() {
     var workshop = subEvent("Taller", "INHERIT");
     var dinner = subEvent("Cena", "OWN");
