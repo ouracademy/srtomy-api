@@ -20,11 +20,21 @@ Lo demás de este documento es lo que **no** está hecho.
 
 **Qué pasa hoy:** en un sub-evento que hereda, el ingreso solo se registra si la cuenta de la inscripción está vinculada a una persona de la iglesia (se marca a esa persona en la asistencia del sub-evento). Si la inscripción no tiene cuenta, o la cuenta no está vinculada a una persona, la API responde 400 («anótela como visitante») y no queda ninguna marca. Las inscripciones sin cuenta son el caso normal (la inscripción pública no pide cuenta), así que esto falla justo en el caso común. Es la fila 40 de la deuda de la API, que hay que reescribir: deja de ser una limitación aceptada y pasa a ser un defecto.
 
-**Lo que también falla por lo mismo:**
+**Lo que también falla por lo mismo** (los tres se arreglan con el mismo cambio):
 
-- El QR del evento (autoasistencia) escaneado dentro de un sub-evento no reconoce la inscripción del mega evento: una persona con inscripción pero sin cuenta queda como visitante nuevo o suma al contador de «sin nombre».
-- El organizador de un sub-evento que hereda no ve quién está esperado: el panel de inscripción se oculta y la lista de inscritos es la del mega evento.
-- «Asistí» en Mi espacio solo cuenta el sub-evento si hay una persona vinculada.
+- **QR del evento (autoasistencia) dentro de un sub-evento que hereda.** El sistema busca la inscripción de quien escanea (por su cuenta o por su correo verificado) entre las del sub-evento, y no hay ninguna: la inscripción es del mega evento. Quien tiene cuenta no vinculada a una persona queda como visitante nuevo, o suma al contador de «sin nombre». *Aclaración:* quien escanea el QR **sin cuenta ni correo verificado** tampoco se reconoce en un evento normal (el sistema no sabe quién es), así que eso no es un defecto de los sub-eventos. El defecto es para quien sí se puede reconocer.
+- **El organizador de un sub-evento que hereda no ve quién está esperado.** En un evento normal el panel de inscripción muestra a los inscritos con su estado (ingresó o falta). En un sub-evento que hereda ese panel se oculta, porque la inscripción es del mega evento: el organizador del taller no sabe cuánta gente se espera ni quién ya entró; solo ve la lista de asistencia a medida que marca.
+- **«Asistí» en Mi espacio.** En un evento normal se enciende si la inscripción está marcada o si la persona vinculada está en la lista. En un sub-evento que hereda solo cuenta la persona vinculada: alguien con cuenta sin persona vinculada que entró con su ticket no aparece como asistente.
+
+**Casos de la vida real que esto debe cubrir** (dicho por el dueño del producto):
+
+1. **Lo más común: un mega evento y ya se tiene acceso a todo.** Todos los sub-eventos heredan (`INHERIT`). Es el caso que este defecto rompe.
+2. **Un mega evento donde uno o dos sub-eventos tienen cupo y precio aparte.** Esos sub-eventos usan inscripción propia (`OWN`), con su cupo y su ticket. Funciona hoy y no se toca: su ingreso es el de un evento normal (marca de la inscripción propia). El precio es informativo; no se cobra desde la plataforma (§3).
+3. **Mezcla de los dos en el mismo congreso.** Quien se inscribió al mega evento entra a los sub-eventos que heredan con el ticket del mega evento, y a los de inscripción propia con el ticket de ese sub-evento. Un sub-evento sin inscripción (`OPEN`) no pide ticket.
+
+Por eso el cambio de abajo solo aplica a los sub-eventos que **heredan**: los de inscripción propia siguen como un evento normal y los libres no tienen inscripciones.
+
+**Decisión tomada (3 nov): los asistentes de un sub-evento son las personas marcadas y las inscripciones ingresadas, sin duplicar** (si una inscripción ingresada es de una persona que además está marcada, cuenta una sola vez).
 
 **Propuesta:** guardar el ingreso **por inscripción y por sub-evento**, sin tocar el ingreso de la inscripción del mega evento.
 
@@ -35,14 +45,14 @@ Lo demás de este documento es lo que **no** está hecho.
   - `GET /events/{id}/registrations` de un sub-evento que hereda devuelve las inscripciones del mega evento con el `checkedInAt` de **ese** sub-evento.
 - **UI (M):** el panel de inscripción de un sub-evento que hereda pasa de ocultarse a mostrar la lista de esperados e ingresados (sin la configuración, que es del mega evento) con el escáner de tickets; «Asistí» en Mi espacio une esa marca.
 - **Pruebas:** handler, integración (inscripción sin cuenta que ingresa a un sub-evento, repite y no cambia la del mega evento), panel de la UI y e2e.
-- **Decisión pendiente:** qué cuenta como «asistentes» de un sub-evento, si personas marcadas, inscripciones ingresadas, o ambas sin duplicar (ver §9).
+- **Asistentes:** personas marcadas más inscripciones ingresadas, sin duplicar (decidido, ver arriba). Una inscripción ingresada cuya cuenta está vinculada a una persona ya marcada cuenta una vez.
 
 ## 3. Otras limitaciones de inscripción y asistencia
 
 | Qué pasa hoy | Por qué importa | Propuesta |
 | --- | --- | --- |
 | **Cambiar el modo de un sub-evento no valida nada.** De «la del evento» a «propia», nadie puede inscribirse hasta configurarla (la API responde que no tiene inscripción). De «propia» a «la del evento» o «sin inscripción», las inscripciones propias quedan guardadas, sin uso y ocultas, sin aviso ni cancelación. | Un organizador puede dejar a gente inscrita en un lugar que ya no existe. | Avisar en la UI al cambiar el modo, y decidir qué pasa con las inscripciones propias existentes (cancelar con aviso o impedir el cambio). M, API y UI. |
-| **Un sub-evento que hereda no tiene cupo propio.** Para tener aforo de sala hay que usar «propia», y entonces se pierde la entrada con el ticket del mega evento. | «Entrada general + cupo por sala» (el caso de un curso con 30 lugares dentro de un congreso) no se puede modelar. | Permitir ticket del mega evento **y** cupo propio en el mismo sub-evento. L, API y UI; decidir con el dueño del producto. |
+| **Un sub-evento con cupo y precio aparte (`OWN`) funciona, pero no acepta el ticket del mega evento.** Quien quiere entrar tiene que inscribirse aparte a ese sub-evento; no hay una inscripción que exija estar inscrito antes al mega evento. | El caso «uno o dos sub-eventos con cupo y precio extra» está cubierto. Lo que no se puede es «entrada general **y** además un aforo de sala» en el mismo sub-evento (un curso de 30 lugares que también acepta el ticket del congreso). | Permitir el ticket del mega evento y un cupo propio en el mismo sub-evento, y exigir (opcional) la inscripción al mega evento para inscribirse a uno propio. L, API y UI; decidir con el dueño del producto. |
 | **Un solo ticket vale en todos los sub-eventos que heredan** (fila 41). No hay tickets que den acceso a solo algunos ni un resumen de a cuántos sub-eventos fue cada inscrito. | Congresos con entradas por día o por taller. | Tickets por sub-evento y asistencia consolidada por inscrito. L. |
 | **Cancelar la inscripción al mega evento quita el lugar en todos los sub-eventos.** Solo hay un aviso en Mi espacio. | Se pierde de golpe todo el programa. | Cancelación parcial (por sub-evento). M, API y UI. |
 | **Los pagos siguen siendo informativos** (el precio no se cobra; deuda anterior a esta feature). | Un congreso de pago no se puede cobrar desde la plataforma. | Fuera de esta feature. |
@@ -90,9 +100,9 @@ Lo demás de este documento es lo que **no** está hecho.
 
 ## 9. Preguntas abiertas para el dueño del producto
 
-1. **Asistencia de un sub-evento:** ¿cuentan las personas marcadas, las inscripciones ingresadas, o ambas sin duplicar?
+1. ~~**Asistencia de un sub-evento**~~ **Resuelta (3 nov):** personas marcadas e inscripciones ingresadas, sin duplicar.
 2. **«Programa» en todo evento:** ¿se muestra en cualquier evento que no se repite, solo en los de varios días, o detrás de un botón?
-3. **Cupo por sala con entrada general:** ¿se necesita (un curso con 30 lugares dentro de un congreso)?
+3. **Cupo por sala con entrada general:** ¿se necesita que un sub-evento acepte el ticket del congreso **y** tenga cupo propio? (Un sub-evento con cupo y precio aparte, sin el ticket del congreso, ya funciona.) Y ¿debe exigirse estar inscrito al mega evento para inscribirse a un sub-evento propio?
 4. **Compartir:** ¿se hereda del mega evento o se copia al crear, como hoy?
 5. **Duplicar y mover:** ¿cuál pesa más, «duplicar el congreso con su programa» (cada año) o «mover todo»?
 6. **Cambiar el modo de inscripción de un sub-evento ya inscrito:** ¿se impide, o se cancelan las inscripciones con aviso?
