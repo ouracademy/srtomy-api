@@ -57,9 +57,12 @@ Criterio de diseño: ser flexible para cualquier tipo de evento, como lo hacen E
 
 Personajes de los ejemplos: **Marta**, organizadora del congreso «Avivamiento 2030» (3 días, 9 sub-eventos); **Pedro**, pastor de jóvenes que organiza un taller dentro del congreso; **Lucía**, asistente con cuenta; **Tomás**, asistente sin cuenta; **Rosa**, ujier.
 
-Marcas: **[AHORA]** = lo estoy haciendo en esta tanda (sin subirlo, por tu pedido de no ejecutar el pipeline). **[DECIDE]** = necesita tu decisión antes de hacerlo. **[DISEÑO]** = solo queda el diseño por ahora.
+Marcas: **HECHO (local)** = ya está en las ramas, con pruebas, pero **sin subir** (por tu pedido de no ejecutar el pipeline). **[DECIDE]** = necesita tu decisión antes de hacerlo. **[DISEÑO]** = solo queda el diseño por ahora.
 
-### P1. Compartir a todo el programa [AHORA]
+### ~~P1. Compartir a todo el programa~~ HECHO (local, sin subir)
+
+> **Qué quedó hecho:** en «Compartir» del mega evento aparece la casilla «Aplicar este acceso también a los N sub-eventos del programa». Al guardar, el acceso general se aplica al congreso y a todos sus sub-eventos. **Lo que no hace todavía:** no marca como «Acceso propio» a los sub-eventos que Pedro hubiera restringido a mano (los pisa si se marca la casilla; si no se marca, no los toca), y compartir con una **persona** (por correo) sigue siendo solo del evento en el que se hace.
+
 
 **Hoy.** El acceso se copia al crear cada sub-evento y no se hereda.
 *Ejemplo:* Marta crea el congreso «solo con enlace» y arma 9 sub-eventos (heredan «solo con enlace»). Una semana después lo abre a «toda la iglesia». El congreso se ve, pero los 9 talleres siguen restringidos: Lucía abre la página pública del congreso y el programa aparece **vacío**, sin explicación. Y si Marta comparte el congreso con el pastor invitado, él no puede abrir ningún taller.
@@ -71,7 +74,10 @@ Marcas: **[AHORA]** = lo estoy haciendo en esta tanda (sin subirlo, por tu pedid
 **Qué arregla.** Programas públicos que se ven vacíos y talleres que nadie puede abrir.
 **Tamaño:** M, API y UI.
 
-### P2. Duplicar el congreso con su programa y moverlo entero [AHORA]
+### P2. Duplicar el congreso con su programa y moverlo entero
+
+> **Duplicar: HECHO (local, sin subir).** En la pantalla del congreso, el botón «Duplicar» pide la nueva fecha de inicio y el nombre, y crea una copia privada con todo el programa en los mismos días y horas relativos, con los mismos speakers, lugar y modo de inscripción de cada sub-evento. **No copia** inscritos, asistencia, cómo se comparte, ni la configuración de inscripción y tickets (hay que volver a configurarlos en la copia). **«Mover todo»: pendiente** (necesita avisar por correo a los inscritos; queda como siguiente paso).
+
 
 **Hoy.** Repetir el mega evento está desestimado, pero el congreso anual se vuelve a armar a mano cada año, y no se puede mover todo el programa si cambia la fecha.
 *Ejemplo:* en noviembre del año siguiente Marta tiene que crear de nuevo el congreso y cargar los 9 sub-eventos con sus horas, speakers, lugares y modos de inscripción. Si el congreso se corre una semana, tiene que ampliar el mega evento, mover los 9 uno por uno y volver a acortarlo.
@@ -84,7 +90,10 @@ Marcas: **[AHORA]** = lo estoy haciendo en esta tanda (sin subirlo, por tu pedid
 **Qué arregla.** Trabajo de horas cada año y el riesgo de dejar un sub-evento fuera de fechas.
 **Tamaño:** M, API y UI. *Nota:* repetir automáticamente (serie) sigue desestimado; esto es una copia puntual.
 
-### P3. «Programa» solo cuando hace falta [AHORA]
+### ~~P3. «Programa» solo cuando hace falta~~ HECHO (local, sin subir)
+
+> **Qué quedó hecho:** en un evento de un solo día sin sub-eventos, «Programa» aparece como el botón «Armar un programa»; en uno de varios días, o que ya tiene sub-eventos, la sección se ve abierta.
+
 
 **Hoy.** La sección «Programa» aparece en todo evento que no se repite, incluso en un culto de una hora (deuda UI 32).
 *Ejemplo:* Pedro abre su reunión de oración de un día y ve «Programa: es opcional, agrega eventos y cursos». No entiende qué es y lo ve en todos sus eventos.
@@ -174,9 +183,9 @@ Los asistentes de un sub-evento son **las personas marcadas más las inscripcion
 | Orden | Qué | Fila de deuda | Tamaño | Estado |
 | --- | --- | --- | --- | --- |
 | ~~1~~ | ~~Ingreso con el ticket del mega evento, tenga cuenta o no (§2)~~ | ~~40~~ (quitada) | M a L | **HECHO** |
-| 2 | Compartir a todo el programa (P1) | nueva | M | [AHORA] |
-| 3 | Duplicar el congreso y mover todo (P2) | 41 | M | [AHORA] |
-| 4 | «Programa» solo cuando hace falta (P3) | UI 32 | S | [AHORA] |
+| ~~2~~ | ~~Compartir a todo el programa (P1)~~ | nueva | M | **HECHO** (local) |
+| 3 | Duplicar el congreso (hecho, local) y **mover todo** (pendiente) (P2) | 41 | M | parcial |
+| ~~4~~ | ~~«Programa» solo cuando hace falta (P3)~~ | ~~UI 32~~ | S | **HECHO** (local) |
 | 5 | Aviso al cambiar el modo y al borrar (P4) | nueva | M | [DECIDE] |
 | 6 | Número único de asistentes (§4) | nueva | S a M | por hacer |
 | 7 | Tickets por sub-evento, cupo propio y extras (P5, P6) | 40 | L | [DISEÑO] |
