@@ -9,12 +9,16 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
+import org.ouracademy.ovejafiel.event.command.copy_event.CopyEventCommand;
+import org.ouracademy.ovejafiel.event.command.copy_event.CopyEventCommandHandler;
 import org.ouracademy.ovejafiel.event.command.create_event.CreateEventCommand;
 import org.ouracademy.ovejafiel.event.command.create_event.CreateEventCommandHandler;
 import org.ouracademy.ovejafiel.event.command.delete_event.DeleteEventCommand;
 import org.ouracademy.ovejafiel.event.command.delete_event.DeleteEventCommandHandler;
 import org.ouracademy.ovejafiel.event.command.edit_event.EditEventCommand;
 import org.ouracademy.ovejafiel.event.command.edit_event.EditEventCommandHandler;
+import org.ouracademy.ovejafiel.event.controller.dto.CopyEventRequest;
+import org.ouracademy.ovejafiel.event.controller.dto.CopyEventResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.EditEventRequest;
 import org.ouracademy.ovejafiel.event.controller.dto.EditEventResponse;
 import org.ouracademy.ovejafiel.event.controller.dto.EventDeleteRequest;
@@ -64,6 +68,7 @@ public class EventController {
   CreateEventCommandHandler createEventCommandHandler;
   DeleteEventCommandHandler deleteEventCommandHandler;
   EditEventCommandHandler editEventCommandHandler;
+  CopyEventCommandHandler copyEventCommandHandler;
   AuthorizeEventQueryHandler authorizeEventQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
@@ -130,6 +135,24 @@ public class EventController {
                 eventRequest.getRegistrationMode()))
         .id()
         .value();
+  }
+
+  /**
+   * The event of next year as a copy of this one, with its program: sub-events keep their place
+   * relative to the start. Nothing about people is copied.
+   */
+  @PostMapping("{id}/copy")
+  @ResponseStatus(code = HttpStatus.CREATED)
+  public CopyEventResponse copy(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid CopyEventRequest request) {
+    authorizeOnEvent(jwt, id, AccessLevel.EDITOR);
+    var result =
+        copyEventCommandHandler.handle(
+            new CopyEventCommand(
+                new EventId(id), OffsetDateTime.parse(request.startTime()), request.name()));
+    return new CopyEventResponse(result.id().value(), result.subEvents());
   }
 
   @DeleteMapping("{id}")

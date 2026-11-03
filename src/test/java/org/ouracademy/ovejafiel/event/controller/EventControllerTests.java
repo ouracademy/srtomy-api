@@ -73,6 +73,10 @@ class EventControllerTests {
   @MockitoBean CreateEventCommandHandler createEventCommandHandler;
   @MockitoBean DeleteEventCommandHandler deleteEventCommandHandler;
   @MockitoBean EditEventCommandHandler editEventCommandHandler;
+
+  @MockitoBean
+  org.ouracademy.ovejafiel.event.command.copy_event.CopyEventCommandHandler copyEventCommandHandler;
+
   @MockitoBean AuthorizeEventQueryHandler authorizeEventQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
 
@@ -363,6 +367,58 @@ class EventControllerTests {
     assertThat(captor.getValue().option()).isEqualTo(EventChangeOption.THIS_EVENT);
     assertThat(captor.getValue().recurrence()).isNull();
     assertThat(captor.getValue().timeZone()).isNull();
+  }
+
+  @Test
+  void copyPassesTheNewStartAndAnswersWithTheCopy() {
+    var id = UUID.randomUUID();
+    var copyId = EventId.generate();
+    given(copyEventCommandHandler.handle(any()))
+        .willReturn(
+            new org.ouracademy.ovejafiel.event.command.copy_event.CopyEventResult(copyId, 3));
+
+    var body =
+        assertThat(
+                mvc.post()
+                    .uri("/v1/events/" + id + "/copy")
+                    .header("Authorization", bearerHeader())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"startTime\":\"2031-01-05T00:00:00Z\",\"name\":\"Congreso 2031\"}"))
+            .hasStatus(201)
+            .bodyJson();
+    body.extractingPath("$.id").isEqualTo(copyId.value().toString());
+    body.extractingPath("$.subEvents").isEqualTo(3);
+    org.mockito.Mockito.verify(copyEventCommandHandler)
+        .handle(
+            new org.ouracademy.ovejafiel.event.command.copy_event.CopyEventCommand(
+                new EventId(id),
+                java.time.OffsetDateTime.parse("2031-01-05T00:00:00Z"),
+                "Congreso 2031"));
+  }
+
+  @Test
+  void copyNeedsAnEditorOfTheEventAndAStartDate() {
+    var id = UUID.randomUUID();
+    assertThat(
+            mvc.post()
+                .uri("/v1/events/" + id + "/copy")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"startTime\":\"\"}"))
+        .hasStatus(400);
+    given(
+            authorizeEventQueryHandler.handle(
+                new AuthorizeEventQuery("test-user", new EventId(id), AccessLevel.EDITOR)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/events/" + id + "/copy")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"startTime\":\"2031-01-05T00:00:00Z\"}"))
+        .hasStatus(403);
+    verifyNoInteractions(copyEventCommandHandler);
   }
 
   @Test
