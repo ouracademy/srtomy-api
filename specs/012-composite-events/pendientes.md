@@ -51,7 +51,7 @@ Lo demás de este documento es lo que **no** está hecho.
 
 | Qué pasa hoy | Propuesta |
 | --- | --- |
-| **Ni el mega evento ni los sub-eventos pueden repetirse** (fila 39). El congreso anual se arma de nuevo cada año, y no hay «duplicar con su programa». | Acción «duplicar» que copie el mega evento y sus sub-eventos a otra fecha. M, API y UI. |
+| **Ni el mega evento ni los sub-eventos pueden repetirse** (fila 39). **Desestimado por el dueño del producto:** repetir un mega evento no se hará. Queda abierta, sin comprometer, la idea de «duplicar con su programa» para el congreso anual. | Ninguna por ahora. |
 | **Mover un mega evento completo no se puede** (fila 42): un mega evento no puede editarse dejando a un sub-evento fuera, así que hay que ampliarlo, mover los sub-eventos uno por uno y acortarlo. | Acción «mover todo» que desplace también a los sub-eventos. M, API y UI. |
 | **Un solo nivel.** Un curso con varias clases dentro del congreso son varios sub-eventos sueltos, sin agrupar. | Segundo nivel (mega evento, curso, sesiones) si se necesita. L. |
 | **No se puede convertir un evento existente en sub-evento, sacarlo ni cambiarlo de mega evento.** La API responde 400 y la UI no ofrece la acción. | «Mover a otro evento» desde la pantalla del evento. M, API y UI. |
@@ -69,7 +69,7 @@ Lo demás de este documento es lo que **no** está hecho.
 - **No se vio la UI en un navegador.** La banda del calendario, la fila «Varios días», la sección «Programa» y el celular solo están cubiertos por pruebas. Antes de fusionar conviene abrir la pantalla de un evento de varios días. S.
 - **El mega evento solo se distingue en el calendario si dura más de 24 horas.** Un mega evento de un día con sub-eventos se ve como un evento común, porque la lista del calendario no trae «tiene sub-eventos». M, API y UI.
 - **«Programa» aparece en todo evento que no se repite** (fila 32), incluso un culto de un día. Decisión pendiente (§9). S.
-- **El programa es solo de lectura y de alta.** No se reordena, no se edita ni se elimina un sub-evento desde la lista: hay que entrar a su pantalla. Los sub-eventos se crean solo desde el programa, no desde el calendario. M, UI.
+- **El programa es solo de lectura y de alta** (en curso, 3 nov): se está haciendo que «Programa» sea una sección colapsable con su propio calendario, y que cada sub-evento se pueda editar, eliminar y reordenar (moviéndolo en el calendario del programa). Los sub-eventos se crean solo desde el programa, no desde el calendario general. M, UI.
 - **Celular:** en la lista semanal no se pueden elegir varios días arrastrando; queda el campo «Hasta». Sin probar. S.
 - **Accesibilidad:** la página pública con programa pasa axe. La pantalla del evento no se revisa con axe (deuda 25, contraste de los botones Evento/Curso).
 
@@ -107,6 +107,6 @@ Lo demás de este documento es lo que **no** está hecho.
 | 4 | Aviso al cambiar el modo de inscripción y al borrar (§3 y §7) | nueva | M |
 | 5 | Medir y arreglar el rendimiento de la página pública (§7) | nueva | S a M |
 | 6 | Tickets por sub-evento y cupo propio (§3) | 41 | L |
-| 7 | Repetir un congreso y segundo nivel (§4) | 39 | L |
+| 7 | Segundo nivel (§4). Repetir el congreso está **desestimado** | 39 | L |
 
 Las filas «nueva» todavía no están en la tabla de deuda de `docs/redesign.md`: cuando el dueño del producto confirme el orden, se agregan allí (regla del repo: lo pendiente va a esa tabla y no se hace nada de ella sin consultarlo).
