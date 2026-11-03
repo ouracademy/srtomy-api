@@ -51,76 +51,137 @@ Por eso el cambio de abajo solo aplica a los sub-eventos que **heredan**: los de
 - **Pruebas:** handler, integración (inscripción sin cuenta que ingresa a un sub-evento, repite y no cambia la del mega evento), panel de la UI y e2e.
 - **Asistentes:** personas marcadas más inscripciones ingresadas, sin duplicar (decidido, ver arriba). Una inscripción ingresada cuya cuenta está vinculada a una persona ya marcada cuenta una vez.
 
-## 3. Otras limitaciones de inscripción y asistencia
+## 3. Lo que falta, con ejemplos de uso
 
-| Qué pasa hoy | Por qué importa | Propuesta |
-| --- | --- | --- |
-| **Cambiar el modo de un sub-evento no valida nada.** De «la del evento» a «propia», nadie puede inscribirse hasta configurarla (la API responde que no tiene inscripción). De «propia» a «la del evento» o «sin inscripción», las inscripciones propias quedan guardadas, sin uso y ocultas, sin aviso ni cancelación. | Un organizador puede dejar a gente inscrita en un lugar que ya no existe. | Avisar en la UI al cambiar el modo, y decidir qué pasa con las inscripciones propias existentes (cancelar con aviso o impedir el cambio). M, API y UI. |
-| **Un sub-evento con cupo y precio aparte (`OWN`) funciona, pero no acepta el ticket del mega evento.** Quien quiere entrar tiene que inscribirse aparte a ese sub-evento; no hay una inscripción que exija estar inscrito antes al mega evento. | El caso «uno o dos sub-eventos con cupo y precio extra» está cubierto. Lo que no se puede es «entrada general **y** además un aforo de sala» en el mismo sub-evento (un curso de 30 lugares que también acepta el ticket del congreso). | Permitir el ticket del mega evento y un cupo propio en el mismo sub-evento, y exigir (opcional) la inscripción al mega evento para inscribirse a uno propio. L, API y UI; decidir con el dueño del producto. |
-| **Un solo ticket vale en todos los sub-eventos que heredan** (fila 40). No hay tickets que den acceso a solo algunos ni un resumen de a cuántos sub-eventos fue cada inscrito. | Congresos con entradas por día o por taller. | Tickets por sub-evento y asistencia consolidada por inscrito. L. |
-| **Cancelar la inscripción al mega evento quita el lugar en todos los sub-eventos.** Solo hay un aviso en Mi espacio. | Se pierde de golpe todo el programa. | Cancelación parcial (por sub-evento). M, API y UI. |
-| **Los pagos siguen siendo informativos** (el precio no se cobra; deuda anterior a esta feature). | Un congreso de pago no se puede cobrar desde la plataforma. | Fuera de esta feature. |
+Criterio de diseño: ser flexible para cualquier tipo de evento, como lo hacen Eventbrite o los sistemas de congresos. En esos sistemas: (a) hay **varios tipos de ticket** («Pase completo», «Un día», «Solo taller»), (b) cada ticket **da acceso a una parte del programa**, (c) algunas sesiones tienen **cupo o precio extra** encima del pase general, (d) el organizador **duplica** el evento del año anterior, y (e) la persona ve **su propia agenda**. Todo lo de abajo apunta a eso, sin obligar a usarlo: un culto de un día sigue siendo un evento simple.
 
-## 4. Fechas, edición y repetición
+Personajes de los ejemplos: **Marta**, organizadora del congreso «Avivamiento 2030» (3 días, 9 sub-eventos); **Pedro**, pastor de jóvenes que organiza un taller dentro del congreso; **Lucía**, asistente con cuenta; **Tomás**, asistente sin cuenta; **Rosa**, ujier.
 
-| Qué pasa hoy | Propuesta |
-| --- | --- |
-| ~~**Ni el mega evento ni los sub-eventos pueden repetirse** (fila 39). Queda abierta, sin comprometer, la idea de «duplicar con su programa» para el congreso anual.~~ **DESESTIMADO (3 nov, dueño del producto):** repetir un mega evento no se hará. | ~~Repetir el mega evento~~ Ninguna por ahora. |
-| **Mover un mega evento completo no se puede** (fila 41): un mega evento no puede editarse dejando a un sub-evento fuera, así que hay que ampliarlo, mover los sub-eventos uno por uno y acortarlo. | Acción «mover todo» que desplace también a los sub-eventos. M, API y UI. |
-| **Un solo nivel.** Un curso con varias clases dentro del congreso son varios sub-eventos sueltos, sin agrupar. | Segundo nivel (mega evento, curso, sesiones) si se necesita. L. |
-| **No se puede convertir un evento existente en sub-evento, sacarlo ni cambiarlo de mega evento.** La API responde 400 y la UI no ofrece la acción. | «Mover a otro evento» desde la pantalla del evento. M, API y UI. |
-| **Zonas horarias y horario de verano sin probar** en la banda del calendario (se usa la zona del navegador). | Probar cruces de horario de verano. S. |
+Marcas: **[AHORA]** = lo estoy haciendo en esta tanda (sin subirlo, por tu pedido de no ejecutar el pipeline). **[DECIDE]** = necesita tu decisión antes de hacerlo. **[DISEÑO]** = solo queda el diseño por ahora.
 
-## 5. Compartir y permisos
+### P1. Compartir a todo el programa [AHORA]
 
-| Qué pasa hoy | Por qué importa | Propuesta |
-| --- | --- | --- |
-| **El acceso se copia al crear el sub-evento y no se hereda.** Cambiar después el acceso del mega evento no cambia el de los sub-eventos. | La página pública del mega evento solo lista los sub-eventos que el visitante puede abrir: uno que quedó restringido desaparece del programa sin explicación. | Una acción «aplicar a todo el programa» o heredar en vez de copiar. M, API y UI. |
-| **Compartir el mega evento con una persona no la comparte con sus sub-eventos.** | Quien recibe el enlace del congreso no puede abrir los talleres. | Mismo cambio de arriba. |
+**Hoy.** El acceso se copia al crear cada sub-evento y no se hereda.
+*Ejemplo:* Marta crea el congreso «solo con enlace» y arma 9 sub-eventos (heredan «solo con enlace»). Una semana después lo abre a «toda la iglesia». El congreso se ve, pero los 9 talleres siguen restringidos: Lucía abre la página pública del congreso y el programa aparece **vacío**, sin explicación. Y si Marta comparte el congreso con el pastor invitado, él no puede abrir ningún taller.
 
-## 6. Calendario y pantallas
+**Cómo debe ser.** Al cambiar el acceso de un mega evento, la pantalla de compartir pregunta: «Este evento tiene 9 sub-eventos. ¿Aplicar el mismo acceso a todo el programa?» con dos opciones: *solo al congreso* o *al congreso y a todo su programa*. Un sub-evento que se haya cambiado a mano antes se **muestra como distinto** («Acceso propio») y no se pisa sin confirmar.
 
-- **No se vio la UI en un navegador.** La banda del calendario, la fila «Varios días», la sección «Programa» y el celular solo están cubiertos por pruebas. Antes de fusionar conviene abrir la pantalla de un evento de varios días. S.
-- **El mega evento solo se distingue en el calendario si dura más de 24 horas.** Un mega evento de un día con sub-eventos se ve como un evento común, porque la lista del calendario no trae «tiene sub-eventos». M, API y UI.
-- **«Programa» aparece en todo evento que no se repite** (fila 32), incluso un culto de un día. Decisión pendiente (§9). S.
-- ~~**El programa es solo de lectura y de alta.** No se reordena, no se edita ni se elimina un sub-evento desde la lista.~~ **HECHO (3 nov, UI #93):** «Programa» es una sección que se abre y se cierra, con un calendario de los días del mega evento; cada sub-evento se puede editar (en su pantalla), eliminar y reordenar arrastrándolo en el calendario. **Falta:** los sub-eventos se crean solo desde el programa, no desde el calendario general. S, UI.
-- **Celular:** en la lista semanal no se pueden elegir varios días arrastrando; queda el campo «Hasta». Sin probar. S.
-- **Accesibilidad:** la página pública con programa pasa axe. La pantalla del evento no se revisa con axe (deuda 25, contraste de los botones Evento/Curso).
+**Flujo.** Marta abre «Compartir» del congreso, elige «Toda la iglesia», ve el aviso «Aplicar a los 9 sub-eventos», acepta. Lucía abre el congreso y ve los 9 talleres. Si Pedro había restringido su taller a su grupo, el aviso dice «1 sub-evento tiene acceso propio y no cambiará».
 
-## 7. Avisos, rendimiento y reportes
+**Qué arregla.** Programas públicos que se ven vacíos y talleres que nadie puede abrir.
+**Tamaño:** M, API y UI.
 
-- **Borrar un mega evento o un sub-evento no avisa a los inscritos.** Ya pasaba con los eventos sueltos; con el congreso se nota más. M, API.
-- **Rendimiento de la página pública:** para listar el programa se consulta el acceso de cada sub-evento por separado. Con unos 40 sub-eventos puede ser lento. Hay que medirlo y, si hace falta, resolverlo en una sola consulta. S a M, API.
-- **Reportes:** no revisé si las métricas de crecimiento (fila 35, que reproduce los eventos en memoria) o el directorio cuentan los sub-eventos como eventos aparte. S de revisar.
-- **Correos al mover un sub-evento que hereda:** va un correo por persona inscrita al mega evento, en la misma transacción (cola de salida). Con miles de inscritos no se probó.
+### P2. Duplicar el congreso con su programa y moverlo entero [AHORA]
 
-## 8. Pruebas y verificación que no se hicieron
+**Hoy.** Repetir el mega evento está desestimado, pero el congreso anual se vuelve a armar a mano cada año, y no se puede mover todo el programa si cambia la fecha.
+*Ejemplo:* en noviembre del año siguiente Marta tiene que crear de nuevo el congreso y cargar los 9 sub-eventos con sus horas, speakers, lugares y modos de inscripción. Si el congreso se corre una semana, tiene que ampliar el mega evento, mover los 9 uno por uno y volver a acortarlo.
 
-- Los e2e corrieron solo en Chromium (Firefox y WebKit no). Usé una configuración temporal fuera del repo porque el Playwright del proyecto espera otra versión de Chromium que la instalada en mi entorno.
-- No miré el resultado del CI de los dos PR después de crearlos.
-- La migración `V1.18.0` solo corrió contra un Postgres local vacío, nunca contra una copia de datos reales.
-- Las pruebas de la UI simulan la API; el contrato coincide con el que genera la rama de la API (comparado byte a byte), pero no se probó la UI contra la API corriendo.
-- No hay captura visual de ninguna pantalla.
+**Cómo debe ser.** Dos acciones en la pantalla del evento: **«Duplicar»** (crea una copia sin inscritos ni asistencia en otra fecha, con todo el programa desplazado) y **«Mover todo»** (cambia las fechas del congreso y de todo su programa a la vez, avisando a los inscritos). Es lo que hacen los sistemas de eventos con «copiar evento».
 
-## 9. Preguntas abiertas para el dueño del producto
+**Flujo (duplicar).** Marta abre el congreso de este año → «Duplicar» → elige la nueva fecha de inicio → se crea «Avivamiento 2031 (copia)» con los 9 sub-eventos en los mismos días y horas relativos, los mismos speakers y lugares, la misma configuración de inscripción y tickets (cerrada) y el acceso en «Solo yo» para que lo revise antes de publicar. La copia nunca trae inscritos.
+**Flujo (mover todo).** Marta abre el congreso → «Mover todo» → nueva fecha de inicio → se muestra «Se moverán el congreso y 9 sub-eventos. Se avisará a 120 personas inscritas» → confirma.
 
-1. ~~**Asistencia de un sub-evento**~~ **Resuelta (3 nov):** personas marcadas e inscripciones ingresadas, sin duplicar.
-2. **«Programa» en todo evento:** ¿se muestra en cualquier evento que no se repite, solo en los de varios días, o detrás de un botón?
-3. **Cupo por sala con entrada general:** ¿se necesita que un sub-evento acepte el ticket del congreso **y** tenga cupo propio? (Un sub-evento con cupo y precio aparte, sin el ticket del congreso, ya funciona.) Y ¿debe exigirse estar inscrito al mega evento para inscribirse a un sub-evento propio?
-4. **Compartir:** ¿se hereda del mega evento o se copia al crear, como hoy?
-5. **Duplicar y mover:** ¿cuál pesa más, «duplicar el congreso con su programa» (cada año) o «mover todo»?
-6. **Cambiar el modo de inscripción de un sub-evento ya inscrito:** ¿se impide, o se cancelan las inscripciones con aviso?
+**Qué arregla.** Trabajo de horas cada año y el riesgo de dejar un sub-evento fuera de fechas.
+**Tamaño:** M, API y UI. *Nota:* repetir automáticamente (serie) sigue desestimado; esto es una copia puntual.
 
-## 10. Orden sugerido y relación con la deuda técnica
+### P3. «Programa» solo cuando hace falta [AHORA]
 
-| Orden | Qué | Fila de deuda | Tamaño |
-| --- | --- | --- | --- |
-| ~~1~~ | ~~Ingreso con el ticket del mega evento, tenga cuenta o no (§2)~~ **HECHO (3 nov)** | ~~40~~ (quitada de la deuda) | M a L |
-| 2 | Compartir a todo el programa (§5) | nueva | M |
-| 3 | Duplicar el congreso con su programa y mover todo (§4) | 41 | M |
-| 4 | Aviso al cambiar el modo de inscripción y al borrar (§3 y §7) | nueva | M |
-| 5 | Medir y arreglar el rendimiento de la página pública (§7) | nueva | S a M |
-| 6 | Tickets por sub-evento y cupo propio (§3) | 40 | L |
-| ~~7~~ | ~~Repetir un congreso~~ (**desestimado**) y segundo nivel (§4) | 39 | L |
+**Hoy.** La sección «Programa» aparece en todo evento que no se repite, incluso en un culto de una hora (deuda UI 32).
+*Ejemplo:* Pedro abre su reunión de oración de un día y ve «Programa: es opcional, agrega eventos y cursos». No entiende qué es y lo ve en todos sus eventos.
+
+**Cómo debe ser.** El programa se ve siempre en un evento que ya lo tiene o dura varios días. En un evento de un solo día aparece como un botón discreto, «Armar un programa», que despliega la sección. El que no lo necesita no lo ve.
+
+**Flujo.** Pedro abre su reunión de oración: no hay «Programa». Marta abre una jornada de un día con 4 charlas y pulsa «Armar un programa»: aparece la sección con «Agregar sub-evento».
+**Tamaño:** S, UI.
+
+### P4. Aviso al cambiar el modo de inscripción o al borrar con inscritos [DECIDE]
+
+**Hoy.** Cambiar el modo de un sub-evento ya inscrito no valida nada, y borrar un evento no avisa a los inscritos.
+*Ejemplo:* Pedro tiene su taller con inscripción propia y 25 inscritos. Lo cambia a «la del congreso» por error: las 25 inscripciones quedan guardadas, sin uso y ocultas, y nadie se entera. O Marta borra un taller con 30 inscritos y ninguno recibe aviso.
+
+**Cómo debe ser** (propuesta, a confirmar). Al cambiar el modo, la pantalla advierte «25 personas están inscritas en este taller» y ofrece **cancelarlas con aviso por correo** o **mantener el modo actual**. Al borrar un evento con inscritos, se les avisa por correo que fue cancelado. Es el comportamiento estándar de los sistemas de eventos.
+
+**Qué arregla.** Gente inscrita a un lugar que ya no existe. **Tamaño:** M, API y UI.
+**Pregunta para ti (§9.5):** ¿impedir el cambio, o cancelar las inscripciones con aviso?
+
+### P5. Tickets por sub-evento, cupo propio y «pase del congreso + extra» [DISEÑO]
+
+**Hoy.** Un ticket del congreso vale en todos los sub-eventos que lo heredan. Un sub-evento con cupo y precio aparte (inscripción propia) funciona, pero **no acepta el ticket del congreso**, y no se puede exigir estar inscrito al congreso para inscribirse a uno propio.
+*Ejemplos:*
+- Marta vende «Pase completo» (3 días) y «Pase sábado» (solo sábado). Hoy los dos valen en todo el programa: el «Pase sábado» entra el viernes.
+- El taller de Pedro tiene 30 lugares y cuesta S/ 20 extra. Hoy Tomás puede inscribirse al taller **sin** haberse inscrito al congreso, y Lucía, que ya tiene el pase completo, no puede usar su ticket para el taller: tiene que hacer una inscripción aparte.
+
+**Cómo debe ser.** (1) Cada tipo de ticket del congreso **dice a qué sub-eventos da acceso** (todos, o solo los marcados). (2) Un sub-evento puede ser **«incluido con cupo»** (acepta el pase del congreso y tiene aforo propio) o **«extra»** (inscripción propia que **exige** tener el pase del congreso). (3) La persona ve su **agenda**: los sub-eventos a los que su ticket da acceso y los que tiene aparte.
+
+**Flujo.** Lucía compra el «Pase completo» y en su agenda ve los 8 talleres incluidos; para el taller de Pedro ve «Cupo limitado: 12 lugares — Reservar mi lugar» (gratis, por ser parte de su pase). Tomás compra el «Pase sábado» y su agenda solo muestra los del sábado. Rosa escanea el ticket de cada uno en cada puerta y el sistema acepta o rechaza según el día.
+
+**Qué arregla.** Entradas por día, talleres con aforo, extras de pago y control real de la puerta. **Tamaño:** L, API y UI. Es el cambio más grande; conviene hacerlo después de decidir §9.2.
+
+### P6. Cancelación parcial y cambio de ticket [DISEÑO]
+
+**Hoy.** Cancelar la inscripción al congreso quita el lugar en **todos** los sub-eventos; solo hay un aviso en Mi espacio.
+*Ejemplo:* Lucía solo puede venir el sábado. No puede quitar los otros días sin cancelar todo y perder su lugar.
+
+**Cómo debe ser.** En Mi espacio, Lucía puede **soltar un sub-evento** (libera el lugar para otra persona) o cambiar su pase, sin cancelar el congreso. **Tamaño:** M, API y UI; depende de P5.
+
+### P7. Segundo nivel (congreso → curso → sesiones) [DISEÑO]
+
+**Hoy.** Un solo nivel. Un curso de 5 clases dentro del congreso son 5 sub-eventos sueltos, sin agrupar.
+*Ejemplo:* el «Curso de liderazgo» tiene 5 clases en 3 días y aparece como 5 filas sin relación en el programa.
+
+**Cómo debe ser** (recomendación). En vez de anidar sin límite, agregar una **etiqueta de agrupación** (curso, sala o pista) que el programa muestra agrupada. Es lo que usan los congresos («Pista A», «Sala 2»); es más simple que un segundo nivel y no rompe nada de lo hecho. Un segundo nivel real solo si lo pide un caso concreto. **Tamaño:** M con etiqueta; L con segundo nivel.
+
+### P8. Calendario: ver mejor los congresos [DISEÑO]
+
+- **Hoy:** un mega evento de un día con sub-eventos se ve como evento común, porque la lista del calendario no dice que tiene sub-eventos. *Ejemplo:* la «Jornada de un día» con 4 charlas no se distingue de un culto. **Debe:** marcar con un distintivo a todo evento que tiene programa. M, API y UI.
+- **Hoy:** los sub-eventos se crean solo desde el programa, no desde el calendario general. *Ejemplo:* Marta está en el calendario viendo el sábado y quiere agregar una charla ahí. **Debe:** al elegir un horario dentro de un congreso, ofrecer «Agregar al programa de…». S, UI.
+
+### P9. Rendimiento y reportes [DISEÑO]
+
+- La página pública consulta el acceso de cada sub-evento por separado: con unos 40 sub-eventos puede ser lenta. **Hay que medir** y, si hace falta, resolverlo en una sola consulta. S a M, API.
+- No revisé si las métricas de crecimiento y el directorio cuentan los sub-eventos como eventos aparte. *Ejemplo:* un congreso de 9 sub-eventos podría contar como 10 eventos en el reporte de la iglesia. S de revisar.
+- Un correo por persona al mover un sub-evento que hereda, dentro de la misma transacción: con miles de inscritos no se probó. S, API.
+
+### P10. Pagos [FUERA DE ESTA FEATURE]
+
+El precio es informativo y no se cobra desde la plataforma (Culqi sin conectar). Un congreso de pago o un taller con extra no puede cobrarse aquí todavía. Depende de la integración de pagos y de P5.
+
+## 4. Asistentes de un sub-evento: cómo contarlos (decidido)
+
+Los asistentes de un sub-evento son **las personas marcadas más las inscripciones ingresadas, sin duplicar**.
+*Ejemplo:* en el taller de Pedro, Lucía (con cuenta vinculada a una persona) entra con su ticket: queda como inscripción ingresada **y** como persona marcada; cuenta **una** vez. Tomás (sin cuenta) entra con su ticket: cuenta una vez como inscripción ingresada. Una persona que llegó sin inscribirse y Rosa la anotó como visitante: cuenta una vez como persona. **Falta:** mostrar ese número único en la pantalla del sub-evento (hoy «Esperados» e «Ingresaron» salen por inscripción y la lista de asistencia por persona, por separado). S a M, API y UI.
+
+## 5. Pruebas y verificación que no se hicieron
+
+- Los e2e corrieron solo en Chromium; no corrí los de las últimas tandas (calendario del programa y esperados).
+- Nunca vi la UI en un navegador: la banda del calendario, el calendario del programa, el celular.
+- La migración `V1.19.0` y `V1.18.0` solo corrieron en una base local vacía, no contra datos reales.
+- La UI se probó con la API simulada, no contra la API corriendo.
+- Horario de verano y zonas horarias en la banda del calendario: sin probar.
+- Accesibilidad: la pantalla del evento no se revisa con axe (deuda 25).
+
+## 6. Preguntas abiertas para el dueño del producto
+
+1. ~~Asistencia de un sub-evento~~ **Resuelta:** personas marcadas e inscripciones ingresadas, sin duplicar.
+2. ¿Quieres **tickets que den acceso a solo parte del programa** («Pase sábado») y **talleres extra que exijan el pase del congreso**? Es P5 y define casi todo lo grande que queda.
+3. ¿El acceso se **hereda** siempre del congreso, o se **copia** al crear y se aplica a todo con una confirmación (propuesta de P1)?
+4. ¿Qué pesa más para ti, **duplicar** el congreso cada año o **mover todo**? (Hago los dos en P2.)
+5. Al cambiar el modo de inscripción de un sub-evento ya inscrito: ¿se impide, o se cancelan las inscripciones con aviso por correo?
+6. ¿Prefieres una **etiqueta de agrupación** (pista, sala, curso) o un **segundo nivel** real? (P7)
+
+## 7. Orden sugerido y relación con la deuda técnica
+
+| Orden | Qué | Fila de deuda | Tamaño | Estado |
+| --- | --- | --- | --- | --- |
+| ~~1~~ | ~~Ingreso con el ticket del mega evento, tenga cuenta o no (§2)~~ | ~~40~~ (quitada) | M a L | **HECHO** |
+| 2 | Compartir a todo el programa (P1) | nueva | M | [AHORA] |
+| 3 | Duplicar el congreso y mover todo (P2) | 41 | M | [AHORA] |
+| 4 | «Programa» solo cuando hace falta (P3) | UI 32 | S | [AHORA] |
+| 5 | Aviso al cambiar el modo y al borrar (P4) | nueva | M | [DECIDE] |
+| 6 | Número único de asistentes (§4) | nueva | S a M | por hacer |
+| 7 | Tickets por sub-evento, cupo propio y extras (P5, P6) | 40 | L | [DISEÑO] |
+| 8 | Calendario, rendimiento y reportes (P8, P9) | nueva | S a M | [DISEÑO] |
+| 9 | Etiqueta de agrupación o segundo nivel (P7) | 39 | M a L | [DISEÑO] |
+| ~~10~~ | ~~Repetir un congreso automáticamente~~ | 39 | L | **DESESTIMADO** |
 
 Las filas «nueva» todavía no están en la tabla de deuda de `docs/redesign.md`: cuando el dueño del producto confirme el orden, se agregan allí (regla del repo: lo pendiente va a esa tabla y no se hace nada de ella sin consultarlo).
