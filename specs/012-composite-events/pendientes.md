@@ -6,6 +6,8 @@
 
 Cada punto dice qué pasa hoy, qué se propone y de qué tamaño es (S: horas, M: un día o dos, L: más). «API» y «UI» indican en qué repo se hace.
 
+**Marcas:** ~~tachado~~ = ya hecho o desestimado por el dueño del producto (cada uno lo dice al lado). Sin tachar = pendiente.
+
 ## 1. Estado actual
 
 Está hecho y probado: crear un evento de varios días («Fecha» y «Hasta»), llegar a su pantalla, armar un programa opcional con sub-eventos y cursos, inscribirse al mega evento y entrar a los sub-eventos que lo heredan, ver el programa en la página pública y en Mi espacio, y editar y borrar con las reglas del mega evento.
@@ -61,7 +63,7 @@ Por eso el cambio de abajo solo aplica a los sub-eventos que **heredan**: los de
 
 | Qué pasa hoy | Propuesta |
 | --- | --- |
-| **Ni el mega evento ni los sub-eventos pueden repetirse** (fila 39). **Desestimado por el dueño del producto:** repetir un mega evento no se hará. Queda abierta, sin comprometer, la idea de «duplicar con su programa» para el congreso anual. | Ninguna por ahora. |
+| ~~**Ni el mega evento ni los sub-eventos pueden repetirse** (fila 39). Queda abierta, sin comprometer, la idea de «duplicar con su programa» para el congreso anual.~~ **DESESTIMADO (3 nov, dueño del producto):** repetir un mega evento no se hará. | ~~Repetir el mega evento~~ Ninguna por ahora. |
 | **Mover un mega evento completo no se puede** (fila 42): un mega evento no puede editarse dejando a un sub-evento fuera, así que hay que ampliarlo, mover los sub-eventos uno por uno y acortarlo. | Acción «mover todo» que desplace también a los sub-eventos. M, API y UI. |
 | **Un solo nivel.** Un curso con varias clases dentro del congreso son varios sub-eventos sueltos, sin agrupar. | Segundo nivel (mega evento, curso, sesiones) si se necesita. L. |
 | **No se puede convertir un evento existente en sub-evento, sacarlo ni cambiarlo de mega evento.** La API responde 400 y la UI no ofrece la acción. | «Mover a otro evento» desde la pantalla del evento. M, API y UI. |
@@ -79,7 +81,7 @@ Por eso el cambio de abajo solo aplica a los sub-eventos que **heredan**: los de
 - **No se vio la UI en un navegador.** La banda del calendario, la fila «Varios días», la sección «Programa» y el celular solo están cubiertos por pruebas. Antes de fusionar conviene abrir la pantalla de un evento de varios días. S.
 - **El mega evento solo se distingue en el calendario si dura más de 24 horas.** Un mega evento de un día con sub-eventos se ve como un evento común, porque la lista del calendario no trae «tiene sub-eventos». M, API y UI.
 - **«Programa» aparece en todo evento que no se repite** (fila 32), incluso un culto de un día. Decisión pendiente (§9). S.
-- **El programa es solo de lectura y de alta** (en curso, 3 nov): se está haciendo que «Programa» sea una sección colapsable con su propio calendario, y que cada sub-evento se pueda editar, eliminar y reordenar (moviéndolo en el calendario del programa). Los sub-eventos se crean solo desde el programa, no desde el calendario general. M, UI.
+- ~~**El programa es solo de lectura y de alta.** No se reordena, no se edita ni se elimina un sub-evento desde la lista.~~ **HECHO (3 nov, UI #93):** «Programa» es una sección que se abre y se cierra, con un calendario de los días del mega evento; cada sub-evento se puede editar (en su pantalla), eliminar y reordenar arrastrándolo en el calendario. **Falta:** los sub-eventos se crean solo desde el programa, no desde el calendario general. S, UI.
 - **Celular:** en la lista semanal no se pueden elegir varios días arrastrando; queda el campo «Hasta». Sin probar. S.
 - **Accesibilidad:** la página pública con programa pasa axe. La pantalla del evento no se revisa con axe (deuda 25, contraste de los botones Evento/Curso).
 
@@ -117,6 +119,6 @@ Por eso el cambio de abajo solo aplica a los sub-eventos que **heredan**: los de
 | 4 | Aviso al cambiar el modo de inscripción y al borrar (§3 y §7) | nueva | M |
 | 5 | Medir y arreglar el rendimiento de la página pública (§7) | nueva | S a M |
 | 6 | Tickets por sub-evento y cupo propio (§3) | 41 | L |
-| 7 | Segundo nivel (§4). Repetir el congreso está **desestimado** | 39 | L |
+| ~~7~~ | ~~Repetir un congreso~~ (**desestimado**) y segundo nivel (§4) | 39 | L |
 
 Las filas «nueva» todavía no están en la tabla de deuda de `docs/redesign.md`: cuando el dueño del producto confirme el orden, se agregan allí (regla del repo: lo pendiente va a esa tabla y no se hace nada de ella sin consultarlo).
