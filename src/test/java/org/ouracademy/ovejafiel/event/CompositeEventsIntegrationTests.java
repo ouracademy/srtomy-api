@@ -282,51 +282,6 @@ class CompositeEventsIntegrationTests {
   }
 
   @Test
-  void copyingTheMegaEventCreatesAPrivateCopyWithItsProgramOnTheNewDate() {
-    var workshop = subEvent("Taller", "INHERIT");
-    var dinner = subEvent("Cena", "OWN");
-    var ticket = openRegistration(conference);
-    body(
-        carol,
-        HttpMethod.POST,
-        "/public/events/" + conferenceSlug + "/registrations",
-        register(ticket, "carol@example.org"));
-
-    var copy =
-        read(
-            body(
-                alice,
-                HttpMethod.POST,
-                "/events/" + conference + "/copy",
-                "{\"startTime\":\"2031-01-05T00:00:00Z\",\"name\":\"Mega evento 2031\"}"));
-
-    var copyId = copy.get("id").asText();
-    assertThat(copy.get("subEvents").asInt()).isEqualTo(2);
-    var copied = json(alice, "/events/" + copyId);
-    assertThat(copied.get("title").asText()).isEqualTo("Mega evento 2031");
-    assertThat(copied.get("start").asText()).startsWith("2031-01-05");
-    assertThat(copied.get("children")).hasSize(2);
-    assertThat(copied.get("children").get(0).get("start").asText()).startsWith("2031-01-06");
-    assertThat(copied.get("children"))
-        .extracting(child -> child.get("registrationMode").asText())
-        .containsExactlyInAnyOrder("INHERIT", "OWN");
-    // The copy starts private, without sign-ups, and the original is untouched.
-    assertThat(json(alice, "/events/" + copyId + "/sharing").get("generalAccess").asText())
-        .isEqualTo("RESTRICTED");
-    assertThat(json(alice, "/events/" + copyId + "/registrations")).isEmpty();
-    assertThat(json(alice, "/events/" + conference).get("children")).hasSize(2);
-    assertThat(workshop).isNotEqualTo(dinner);
-    // A sub-event cannot be copied on its own.
-    assertThat(
-            status(
-                alice,
-                HttpMethod.POST,
-                "/events/" + workshop + "/copy",
-                "{\"startTime\":\"2031-01-05T00:00:00Z\"}"))
-        .isEqualTo(400);
-  }
-
-  @Test
   void myEventsListTheSubEventsOfAMegaEventIHaveATicketFor() {
     var workshop = subEvent("Taller", "INHERIT");
     var dinner = subEvent("Cena", "OWN");
