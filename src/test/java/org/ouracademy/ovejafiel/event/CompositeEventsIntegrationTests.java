@@ -183,6 +183,11 @@ class CompositeEventsIntegrationTests {
     assertThat(json(alice, "/events/" + workshop + "/attendance").get("personIds"))
         .extracting(JsonNode::asText)
         .containsExactly(personId);
+    // The person came in with the ticket and is marked in the list: counted once.
+    var summary = json(alice, "/events/" + workshop + "/attendance/summary");
+    assertThat(summary.get("people").asInt()).isEqualTo(1);
+    assertThat(summary.get("ticketOnly").asInt()).isZero();
+    assertThat(summary.get("total").asInt()).isEqualTo(1);
     // Nobody was marked in the mega event itself: it has no attendance at all (204).
     assertThat(status(alice, HttpMethod.GET, "/events/" + conference + "/attendance"))
         .isEqualTo(204);
@@ -227,6 +232,14 @@ class CompositeEventsIntegrationTests {
         read(body(alice, HttpMethod.POST, "/events/" + workshop + "/attendance/check-in", scan));
     assertThat(again.get("alreadyCheckedIn").asBoolean()).isTrue();
     assertThat(again.get("checkedInAt").asText()).isEqualTo(first.get("checkedInAt").asText());
+
+    // Nobody is marked in the list, but the ticket counts as one person.
+    var summary = json(alice, "/events/" + workshop + "/attendance/summary");
+    assertThat(summary.get("people").asInt()).isZero();
+    assertThat(summary.get("ticketOnly").asInt()).isEqualTo(1);
+    assertThat(summary.get("total").asInt()).isEqualTo(1);
+    assertThat(json(alice, "/events/" + other + "/attendance/summary").get("total").asInt())
+        .isZero();
 
     // In this sub-event they came in; in the other and in the mega event they did not.
     assertThat(
