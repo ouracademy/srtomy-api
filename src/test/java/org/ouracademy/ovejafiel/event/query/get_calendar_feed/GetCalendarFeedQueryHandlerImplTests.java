@@ -1,8 +1,11 @@
 package org.ouracademy.ovejafiel.event.query.get_calendar_feed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.ouracademy.ovejafiel.event.EventFixtures.childOf;
 import static org.ouracademy.ovejafiel.event.EventFixtures.singleEvent;
 import static org.ouracademy.ovejafiel.organization.OrganizationFixtures.organization;
 
@@ -79,5 +82,28 @@ class GetCalendarFeedQueryHandlerImplTests {
     when(calendarFeedRepository.findByToken("nope")).thenReturn(Optional.empty());
 
     assertThat(handler.handle(new GetCalendarFeedQuery("nope", NOW))).isEmpty();
+  }
+
+  @Test
+  void aSubEventNamesTheMegaEventItBelongsTo() {
+    var feed = new CalendarFeed(userId);
+    var church = organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH);
+    var conference = singleEvent(EventId.generate(), "Mega evento", church, List.of());
+    var workshop =
+        childOf(
+            conference, EventId.generate(), "Taller", conference.getStart(), conference.getEnd());
+    when(calendarFeedRepository.findByToken("tok")).thenReturn(Optional.of(feed));
+    when(eventRepository.findReadableByUser(any(), any(), any(), anyInt()))
+        .thenReturn(List.of(conference, workshop));
+
+    var calendar =
+        handler
+            .handle(new GetCalendarFeedQuery("tok", NOW))
+            .orElseThrow()
+            .calendar()
+            .replace("\r\n ", "");
+
+    assertThat(calendar)
+        .contains("SUMMARY:Mega evento · Iglesia\r\n", "SUMMARY:Mega evento: Taller · Iglesia\r\n");
   }
 }

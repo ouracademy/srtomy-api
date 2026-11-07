@@ -49,6 +49,11 @@ class AttendanceControllerTests {
   @Autowired JwtEncoder jwtEncoder;
 
   @MockitoBean GetAttendanceQueryHandler getAttendanceQueryHandler;
+
+  @MockitoBean
+  org.ouracademy.ovejafiel.attendance.query.get_attendance_summary.GetAttendanceSummaryQueryHandler
+      getAttendanceSummaryQueryHandler;
+
   @MockitoBean RegisterAttendanceCommandHandler registerAttendanceCommandHandler;
   @MockitoBean FindEventOrganizationQueryHandler findEventOrganizationQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
@@ -76,6 +81,30 @@ class AttendanceControllerTests {
                 .uri("/v1/events/" + eventId.value() + "/attendance")
                 .header("Authorization", bearerHeader()))
         .hasStatus(204);
+  }
+
+  @Test
+  void theSummaryCountsEachPersonOnce() {
+    var eventId = EventId.generate();
+    given(
+            getAttendanceSummaryQueryHandler.handle(
+                new org.ouracademy.ovejafiel.attendance.query.get_attendance_summary
+                    .GetAttendanceSummaryQuery(eventId)))
+        .willReturn(
+            new org.ouracademy.ovejafiel.attendance.query.get_attendance_summary
+                .GetAttendanceSummaryResult(18, 2, 3));
+
+    var body =
+        assertThat(
+                mvc.get()
+                    .uri("/v1/events/" + eventId.value() + "/attendance/summary")
+                    .header("Authorization", bearerHeader()))
+            .hasStatusOk()
+            .bodyJson();
+    body.extractingPath("$.people").isEqualTo(18);
+    body.extractingPath("$.ticketOnly").isEqualTo(2);
+    body.extractingPath("$.guests").isEqualTo(3);
+    body.extractingPath("$.total").isEqualTo(23);
   }
 
   @Test

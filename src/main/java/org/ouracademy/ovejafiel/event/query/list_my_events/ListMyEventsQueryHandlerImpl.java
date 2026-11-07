@@ -51,7 +51,8 @@ class ListMyEventsQueryHandlerImpl implements ListMyEventsQueryHandler {
                                     ? null
                                     : RegistrationStatus.valueOf(row.getRegistrationStatus()),
                                 row.getCancelCode(),
-                                row.getTicketCode()))
+                                row.getTicketCode(),
+                                row.getParentTitle()))
                     .toList())
         .orElse(List.of());
   }

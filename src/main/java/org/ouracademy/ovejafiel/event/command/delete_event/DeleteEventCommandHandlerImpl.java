@@ -1,9 +1,11 @@
 package org.ouracademy.ovejafiel.event.command.delete_event;
 
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommand;
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommandHandler;
+import org.ouracademy.ovejafiel.event.command.RegistrationNotices;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventChangeOption;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
@@ -16,17 +18,30 @@ class DeleteEventCommandHandlerImpl implements DeleteEventCommandHandler {
 
   private final EventRepository eventRepository;
   private final DeleteAttendanceForEventsCommandHandler deleteAttendanceForEventsCommandHandler;
+  private final RegistrationNotices registrationNotices;
 
   @Override
   @Transactional
   public DeleteEventResult handle(DeleteEventCommand command) {
     var event = eventRepository.findById(command.id()).orElseThrow();
-    var deleted = eventsToDelete(event, command.option());
+    var deleted = new ArrayList<>(eventsToDelete(event, command.option()));
+    deleted.addAll(childrenOf(deleted));
     deleteAttendanceForEventsCommandHandler.handle(
         new DeleteAttendanceForEventsCommand(deleted.stream().map(Event::getId).toList()));
+    // Told before the events disappear: whoever signed up is not left waiting for them.
+    registrationNotices.cancelled(deleted);
     deleted.forEach(Event::delete);
     stopSeries(event, command.option());
     return new DeleteEventResult(command.id());
+  }
+
+  /**
+   * Deleting a container takes its sub-events with it; deleting a sub-event leaves the container.
+   */
+  private List<Event> childrenOf(List<Event> events) {
+    return events.stream()
+        .flatMap(event -> eventRepository.findByParentOrderByStart(event).stream())
+        .toList();
   }
 
   /** A one-off event only has itself, whatever the option. */

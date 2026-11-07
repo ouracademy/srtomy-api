@@ -27,15 +27,21 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ouracademy.ovejafiel.event.EventFixtures;
 import org.ouracademy.ovejafiel.event.domain.Event;
+import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventSeries;
 import org.ouracademy.ovejafiel.event.domain.Recurrence;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.ouracademy.ovejafiel.event.repository.EventSeriesRepository;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
+import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.person.query.find_people_by_ids.FindPeopleByIdsQuery;
@@ -52,6 +58,7 @@ class CreateEventCommandHandlerImplTests {
   @Mock EventSeriesRepository eventSeriesRepository;
   @Mock FindOrganizationByIdQueryHandler findOrganizationByIdQueryHandler;
   @Mock FindPeopleByIdsQueryHandler findPeopleByIdsQueryHandler;
+  @Mock FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   @Mock EntityManager entityManager;
 
   CreateEventCommandHandlerImpl handler;
@@ -69,6 +76,7 @@ class CreateEventCommandHandlerImplTests {
             eventSeriesRepository,
             findOrganizationByIdQueryHandler,
             findPeopleByIdsQueryHandler,
+            findOrganizationSubtreeQueryHandler,
             entityManager);
   }
 
@@ -84,7 +92,9 @@ class CreateEventCommandHandlerImplTests {
         organizationId,
         speakerIds,
         recurrence,
-        timeZone);
+        timeZone,
+        null,
+        null);
   }
 
   private void organizationAndSpeakerExist() {
@@ -187,7 +197,9 @@ class CreateEventCommandHandlerImplTests {
             organizationId,
             List.of(speakerId),
             daily,
-            ZoneId.of("UTC")));
+            ZoneId.of("UTC"),
+            null,
+            null));
 
     var series = ArgumentCaptor.forClass(EventSeries.class);
     verify(eventSeriesRepository).save(series.capture());
@@ -244,5 +256,104 @@ class CreateEventCommandHandlerImplTests {
         .hasMessageNotContaining(speakerId.value().toString());
 
     verifyNoInteractions(eventRepository, entityManager);
+  }
+
+  private Event conference() {
+    return EventFixtures.eventBetween(
+        EventId.generate(),
+        "Mega evento",
+        church,
+        START.minusDays(1).atZoneSameInstant(ZoneId.of("UTC")),
+        END.plusDays(1).atZoneSameInstant(ZoneId.of("UTC")));
+  }
+
+  private CreateEventCommand childCommand(
+      EventId parentId, Recurrence recurrence, RegistrationMode mode) {
+    return new CreateEventCommand(
+        "Taller",
+        START,
+        END,
+        null,
+        null,
+        false,
+        organizationId,
+        List.of(speakerId),
+        recurrence,
+        ZoneId.of("UTC"),
+        parentId,
+        mode);
+  }
+
+  @Test
+  void aSubEventIsAttachedToItsContainerWithTheRequestedRegistrationMode() {
+    organizationAndSpeakerExist();
+    var container = conference();
+    when(eventRepository.findById(container.getId())).thenReturn(Optional.of(container));
+    when(findOrganizationSubtreeQueryHandler.handle(
+            new FindOrganizationSubtreeQuery(organizationId)))
+        .thenReturn(new FindOrganizationSubtreeResult(List.of(organizationId)));
+    when(eventRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    handler.handle(childCommand(container.getId(), null, RegistrationMode.OWN));
+
+    var saved = ArgumentCaptor.forClass(Event.class);
+    verify(eventRepository).save(saved.capture());
+    assertThat(saved.getValue().getParent()).isSameAs(container);
+    assertThat(saved.getValue().getRegistrationMode()).isEqualTo(RegistrationMode.OWN);
+  }
+
+  @Test
+  void aSubEventInheritsTheContainersRegistrationWhenNoModeIsGiven() {
+    organizationAndSpeakerExist();
+    var container = conference();
+    when(eventRepository.findById(container.getId())).thenReturn(Optional.of(container));
+    when(findOrganizationSubtreeQueryHandler.handle(
+            new FindOrganizationSubtreeQuery(organizationId)))
+        .thenReturn(new FindOrganizationSubtreeResult(List.of(organizationId)));
+    when(eventRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    handler.handle(childCommand(container.getId(), null, null));
+
+    var saved = ArgumentCaptor.forClass(Event.class);
+    verify(eventRepository).save(saved.capture());
+    assertThat(saved.getValue().getRegistrationMode()).isEqualTo(RegistrationMode.INHERIT);
+  }
+
+  @Test
+  void aSubEventOutsideTheContainersNodeIsRejected() {
+    organizationAndSpeakerExist();
+    var container = conference();
+    when(eventRepository.findById(container.getId())).thenReturn(Optional.of(container));
+    when(findOrganizationSubtreeQueryHandler.handle(
+            new FindOrganizationSubtreeQuery(organizationId)))
+        .thenReturn(new FindOrganizationSubtreeResult(List.of(PartyId.generate())));
+
+    assertThatThrownBy(() -> handler.handle(childCommand(container.getId(), null, null)))
+        .isInstanceOf(DomainValidationException.class);
+    verify(eventRepository, never()).save(any());
+  }
+
+  @Test
+  void aSubEventCannotRepeat() {
+    when(findOrganizationByIdQueryHandler.handle(new FindOrganizationByIdQuery(organizationId)))
+        .thenReturn(Optional.of(FindOrganizationResult.from(church)));
+    when(findPeopleByIdsQueryHandler.handle(new FindPeopleByIdsQuery(List.of(speakerId))))
+        .thenReturn(List.of(personResult(speakerId, "Jose", "Mena")));
+    var daily =
+        Recurrence.of(Recurrence.Frequency.DAILY, 1, null, null, Recurrence.EndType.COUNT, null, 3);
+
+    assertThatThrownBy(() -> handler.handle(childCommand(EventId.generate(), daily, null)))
+        .isInstanceOf(DomainValidationException.class);
+    verify(eventRepository, never()).save(any());
+  }
+
+  @Test
+  void aMissingContainerIsNotFound() {
+    organizationAndSpeakerExist();
+    var missing = EventId.generate();
+    when(eventRepository.findById(missing)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> handler.handle(childCommand(missing, null, null)))
+        .isInstanceOf(NoSuchElementException.class);
   }
 }

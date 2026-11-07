@@ -49,6 +49,14 @@ public final class EventFixtures {
     return event;
   }
 
+  /** A sub-event of {@code container}, in the same organization, at the given times. */
+  public static Event childOf(
+      Event container, EventId id, String title, ZonedDateTime start, ZonedDateTime end) {
+    var child = eventBetween(id, title, container.getOrganization(), start, end);
+    child.attachTo(container);
+    return child;
+  }
+
   /** An event with an open registration; call {@code configure} again to change it. */
   public static EventRegistrationSetup registrationSetup(Event event) {
     var setup = new EventRegistrationSetup(event);

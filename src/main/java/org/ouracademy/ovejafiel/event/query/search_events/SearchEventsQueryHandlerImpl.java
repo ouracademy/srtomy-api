@@ -1,7 +1,10 @@
 package org.ouracademy.ovejafiel.event.query.search_events;
 
+import java.util.HashMap;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.event.domain.Event;
+import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.query.FindEventResult;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
@@ -24,10 +27,20 @@ class SearchEventsQueryHandlerImpl implements SearchEventsQueryHandler {
         findOrganizationSubtreeQueryHandler
             .handle(new FindOrganizationSubtreeQuery(query.organizationId()))
             .ids();
-    return eventRepository
-        .searchEventsOfOrgIdsAndBetweenDates(organizationIds, query.start(), query.end())
-        .stream()
-        .map(FindEventResult::from)
+    var events =
+        eventRepository.searchEventsOfOrgIdsAndBetweenDates(
+            organizationIds, query.start(), query.end());
+    // One query for the size of every program, not one per event.
+    var sizes = new HashMap<EventId, Integer>();
+    if (!events.isEmpty()) {
+      eventRepository
+          .countSubEvents(events.stream().map(Event::getId).toList())
+          .forEach(row -> sizes.put((EventId) row[0], ((Long) row[1]).intValue()));
+    }
+    return events.stream()
+        .map(
+            event ->
+                FindEventResult.from(event).withProgramSize(sizes.getOrDefault(event.getId(), 0)))
         .toList();
   }
 }
