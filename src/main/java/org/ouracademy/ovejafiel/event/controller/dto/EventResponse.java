@@ -33,7 +33,8 @@ public record EventResponse(
     RegistrationMode registrationMode,
     String track,
     List<ChildResponse> children,
-    int programSize) {
+    int programSize,
+    boolean requiresContainerRegistration) {
 
   /** A sub-event listed inside its container. */
   public record ChildResponse(
@@ -76,7 +77,8 @@ public record EventResponse(
         result.registrationMode(),
         result.track(),
         result.children().stream().map(ChildResponse::from).toList(),
-        result.programSize());
+        result.programSize(),
+        result.requiresContainerRegistration());
   }
 
   /** Same JSON fields as the serialized Person entity. */

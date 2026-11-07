@@ -33,7 +33,8 @@ public record EditEventCommand(
     EventId parentEventId,
     RegistrationMode registrationMode,
     Instant now,
-    String track) {
+    String track,
+    Boolean requiresContainerRegistration) {
 
   public EditEventCommand(
       EventId id,
@@ -67,6 +68,7 @@ public record EditEventCommand(
         parentEventId,
         registrationMode,
         now,
+        null,
         null);
   }
 }

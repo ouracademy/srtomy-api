@@ -178,6 +178,9 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
     if (event.isChild()) {
       event.requireInside(event.getParent());
       event.setTrack(blankToNull(edit.command().track()));
+      if (edit.command().requiresContainerRegistration() != null) {
+        event.setRequiresContainerRegistration(edit.command().requiresContainerRegistration());
+      }
       var mode = edit.command().registrationMode();
       if (mode != null) {
         var wasOwn = event.getRegistrationMode() == RegistrationMode.OWN;

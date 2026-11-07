@@ -27,7 +27,8 @@ public record CreateEventCommand(
     ZoneId timeZone,
     EventId parentEventId,
     RegistrationMode registrationMode,
-    String track) {
+    String track,
+    Boolean requiresContainerRegistration) {
 
   public CreateEventCommand(
       String name,
@@ -55,6 +56,7 @@ public record CreateEventCommand(
         timeZone,
         parentEventId,
         registrationMode,
+        null,
         null);
   }
 }

@@ -109,6 +109,8 @@ class CreateEventCommandHandlerImpl implements CreateEventCommandHandler {
       event.setRegistrationMode(command.registrationMode());
     }
     event.setTrack(blankToNull(command.track()));
+    event.setRequiresContainerRegistration(
+        Boolean.TRUE.equals(command.requiresContainerRegistration()));
   }
 
   private static String blankToNull(String value) {

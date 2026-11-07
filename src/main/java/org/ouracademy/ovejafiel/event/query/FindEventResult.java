@@ -31,7 +31,8 @@ public record FindEventResult(
     RegistrationMode registrationMode,
     String track,
     List<ChildResult> children,
-    int programSize) {
+    int programSize,
+    boolean requiresContainerRegistration) {
 
   /** A sub-event listed inside its container. */
   public record ChildResult(
@@ -75,7 +76,8 @@ public record FindEventResult(
         registrationMode,
         track,
         children,
-        size);
+        size,
+        requiresContainerRegistration);
   }
 
   public static FindEventResult from(Event event) {
@@ -103,7 +105,8 @@ public record FindEventResult(
         event.getRegistrationMode(),
         event.getTrack(),
         children.stream().map(ChildResult::from).toList(),
-        children.size());
+        children.size(),
+        event.isRequiresContainerRegistration());
   }
 
   private static List<FindPersonResult> speakersOf(Event event) {

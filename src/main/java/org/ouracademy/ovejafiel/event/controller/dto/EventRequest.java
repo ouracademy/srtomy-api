@@ -44,6 +44,9 @@ public class EventRequest {
   @Size(max = 100)
   String track;
 
+  /** A sub-event with its own sign-up asks for a place in its mega event first. */
+  Boolean requiresContainerRegistration;
+
   /** IANA zone the event repeats in (e.g. America/Lima); UTC when omitted. */
   String timeZone;
 

@@ -68,6 +68,7 @@ class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandl
     var existing =
         eventRegistrationRepository.findFirstByEventIdAndEmailIgnoreCaseAndStatusNot(
             event.getId(), email, RegistrationStatus.CANCELLED);
+    requireContainerRegistration(event, email, user == null ? null : user.id());
     if (existing.isPresent()) {
       var found = existing.get();
       return new RegisterForEventResult(
@@ -100,6 +101,32 @@ class RegisterForEventCommandHandlerImpl implements RegisterForEventCommandHandl
                 RegistrationStatus.CONFIRMED));
     return new RegisterForEventResult(
         false, saved.getStatus(), saved.getCancelCode(), saved.getTicketCode());
+  }
+
+  /**
+   * A sub-event that asks for a place in its mega event only takes people who already hold one,
+   * found by their account or by the email they sign up with.
+   */
+  private void requireContainerRegistration(
+      Event event, String email, org.ouracademy.ovejafiel.user.domain.UserId userId) {
+    if (!event.isChild() || !event.isRequiresContainerRegistration()) {
+      return;
+    }
+    var container = event.getParent();
+    var byEmail =
+        eventRegistrationRepository.findFirstByEventIdAndEmailIgnoreCaseAndStatusNot(
+            container.getId(), email, RegistrationStatus.CANCELLED);
+    var byUser =
+        userId == null
+            ? java.util.Optional.<EventRegistration>empty()
+            : eventRegistrationRepository.findFirstByEventIdAndUserIdAndStatusNot(
+                container.getId(), userId, RegistrationStatus.CANCELLED);
+    var holds =
+        byEmail.or(() -> byUser).filter(found -> found.getStatus() == RegistrationStatus.CONFIRMED);
+    if (holds.isEmpty()) {
+      throw new DomainValidationException(
+          "Para inscribirte aquí primero necesitas inscribirte a «" + container.getTitle() + "»");
+    }
   }
 
   /** A sub-event that inherits or is open has no registration of its own to sign up for. */

@@ -81,6 +81,11 @@ public class Event extends DomainObject {
   /** The course, room or track of the program a sub-event belongs to (free text, optional). */
   @Setter String track;
 
+  /**
+   * A sub-event with its own sign-up asks, to take a place in it, for a place in the mega event.
+   */
+  @Setter boolean requiresContainerRegistration;
+
   protected Event() {
     // jpa only
   }

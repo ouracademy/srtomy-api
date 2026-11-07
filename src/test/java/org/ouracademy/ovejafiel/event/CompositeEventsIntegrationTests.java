@@ -413,6 +413,69 @@ class CompositeEventsIntegrationTests {
   }
 
   @Test
+  void anExtraSubEventCanAskForAPlaceInTheMegaEventFirst() {
+    var extra =
+        read(body(
+                alice,
+                HttpMethod.POST,
+                "/events",
+                eventJson(
+                        "Taller extra", "2030-01-06T10:00:00Z", "2030-01-06T12:00:00Z", conference)
+                    .replace(
+                        "}",
+                        ",\"registrationMode\":\"OWN\",\"requiresContainerRegistration\":true}")))
+            .asText();
+    assertThat(json(alice, "/events/" + extra).get("requiresContainerRegistration").asBoolean())
+        .isTrue();
+    var extraTicket = openRegistration(extra);
+    var megaTicket = openRegistration(conference);
+    var email = "lucia-" + UUID.randomUUID() + "@example.org";
+
+    // Without a place in the mega event there is no place in the extra one.
+    assertThat(
+            status(
+                carol,
+                HttpMethod.POST,
+                "/public/events/" + slugOf(extra) + "/registrations",
+                register(extraTicket, email)))
+        .isEqualTo(400);
+
+    // With it, there is.
+    body(
+        carol,
+        HttpMethod.POST,
+        "/public/events/" + conferenceSlug + "/registrations",
+        register(megaTicket, email));
+    assertThat(
+            status(
+                carol,
+                HttpMethod.POST,
+                "/public/events/" + slugOf(extra) + "/registrations",
+                register(extraTicket, email)))
+        .isEqualTo(201);
+
+    // The organizer can stop asking for it.
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/events/" + extra,
+        editJson(
+            "Taller extra",
+            "2030-01-06T10:00:00Z",
+            "2030-01-06T12:00:00Z",
+            ",\"requiresContainerRegistration\":false"));
+    assertThat(json(alice, "/events/" + extra).get("requiresContainerRegistration").asBoolean())
+        .isFalse();
+    assertThat(
+            status(
+                carol,
+                HttpMethod.POST,
+                "/public/events/" + slugOf(extra) + "/registrations",
+                register(extraTicket, "otra-" + UUID.randomUUID() + "@example.org")))
+        .isEqualTo(201);
+  }
+
+  @Test
   void myEventsListTheSubEventsOfAMegaEventIHaveATicketFor() {
     var workshop = subEvent("Taller", "INHERIT");
     var dinner = subEvent("Cena", "OWN");
