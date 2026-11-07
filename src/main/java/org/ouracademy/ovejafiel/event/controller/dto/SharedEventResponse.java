@@ -34,7 +34,8 @@ public record SharedEventResponse(
       ZonedDateTime end,
       boolean isACourse,
       RegistrationMode registrationMode,
-      boolean includedInTicket) {}
+      boolean includedInTicket,
+      String track) {}
 
   /** The mega event a sub-event belongs to. */
   public record ContainerResponse(String slug, String title) {}
@@ -86,7 +87,8 @@ public record SharedEventResponse(
                         item.end(),
                         item.isACourse(),
                         item.registrationMode(),
-                        item.includedInTicket()))
+                        item.includedInTicket(),
+                        item.track()))
             .toList(),
         result.container() == null
             ? null

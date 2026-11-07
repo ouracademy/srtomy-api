@@ -295,6 +295,40 @@ class CompositeEventsIntegrationTests {
   }
 
   @Test
+  void aSubEventSaysWhichCourseOrRoomItBelongsToAndEditingChangesIt() {
+    var clase =
+        read(body(
+                alice,
+                HttpMethod.POST,
+                "/events",
+                eventJson("Clase 1", "2030-01-06T10:00:00Z", "2030-01-06T12:00:00Z", conference)
+                    .replace("}", ",\"track\":\"  Curso de liderazgo \"}")))
+            .asText();
+
+    assertThat(json(alice, "/events/" + clase).get("track").asText())
+        .isEqualTo("Curso de liderazgo");
+    assertThat(json(alice, "/events/" + conference).get("children").get(0).get("track").asText())
+        .isEqualTo("Curso de liderazgo");
+    assertThat(publicPage(conferenceSlug).get("program").get(0).get("track").asText())
+        .isEqualTo("Curso de liderazgo");
+
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/events/" + clase,
+        editJson(
+            "Clase 1", "2030-01-06T10:00:00Z", "2030-01-06T12:00:00Z", ",\"track\":\"Sala 2\""));
+    assertThat(json(alice, "/events/" + clase).get("track").asText()).isEqualTo("Sala 2");
+    // Clearing it leaves the sub-event without one.
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/events/" + clase,
+        editJson("Clase 1", "2030-01-06T10:00:00Z", "2030-01-06T12:00:00Z", ",\"track\":\" \""));
+    assertThat(json(alice, "/events/" + clase).get("track").isNull()).isTrue();
+  }
+
+  @Test
   void myEventsListTheSubEventsOfAMegaEventIHaveATicketFor() {
     var workshop = subEvent("Taller", "INHERIT");
     var dinner = subEvent("Cena", "OWN");

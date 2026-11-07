@@ -78,6 +78,9 @@ public class Event extends DomainObject {
   @Enumerated(EnumType.STRING)
   RegistrationMode registrationMode = RegistrationMode.INHERIT;
 
+  /** The course, room or track of the program a sub-event belongs to (free text, optional). */
+  @Setter String track;
+
   protected Event() {
     // jpa only
   }

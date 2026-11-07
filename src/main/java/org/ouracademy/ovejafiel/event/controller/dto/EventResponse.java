@@ -31,6 +31,7 @@ public record EventResponse(
     UUID parentEventId,
     String parentTitle,
     RegistrationMode registrationMode,
+    String track,
     List<ChildResponse> children) {
 
   /** A sub-event listed inside its container. */
@@ -40,7 +41,8 @@ public record EventResponse(
       ZonedDateTime start,
       ZonedDateTime end,
       Boolean isACourse,
-      RegistrationMode registrationMode) {
+      RegistrationMode registrationMode,
+      String track) {
 
     static ChildResponse from(FindEventResult.ChildResult result) {
       return new ChildResponse(
@@ -49,7 +51,8 @@ public record EventResponse(
           result.start(),
           result.end(),
           result.isACourse(),
-          result.registrationMode());
+          result.registrationMode(),
+          result.track());
     }
   }
 
@@ -70,6 +73,7 @@ public record EventResponse(
         result.parentEventId() == null ? null : result.parentEventId().value(),
         result.parentTitle(),
         result.registrationMode(),
+        result.track(),
         result.children().stream().map(ChildResponse::from).toList());
   }
 

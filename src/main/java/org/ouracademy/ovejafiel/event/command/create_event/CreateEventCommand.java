@@ -26,4 +26,35 @@ public record CreateEventCommand(
     Recurrence recurrence,
     ZoneId timeZone,
     EventId parentEventId,
-    RegistrationMode registrationMode) {}
+    RegistrationMode registrationMode,
+    String track) {
+
+  public CreateEventCommand(
+      String name,
+      OffsetDateTime startTime,
+      OffsetDateTime endTime,
+      String address,
+      String description,
+      Boolean isACourse,
+      PartyId organizationId,
+      List<PartyId> speakerIds,
+      Recurrence recurrence,
+      ZoneId timeZone,
+      EventId parentEventId,
+      RegistrationMode registrationMode) {
+    this(
+        name,
+        startTime,
+        endTime,
+        address,
+        description,
+        isACourse,
+        organizationId,
+        speakerIds,
+        recurrence,
+        timeZone,
+        parentEventId,
+        registrationMode,
+        null);
+  }
+}

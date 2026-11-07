@@ -127,7 +127,8 @@ public class EventController {
                 eventRequest.getParentEventId() == null
                     ? null
                     : new EventId(eventRequest.getParentEventId()),
-                eventRequest.getRegistrationMode()))
+                eventRequest.getRegistrationMode(),
+                eventRequest.getTrack()))
         .id()
         .value();
   }
@@ -164,7 +165,8 @@ public class EventController {
                 request.getTimeZone() == null ? null : request.zone(),
                 request.getParentEventId() == null ? null : new EventId(request.getParentEventId()),
                 request.getRegistrationMode(),
-                Instant.now()));
+                Instant.now(),
+                request.getTrack()));
     return new EditEventResponse(result.id().value(), result.keptEvents(), result.notifiedPeople());
   }
 

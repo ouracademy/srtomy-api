@@ -108,6 +108,11 @@ class CreateEventCommandHandlerImpl implements CreateEventCommandHandler {
     if (command.registrationMode() != null) {
       event.setRegistrationMode(command.registrationMode());
     }
+    event.setTrack(blankToNull(command.track()));
+  }
+
+  private static String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value.trim();
   }
 
   private void validateOrganizationExists(PartyId organizationId) {

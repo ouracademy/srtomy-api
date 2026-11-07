@@ -40,7 +40,8 @@ public record GetSharedEventResult(
       ZonedDateTime end,
       boolean isACourse,
       RegistrationMode registrationMode,
-      boolean includedInTicket) {}
+      boolean includedInTicket,
+      String track) {}
 
   /** The mega event a sub-event belongs to, when the visitor can open it too. */
   public record Container(String slug, String title) {}

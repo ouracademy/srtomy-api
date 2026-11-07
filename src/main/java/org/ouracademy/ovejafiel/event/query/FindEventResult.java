@@ -29,6 +29,7 @@ public record FindEventResult(
     EventId parentEventId,
     String parentTitle,
     RegistrationMode registrationMode,
+    String track,
     List<ChildResult> children) {
 
   /** A sub-event listed inside its container. */
@@ -38,7 +39,8 @@ public record FindEventResult(
       ZonedDateTime start,
       ZonedDateTime end,
       Boolean isACourse,
-      RegistrationMode registrationMode) {
+      RegistrationMode registrationMode,
+      String track) {
 
     static ChildResult from(Event child) {
       return new ChildResult(
@@ -47,7 +49,8 @@ public record FindEventResult(
           child.getStart(),
           child.getEnd(),
           child.getIsACourse(),
-          child.getRegistrationMode());
+          child.getRegistrationMode(),
+          child.getTrack());
     }
   }
 
@@ -74,6 +77,7 @@ public record FindEventResult(
         parent == null ? null : parent.getId(),
         parent == null ? null : parent.getTitle(),
         event.getRegistrationMode(),
+        event.getTrack(),
         children.stream().map(ChildResult::from).toList());
   }
 

@@ -85,7 +85,8 @@ class GetSharedEventQueryHandlerImpl implements GetSharedEventQueryHandler {
                     child.getEnd(),
                     Boolean.TRUE.equals(child.getIsACourse()),
                     child.getRegistrationMode(),
-                    child.getRegistrationMode() == RegistrationMode.INHERIT))
+                    child.getRegistrationMode() == RegistrationMode.INHERIT,
+                    child.getTrack()))
         .toList();
   }
 

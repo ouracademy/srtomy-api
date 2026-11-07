@@ -177,6 +177,7 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
   private void validateSchedule(Event event, Edit edit) {
     if (event.isChild()) {
       event.requireInside(event.getParent());
+      event.setTrack(blankToNull(edit.command().track()));
       var mode = edit.command().registrationMode();
       if (mode != null) {
         var wasOwn = event.getRegistrationMode() == RegistrationMode.OWN;

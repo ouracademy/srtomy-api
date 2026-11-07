@@ -32,4 +32,41 @@ public record EditEventCommand(
     ZoneId timeZone,
     EventId parentEventId,
     RegistrationMode registrationMode,
-    Instant now) {}
+    Instant now,
+    String track) {
+
+  public EditEventCommand(
+      EventId id,
+      EventChangeOption option,
+      String name,
+      OffsetDateTime startTime,
+      OffsetDateTime endTime,
+      String address,
+      String description,
+      Boolean isACourse,
+      PartyId organizationId,
+      List<PartyId> speakerIds,
+      Recurrence recurrence,
+      ZoneId timeZone,
+      EventId parentEventId,
+      RegistrationMode registrationMode,
+      Instant now) {
+    this(
+        id,
+        option,
+        name,
+        startTime,
+        endTime,
+        address,
+        description,
+        isACourse,
+        organizationId,
+        speakerIds,
+        recurrence,
+        timeZone,
+        parentEventId,
+        registrationMode,
+        now,
+        null);
+  }
+}

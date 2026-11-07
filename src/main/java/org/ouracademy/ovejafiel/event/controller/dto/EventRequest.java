@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -38,6 +39,10 @@ public class EventRequest {
 
   /** How a sub-event is entered; inherits the container's registration when omitted. */
   RegistrationMode registrationMode;
+
+  /** The course, room or track of the program a sub-event belongs to; optional. */
+  @Size(max = 100)
+  String track;
 
   /** IANA zone the event repeats in (e.g. America/Lima); UTC when omitted. */
   String timeZone;
