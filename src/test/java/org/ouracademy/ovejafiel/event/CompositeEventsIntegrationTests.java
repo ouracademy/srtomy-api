@@ -476,6 +476,52 @@ class CompositeEventsIntegrationTests {
   }
 
   @Test
+  void theNoticesOfAnEventShowOnItsPublicPageForWhoeverOpensItWithOrWithoutAnAccount() {
+    var workshop = subEvent("Taller", "INHERIT");
+    var slug = slugOf(workshop);
+
+    // The organizers write an announcement.
+    body(
+        alice,
+        HttpMethod.POST,
+        "/events/" + workshop + "/notices",
+        "{\"message\":\"  Traer Biblia \"}");
+    // Changing the place and the hour is written by the system.
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/events/" + workshop,
+        editJson(
+                "Taller",
+                "2030-01-06T11:00:00Z",
+                "2030-01-06T13:00:00Z",
+                ",\"address\":\"Salón 3\"")
+            .replace("\"isACourse\":false", "\"isACourse\":false"));
+
+    // Anyone with the link sees them, newest first, without signing in.
+    var page = publicPage(slug);
+    var notices = page.get("notices");
+    assertThat(notices).hasSize(2);
+    assertThat(notices.get(0).get("kind").asText()).isEqualTo("CHANGED");
+    assertThat(notices.get(0).get("message").asText()).contains("Nuevo lugar: Salón 3");
+    assertThat(notices.get(1).get("kind").asText()).isEqualTo("ANNOUNCEMENT");
+    assertThat(notices.get(1).get("message").asText()).isEqualTo("Traer Biblia");
+    // The organizers read them on their screen too; an empty announcement is refused.
+    assertThat(json(alice, "/events/" + workshop + "/notices")).hasSize(2);
+    assertThat(
+            status(
+                alice, HttpMethod.POST, "/events/" + workshop + "/notices", "{\"message\":\" \"}"))
+        .isEqualTo(400);
+    // Another event has its own.
+    assertThat(publicPage(conferenceSlug).get("notices")).isEmpty();
+
+    // Deleting the sub-event leaves a notice on the program of the mega event.
+    status(alice, HttpMethod.DELETE, "/events/" + workshop, "{\"option\":\"THIS_EVENT\"}");
+    assertThat(publicPage(conferenceSlug).get("notices").get(0).get("message").asText())
+        .isEqualTo("Se canceló «Taller» del programa.");
+  }
+
+  @Test
   void myEventsListTheSubEventsOfAMegaEventIHaveATicketFor() {
     var workshop = subEvent("Taller", "INHERIT");
     var dinner = subEvent("Cena", "OWN");

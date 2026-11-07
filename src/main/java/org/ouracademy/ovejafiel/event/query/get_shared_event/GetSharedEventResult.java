@@ -6,6 +6,7 @@ import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.domain.TicketTypeId;
 import org.ouracademy.ovejafiel.event.query.RecurrenceResult;
+import org.ouracademy.ovejafiel.event.query.list_event_notices.NoticeResult;
 
 /**
  * What the page of a shared event shows. {@code registration} is null when the event takes no
@@ -27,7 +28,8 @@ public record GetSharedEventResult(
     boolean canRegister,
     RegistrationStatus registrationStatus,
     List<ProgramItem> program,
-    Container container) {
+    Container container,
+    List<NoticeResult> notices) {
 
   /**
    * A sub-event of a mega event the visitor can open. {@code includedInTicket} when the ticket of

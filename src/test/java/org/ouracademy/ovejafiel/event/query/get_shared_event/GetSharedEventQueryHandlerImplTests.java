@@ -47,9 +47,18 @@ class GetSharedEventQueryHandlerImplTests {
   EventRegistrationRepository registrations = mock(EventRegistrationRepository.class);
   EventAccess access = mock(EventAccess.class);
   Seats seats = mock(Seats.class);
+  org.ouracademy.ovejafiel.event.repository.EventNoticeRepository notices =
+      mock(org.ouracademy.ovejafiel.event.repository.EventNoticeRepository.class);
   GetSharedEventQueryHandlerImpl handler =
       new GetSharedEventQueryHandlerImpl(
-          events, setups, tickets, registrations, access, seats, new EffectiveRegistration());
+          events,
+          setups,
+          tickets,
+          registrations,
+          access,
+          seats,
+          new EffectiveRegistration(),
+          notices);
 
   Organization group = organization(PartyId.generate(), "Jóvenes", Organization.Type.GROUP);
   Event event = singleEvent(EventId.generate(), "Retiro", group, List.of());

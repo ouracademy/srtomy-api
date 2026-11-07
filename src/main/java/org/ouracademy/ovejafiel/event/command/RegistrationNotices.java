@@ -8,6 +8,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
+import org.ouracademy.ovejafiel.event.domain.NoticeKind;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
@@ -27,6 +28,7 @@ public class RegistrationNotices {
   private final EventRegistrationRepository eventRegistrationRepository;
   private final EffectiveRegistration effectiveRegistration;
   private final SendEmailCommandHandler sendEmailCommandHandler;
+  private final EventNotices eventNotices;
 
   /**
    * Emails the people whose place is in one of {@code deleted} (their own, or the mega event's for
@@ -35,6 +37,7 @@ public class RegistrationNotices {
    */
   public int cancelled(Collection<Event> deleted) {
     var now = ZonedDateTime.now();
+    postCancelledOnTheirEvents(deleted, now);
     var titles = new LinkedHashMap<EventId, List<String>>();
     for (var event : deleted) {
       if (!event.getEnd().isAfter(now)) {
@@ -84,6 +87,24 @@ public class RegistrationNotices {
   }
 
   /**
+   * A sub-event cancelled inside an event that stays is told on the page of that event, so whoever
+   * follows it sees the program changed. Events already over are not announced.
+   */
+  private void postCancelledOnTheirEvents(Collection<Event> deleted, ZonedDateTime now) {
+    var ids = deleted.stream().map(Event::getId).collect(java.util.stream.Collectors.toSet());
+    for (var event : deleted) {
+      if (event.isChild()
+          && !ids.contains(event.getParent().getId())
+          && event.getEnd().isAfter(now)) {
+        eventNotices.post(
+            event.getParent(),
+            NoticeKind.CANCELLED,
+            "Se canceló «" + event.getTitle() + "» del programa.");
+      }
+    }
+  }
+
+  /**
    * The sub-event stops using its own sign-up (it now inherits or is open): its own sign-ups are
    * cancelled and their holders told how to enter now. Returns how many people were told.
    */
@@ -107,6 +128,11 @@ public class RegistrationNotices {
                   + "\n"));
       told++;
     }
+    // Also on the page, for who does not read email (and for who is not signed up).
+    eventNotices.post(
+        subEvent,
+        NoticeKind.REGISTRATION_CHANGED,
+        "La inscripción propia de este evento ya no se usa. " + howToEnter);
     return told;
   }
 }

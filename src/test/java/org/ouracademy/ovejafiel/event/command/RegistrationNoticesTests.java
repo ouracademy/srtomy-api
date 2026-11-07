@@ -31,8 +31,9 @@ class RegistrationNoticesTests {
 
   EventRegistrationRepository registrations = mock(EventRegistrationRepository.class);
   SendEmailCommandHandler email = mock(SendEmailCommandHandler.class);
+  EventNotices eventNotices = mock(EventNotices.class);
   RegistrationNotices notices =
-      new RegistrationNotices(registrations, new EffectiveRegistration(), email);
+      new RegistrationNotices(registrations, new EffectiveRegistration(), email, eventNotices);
 
   Event congress =
       singleEvent(
@@ -102,5 +103,51 @@ class RegistrationNoticesTests {
     verify(email).handle(sent.capture());
     assertThat(sent.getValue().type()).isEqualTo("REGISTRATION_CHANGED");
     assertThat(sent.getValue().text()).contains("Ahora la entrada es libre.");
+  }
+
+  @Test
+  void aSubEventCancelledInsideAnEventThatStaysIsToldOnThePageOfThatEvent() {
+    congress.moveTo(
+        java.time.ZonedDateTime.now().plusDays(10), java.time.ZonedDateTime.now().plusDays(12));
+    var workshop =
+        childOf(congress, EventId.generate(), "Taller", congress.getStart(), congress.getEnd());
+    when(registrations.findByEventIdInAndStatusNot(any(), any())).thenReturn(List.of());
+
+    notices.cancelled(List.of(workshop));
+
+    verify(eventNotices)
+        .post(
+            congress,
+            org.ouracademy.ovejafiel.event.domain.NoticeKind.CANCELLED,
+            "Se canceló «Taller» del programa.");
+  }
+
+  @Test
+  void aWholeMegaEventCancelledPostsNoNoticeOnAPageThatNoLongerExists() {
+    congress.moveTo(
+        java.time.ZonedDateTime.now().plusDays(10), java.time.ZonedDateTime.now().plusDays(12));
+    var workshop =
+        childOf(congress, EventId.generate(), "Taller", congress.getStart(), congress.getEnd());
+    when(registrations.findByEventIdInAndStatusNot(any(), any())).thenReturn(List.of());
+
+    notices.cancelled(List.of(congress, workshop));
+
+    verify(eventNotices, never()).post(any(), any(), any());
+  }
+
+  @Test
+  void aSubEventThatStopsUsingItsOwnSignUpSaysSoOnItsPage() {
+    var dinner =
+        childOf(congress, EventId.generate(), "Cena", congress.getStart(), congress.getEnd());
+    when(registrations.findByEventIdAndStatusNotOrderByCreateDate(any(), any()))
+        .thenReturn(List.of());
+
+    notices.ownCancelled(dinner, "Ahora la entrada es libre.");
+
+    verify(eventNotices)
+        .post(
+            dinner,
+            org.ouracademy.ovejafiel.event.domain.NoticeKind.REGISTRATION_CHANGED,
+            "La inscripción propia de este evento ya no se usa. Ahora la entrada es libre.");
   }
 }

@@ -151,7 +151,8 @@ class EventSharingControllerTests {
         canRegister,
         null,
         List.of(),
-        null);
+        null,
+        List.of());
   }
 
   @Test

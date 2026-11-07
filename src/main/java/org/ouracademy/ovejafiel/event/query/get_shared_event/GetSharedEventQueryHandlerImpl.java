@@ -12,6 +12,8 @@ import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
 import org.ouracademy.ovejafiel.event.query.EventAccess;
 import org.ouracademy.ovejafiel.event.query.RecurrenceResult;
 import org.ouracademy.ovejafiel.event.query.Seats;
+import org.ouracademy.ovejafiel.event.query.list_event_notices.NoticeResult;
+import org.ouracademy.ovejafiel.event.repository.EventNoticeRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationSetupRepository;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
@@ -31,6 +33,7 @@ class GetSharedEventQueryHandlerImpl implements GetSharedEventQueryHandler {
   private final EventAccess eventAccess;
   private final Seats seats;
   private final EffectiveRegistration effectiveRegistration;
+  private final EventNoticeRepository eventNoticeRepository;
 
   @Override
   @Transactional(readOnly = true)
@@ -67,7 +70,10 @@ class GetSharedEventQueryHandlerImpl implements GetSharedEventQueryHandler {
             && effectiveRegistration.isOwn(event),
         mine.map(EventRegistration::getStatus).orElse(null),
         programOf(subject, event),
-        containerOf(subject, event));
+        containerOf(subject, event),
+        eventNoticeRepository.findTop20ByEventIdOrderByCreatedAtDesc(event.getId()).stream()
+            .map(NoticeResult::from)
+            .toList());
   }
 
   private List<GetSharedEventResult.ProgramItem> programOf(String subject, Event event) {

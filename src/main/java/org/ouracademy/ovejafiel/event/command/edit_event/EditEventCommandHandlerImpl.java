@@ -25,11 +25,13 @@ import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommandHandler;
 import org.ouracademy.ovejafiel.attendance.query.find_event_ids_with_attendance.FindEventIdsWithAttendanceQuery;
 import org.ouracademy.ovejafiel.attendance.query.find_event_ids_with_attendance.FindEventIdsWithAttendanceQueryHandler;
+import org.ouracademy.ovejafiel.event.command.EventNotices;
 import org.ouracademy.ovejafiel.event.command.RegistrationNotices;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventChangeOption;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventSeries;
+import org.ouracademy.ovejafiel.event.domain.NoticeKind;
 import org.ouracademy.ovejafiel.event.domain.Recurrence;
 import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
@@ -74,6 +76,7 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
   private final DeleteAttendanceForEventsCommandHandler deleteAttendanceForEventsCommandHandler;
   private final SendEmailCommandHandler sendEmailCommandHandler;
   private final RegistrationNotices registrationNotices;
+  private final EventNotices eventNotices;
   private final EntityManager entityManager;
 
   @Value("${app.url:http://localhost:3000}")
@@ -125,6 +128,7 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
       editSeries(event, series, edit, outcome);
     }
     validateSchedule(event, edit);
+    postChangeNotices(outcome.notices, edit, displayZone);
     var notified = notifyRegistrations(outcome.notices, edit, displayZone);
     return new EditEventResult(event.getId(), outcome.kept, notified);
   }
@@ -444,6 +448,38 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
   }
 
   // ---- email to whoever signed up
+
+  /** What changed is also written on the page of each event, for who does not read email. */
+  private void postChangeNotices(List<Notice> notices, Edit edit, ZoneId zone) {
+    for (var notice : notices) {
+      var event = notice.event();
+      var parts = new ArrayList<String>();
+      if (notice.time()) {
+        parts.add(
+            "Nueva fecha y hora: "
+                + WHEN.format(event.getStart().withZoneSameInstant(zone))
+                + " a "
+                + DateTimeFormatter.ofPattern("HH:mm")
+                    .format(event.getEnd().withZoneSameInstant(zone)));
+      }
+      if (notice.name()) {
+        parts.add("Nuevo nombre: «" + event.getTitle() + "»");
+      }
+      if (notice.place()) {
+        var place = blankToNull(edit.command().address());
+        parts.add(place == null ? "Ya no hay un lugar definido" : "Nuevo lugar: " + place);
+      }
+      if (notice.speakers()) {
+        parts.add(
+            edit.speakerNames().isEmpty()
+                ? "Ya no hay ponentes definidos"
+                : "Ponentes: " + String.join(", ", edit.speakerNames()));
+      }
+      if (!parts.isEmpty()) {
+        eventNotices.post(event, NoticeKind.CHANGED, String.join(". ", parts) + ".");
+      }
+    }
+  }
 
   /** One email per person listing what changed and the dates of their occurrences. */
   private int notifyRegistrations(List<Notice> notices, Edit edit, ZoneId zone) {

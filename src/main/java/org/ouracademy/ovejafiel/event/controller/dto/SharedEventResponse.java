@@ -24,7 +24,8 @@ public record SharedEventResponse(
     boolean canRegister,
     RegistrationStatus registrationStatus,
     List<ProgramItemResponse> program,
-    ContainerResponse container) {
+    ContainerResponse container,
+    List<EventNoticeResponse> notices) {
 
   /** A sub-event of a mega event; never lists who signed up. */
   public record ProgramItemResponse(
@@ -92,6 +93,7 @@ public record SharedEventResponse(
             .toList(),
         result.container() == null
             ? null
-            : new ContainerResponse(result.container().slug(), result.container().title()));
+            : new ContainerResponse(result.container().slug(), result.container().title()),
+        result.notices().stream().map(EventNoticeResponse::from).toList());
   }
 }
