@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.event.query.get_event_registration;
 
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.query.Seats;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
@@ -47,7 +48,10 @@ class GetEventRegistrationQueryHandlerImpl implements GetEventRegistrationQueryH
                                               ticket.getQuantity(),
                                               ticket.getSalesStart(),
                                               ticket.getSalesEnd(),
-                                              sold.getOrDefault(ticket.getId(), 0L)))
+                                              sold.getOrDefault(ticket.getId(), 0L),
+                                              ticket.getSubEvents().stream()
+                                                  .map(Event::getId)
+                                                  .toList()))
                                   .toList();
                           return new GetEventRegistrationResult(
                               true,

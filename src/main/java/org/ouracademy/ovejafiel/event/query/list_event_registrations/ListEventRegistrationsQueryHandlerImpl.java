@@ -33,6 +33,8 @@ class ListEventRegistrationsQueryHandlerImpl implements ListEventRegistrationsQu
           .findByEventIdAndStatusNotOrderByCreateDate(
               subEvent.getParent().getId(), RegistrationStatus.CANCELLED)
           .stream()
+          // Only the tickets that give access to this sub-event are expected in it.
+          .filter(registration -> registration.getTicketType().grants(subEvent))
           .map(
               registration -> {
                 var entry = entries.get(registration.getId());

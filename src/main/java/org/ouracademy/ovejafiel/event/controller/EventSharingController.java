@@ -206,7 +206,10 @@ public class EventSharingController {
                             ticket.currency(),
                             ticket.quantity(),
                             ticket.salesStart(),
-                            ticket.salesEnd()))
+                            ticket.salesEnd(),
+                            ticket.subEventIds() == null
+                                ? List.of()
+                                : ticket.subEventIds().stream().map(EventId::new).toList()))
                 .toList()));
     return currentRegistration(id);
   }

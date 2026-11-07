@@ -30,6 +30,8 @@ class CheckInUserRegistrationCommandHandlerImpl implements CheckInUserRegistrati
     var lookup = subEvent.map(found -> found.getParent().getId()).orElse(command.eventId());
     return find(command, lookup)
         .filter(found -> found.getStatus() == RegistrationStatus.CONFIRMED)
+        // A ticket that does not give access to this sub-event is as if they had none here.
+        .filter(found -> subEvent.isEmpty() || found.getTicketType().grants(subEvent.get()))
         .map(
             registration -> {
               if (subEvent.isPresent()) {

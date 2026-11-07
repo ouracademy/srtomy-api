@@ -340,6 +340,79 @@ class CompositeEventsIntegrationTests {
   }
 
   @Test
+  void aTicketThatGivesAccessToSomeSubEventsLetsInOnlyThose() {
+    var friday = subEvent("Viernes", "INHERIT");
+    var saturday =
+        createEvent(
+            "Sabado", "2030-01-06T10:00:00Z", "2030-01-06T12:00:00Z", conference, "INHERIT");
+    var setup =
+        read(
+            body(
+                alice,
+                HttpMethod.PUT,
+                "/events/" + conference + "/registration",
+                "{\"requiresAccount\":false,\"tickets\":["
+                    + "{\"name\":\"Pase completo\",\"priceCents\":0,\"currency\":\"PEN\"},"
+                    + "{\"name\":\"Pase sabado\",\"priceCents\":0,\"currency\":\"PEN\","
+                    + "\"subEventIds\":[\""
+                    + saturday
+                    + "\"]}]}"));
+    var tickets = setup.get("tickets");
+    var full = tickets.get(0).get("id").asText();
+    var partial = tickets.get(1).get("id").asText();
+    assertThat(tickets.get(0).get("subEventIds")).isEmpty();
+    assertThat(tickets.get(1).get("subEventIds").get(0).asText()).isEqualTo(saturday);
+
+    var fullTicket =
+        read(
+            body(
+                carol,
+                HttpMethod.POST,
+                "/public/events/" + conferenceSlug + "/registrations",
+                register(full, "completo-" + UUID.randomUUID() + "@example.org")));
+    var partialTicket =
+        read(
+            body(
+                carol,
+                HttpMethod.POST,
+                "/public/events/" + conferenceSlug + "/registrations",
+                register(partial, "sabado-" + UUID.randomUUID() + "@example.org")));
+    var scanFull = "{\"ticketCode\":\"%s\"}".formatted(fullTicket.get("ticketCode").asText());
+    var scanPartial = "{\"ticketCode\":\"%s\"}".formatted(partialTicket.get("ticketCode").asText());
+
+    // The partial ticket opens Saturday but not Friday; the full one opens both.
+    assertThat(
+            status(
+                alice,
+                HttpMethod.POST,
+                "/events/" + saturday + "/attendance/check-in",
+                scanPartial))
+        .isEqualTo(200);
+    assertThat(
+            status(
+                alice, HttpMethod.POST, "/events/" + friday + "/attendance/check-in", scanPartial))
+        .isEqualTo(400);
+    assertThat(
+            status(alice, HttpMethod.POST, "/events/" + friday + "/attendance/check-in", scanFull))
+        .isEqualTo(200);
+    // Only the tickets that give access are expected in each sub-event.
+    assertThat(json(alice, "/events/" + friday + "/registrations")).hasSize(1);
+    assertThat(json(alice, "/events/" + saturday + "/registrations")).hasSize(2);
+    // A ticket cannot point at an event outside the program.
+    assertThat(
+            status(
+                alice,
+                HttpMethod.PUT,
+                "/events/" + conference + "/registration",
+                "{\"requiresAccount\":false,\"tickets\":["
+                    + "{\"id\":\"%s\",\"name\":\"Pase completo\",\"priceCents\":0,".formatted(full)
+                    + "\"subEventIds\":[\""
+                    + conference
+                    + "\"]}]}"))
+        .isEqualTo(400);
+  }
+
+  @Test
   void myEventsListTheSubEventsOfAMegaEventIHaveATicketFor() {
     var workshop = subEvent("Taller", "INHERIT");
     var dinner = subEvent("Cena", "OWN");

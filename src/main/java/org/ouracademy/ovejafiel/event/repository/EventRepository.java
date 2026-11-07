@@ -119,6 +119,11 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
               join ticket_type tt on tt.id = er.ticket_type_id
               join event c on c.parent_event_id = er.event_id
                           and c.registration_mode = 'INHERIT' and c.deleted_time is null
+                          and (not exists (select 1 from ticket_type_sub_event t
+                                           where t.ticket_type_id = er.ticket_type_id)
+                               or exists (select 1 from ticket_type_sub_event t
+                                          where t.ticket_type_id = er.ticket_type_id
+                                            and t.event_id = c.id))
               where er.status <> 'CANCELLED'
                 and (er.user_id = :userId
                      or (cast(:email as text) is not null

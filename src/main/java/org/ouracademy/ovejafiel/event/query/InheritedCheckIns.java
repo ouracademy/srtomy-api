@@ -35,7 +35,8 @@ public class InheritedCheckIns {
   /** The sign-up is the mega event's and {@code subEvent} inherits it. */
   public boolean covers(Event subEvent, EventRegistration registration) {
     return inherits(subEvent)
-        && subEvent.getParent().getId().equals(registration.getEvent().getId());
+        && subEvent.getParent().getId().equals(registration.getEvent().getId())
+        && registration.getTicketType().grants(subEvent);
   }
 
   /** What happened when they were marked: {@code already} when it had been done before. */
@@ -45,6 +46,14 @@ public class InheritedCheckIns {
   public Mark mark(EventRegistration registration, Event subEvent, CheckInSource source) {
     if (registration.getStatus() != RegistrationStatus.CONFIRMED) {
       throw new DomainValidationException("Solo una inscripción confirmada puede ingresar");
+    }
+    if (!registration.getTicketType().grants(subEvent)) {
+      throw new DomainValidationException(
+          "El ticket «"
+              + registration.getTicketType().getName()
+              + "» no da acceso a «"
+              + subEvent.getTitle()
+              + "»");
     }
     var existing =
         repository.findByRegistrationIdAndEventId(registration.getId(), subEvent.getId());
