@@ -28,3 +28,12 @@ Migración `V1.19.0__sub_event_check_in.sql`.
 - Las fechas del hijo caen dentro del rango del padre.
 - La organización del hijo es la del padre o un descendiente.
 - Al crear un hijo se copia `general_access` del padre.
+
+## Etiqueta, acceso de tickets y pase previo
+
+| Migración | Detalle |
+| --- | --- |
+| `V1.20.0__sub_event_track.sql` | `event.track varchar(100)` opcional: el curso o sala del programa al que pertenece un sub-evento. |
+| `V1.21.0__ticket_sub_events.sql` | `ticket_type_sub_event(ticket_type_id, event_id)`: a qué sub-eventos da acceso un ticket del mega evento; sin filas, a todo el programa. |
+| `V1.22.0__sub_event_requires_container.sql` | `event.requires_container_registration boolean`: un sub-evento de inscripción propia exige un lugar confirmado en el mega evento. |
+

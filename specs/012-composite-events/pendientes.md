@@ -57,7 +57,7 @@ Criterio de diseño: ser flexible para cualquier tipo de evento, como lo hacen E
 
 Personajes de los ejemplos: **Marta**, organizadora del congreso «Avivamiento 2030» (3 días, 9 sub-eventos); **Pedro**, pastor de jóvenes que organiza un taller dentro del congreso; **Lucía**, asistente con cuenta; **Tomás**, asistente sin cuenta; **Rosa**, ujier.
 
-Marcas: **HECHO (local)** = ya está en las ramas, con pruebas, pero **sin subir** (por tu pedido de no ejecutar el pipeline). **[DECIDE]** = necesita tu decisión antes de hacerlo. **[DISEÑO]** = solo queda el diseño por ahora.
+Marcas: **HECHO** = ya está en las ramas, con pruebas. Lo marcado «local» se subió en un solo push al final (7 nov). **[DECIDE]** = necesita tu decisión antes de hacerlo. **[DISEÑO]** = solo queda el diseño por ahora.
 
 ### ~~P1. Compartir a todo el programa~~ HECHO (local, sin subir)
 
@@ -91,7 +91,13 @@ Marcas: **HECHO (local)** = ya está en las ramas, con pruebas, pero **sin subir
 **Flujo.** Pedro abre su reunión de oración: no hay «Programa». Marta abre una jornada de un día con 4 charlas y pulsa «Armar un programa»: aparece la sección con «Agregar sub-evento».
 **Tamaño:** S, UI.
 
-### P4. Aviso al cambiar el modo de inscripción o al borrar con inscritos [DECIDE]
+### ~~P4. Aviso al cambiar el modo de inscripción o al borrar con inscritos~~ HECHO (7 nov)
+
+> **Qué quedó hecho (elegiste cancelar con aviso):**
+> - **Cambiar el modo:** si un sub-evento de inscripción propia pasa a «la del evento» o «sin inscripción», la pantalla avisa «se cancelarán las inscripciones propias y se avisará por correo». Al confirmar, esas inscripciones se cancelan y cada persona recibe un correo que dice cómo entrar ahora.
+> - **Borrar:** la confirmación dice «se avisará por correo a quienes estén inscritos». Al borrar un evento (o un congreso con su programa), cada persona recibe **un solo** correo con lo que se canceló. No se avisa de eventos que ya pasaron.
+> - **Lo que no hace:** pasar de «la del evento» a «propia» no avisa a nadie (los esperados del congreso ya no entrarían a ese sub-evento con su ticket); está anotado como mejora.
+> - El texto de abajo describe el escenario original.
 
 **Hoy.** Cambiar el modo de un sub-evento ya inscrito no valida nada, y borrar un evento no avisa a los inscritos.
 *Ejemplo:* Pedro tiene su taller con inscripción propia y 25 inscritos. Lo cambia a «la del congreso» por error: las 25 inscripciones quedan guardadas, sin uso y ocultas, y nadie se entera. O Marta borra un taller con 30 inscritos y ninguno recibe aviso.
@@ -101,7 +107,12 @@ Marcas: **HECHO (local)** = ya está en las ramas, con pruebas, pero **sin subir
 **Qué arregla.** Gente inscrita a un lugar que ya no existe. **Tamaño:** M, API y UI.
 **Pregunta para ti (§9.5):** ¿impedir el cambio, o cancelar las inscripciones con aviso?
 
-### P5. Tickets por sub-evento, cupo propio y «pase del congreso + extra» [DISEÑO]
+### P5. Tickets por sub-evento, cupo propio y «pase del congreso + extra» — A y B HECHOS (7 nov), C pendiente
+
+> **Escenario A (entradas por día) — HECHO.** En la configuración de inscripción del congreso, con más de un tipo de ticket, cada ticket tiene «Da acceso a»: vacío es todo el programa; si eliges sub-eventos, solo abre esos. El ujier que escanea un «Pase sábado» el viernes recibe «El ticket “Pase sábado” no da acceso a “Viernes”». Cada sub-evento solo lista como esperados a los inscritos cuyo ticket le da acceso, y Mi espacio solo muestra los sub-eventos a los que el ticket da acceso.
+> **Escenario B (taller extra que exige el pase) — HECHO.** Un sub-evento con inscripción propia (con su cupo y precio) puede marcarse «Solo para quienes ya se inscribieron al congreso». Quien intenta inscribirse sin tener un lugar confirmado en el congreso recibe «Para inscribirte aquí primero necesitas inscribirte a “…”». Se reconoce por la cuenta o por el correo.
+> **Escenario C (soltar un día) — pendiente** (ver P6).
+> **Límites de esta primera versión:** (1) si se borran todos los sub-eventos a los que daba acceso un ticket, ese ticket vuelve a valer para todo; (2) la página pública no sabe qué ticket tendrá la persona, así que sigue diciendo «Incluido en tu ticket» a todos los sub-eventos que heredan; (3) el precio sigue siendo informativo.
 
 **Hoy.** Un ticket del congreso vale en todos los sub-eventos que lo heredan. Un sub-evento con cupo y precio aparte (inscripción propia) funciona, pero **no acepta el ticket del congreso**, y no se puede exigir estar inscrito al congreso para inscribirse a uno propio.
 *Ejemplos:*
@@ -114,26 +125,33 @@ Marcas: **HECHO (local)** = ya está en las ramas, con pruebas, pero **sin subir
 
 **Qué arregla.** Entradas por día, talleres con aforo, extras de pago y control real de la puerta. **Tamaño:** L, API y UI. Es el cambio más grande; conviene hacerlo después de decidir §9.2.
 
-### P6. Cancelación parcial y cambio de ticket [DISEÑO]
+### P6. Cancelación parcial y cambio de ticket [PENDIENTE — decidiste dejarlo para después]
 
 **Hoy.** Cancelar la inscripción al congreso quita el lugar en **todos** los sub-eventos; solo hay un aviso en Mi espacio.
 *Ejemplo:* Lucía solo puede venir el sábado. No puede quitar los otros días sin cancelar todo y perder su lugar.
 
 **Cómo debe ser.** En Mi espacio, Lucía puede **soltar un sub-evento** (libera el lugar para otra persona) o cambiar su pase, sin cancelar el congreso. **Tamaño:** M, API y UI; depende de P5.
 
-### P7. Segundo nivel (congreso → curso → sesiones) [DISEÑO]
+### P7. ~~Etiqueta de agrupación~~ HECHA (7 nov) · Segundo nivel [DISEÑO]
+
+> **Etiqueta: HECHA.** Al agregar o editar un sub-evento hay un campo «Curso o sala (opcional)», por ejemplo «Curso de liderazgo» o «Sala 2». En el programa (pantalla del evento y página pública) cada sesión muestra su etiqueta junto al tipo. **No hace todavía** una vista agrupada o con filtro por etiqueta: hoy se ve como una insignia en cada sesión, en orden de hora. El segundo nivel real sigue sin hacerse (solo si lo pide un caso que la etiqueta no cubra).
 
 **Hoy.** Un solo nivel. Un curso de 5 clases dentro del congreso son 5 sub-eventos sueltos, sin agrupar.
 *Ejemplo:* el «Curso de liderazgo» tiene 5 clases en 3 días y aparece como 5 filas sin relación en el programa.
 
 **Cómo debe ser** (recomendación). En vez de anidar sin límite, agregar una **etiqueta de agrupación** (curso, sala o pista) que el programa muestra agrupada. Es lo que usan los congresos («Pista A», «Sala 2»); es más simple que un segundo nivel y no rompe nada de lo hecho. Un segundo nivel real solo si lo pide un caso concreto. **Tamaño:** M con etiqueta; L con segundo nivel.
 
-### P8. Calendario: ver mejor los congresos [DISEÑO]
+### ~~P8. Calendario: ver mejor los congresos~~ HECHO (7 nov)
+
+> **Hecho:** los eventos que tienen programa salen en el calendario con «(programa: N)» y un borde inferior grueso, aunque duren menos de 24 horas. Al elegir un horario en el calendario que cae dentro de un congreso o de un evento con programa, el formulario ofrece «Agregar al programa de “…”», que abre el formulario de sub-evento con esa hora.
 
 - **Hoy:** un mega evento de un día con sub-eventos se ve como evento común, porque la lista del calendario no dice que tiene sub-eventos. *Ejemplo:* la «Jornada de un día» con 4 charlas no se distingue de un culto. **Debe:** marcar con un distintivo a todo evento que tiene programa. M, API y UI.
 - **Hoy:** los sub-eventos se crean solo desde el programa, no desde el calendario general. *Ejemplo:* Marta está en el calendario viendo el sábado y quiere agregar una charla ahí. **Debe:** al elegir un horario dentro de un congreso, ofrecer «Agregar al programa de…». S, UI.
 
-### P9. Rendimiento y reportes [DISEÑO]
+### ~~P9. Rendimiento y reportes~~ REVISADOS (7 nov)
+
+> **Rendimiento — medido:** con 40 sub-eventos, la página pública del congreso respondió en 16 a 23 ms para un visitante sin sesión y en 23 a 67 ms con sesión iniciada (medido en una base local de pruebas). No hace falta optimizar ahora; si un congreso real fuera lento, se revisa entonces.
+> **Reportes — revisados:** la métrica de crecimiento cuenta cambios de estado de los **miembros**, no eventos, así que los sub-eventos no la afectan. No encontré otro reporte que cuente eventos. Nada que cambiar.
 
 - La página pública consulta el acceso de cada sub-evento por separado: con unos 40 sub-eventos puede ser lenta. **Hay que medir** y, si hace falta, resolverlo en una sola consulta. S a M, API.
 - No revisé si las métricas de crecimiento y el directorio cuentan los sub-eventos como eventos aparte. *Ejemplo:* un congreso de 9 sub-eventos podría contar como 10 eventos en el reporte de la iglesia. S de revisar.
@@ -146,7 +164,7 @@ El precio es informativo y no se cobra desde la plataforma (Culqi sin conectar).
 ## 4. Asistentes de un sub-evento: cómo contarlos (decidido)
 
 Los asistentes de un sub-evento son **las personas marcadas más las inscripciones ingresadas, sin duplicar**.
-*Ejemplo:* en el taller de Pedro, Lucía (con cuenta vinculada a una persona) entra con su ticket: queda como inscripción ingresada **y** como persona marcada; cuenta **una** vez. Tomás (sin cuenta) entra con su ticket: cuenta una vez como inscripción ingresada. Una persona que llegó sin inscribirse y Rosa la anotó como visitante: cuenta una vez como persona. **Falta:** mostrar ese número único en la pantalla del sub-evento (hoy «Esperados» e «Ingresaron» salen por inscripción y la lista de asistencia por persona, por separado). S a M, API y UI.
+*Ejemplo:* en el taller de Pedro, Lucía (con cuenta vinculada a una persona) entra con su ticket: queda como inscripción ingresada **y** como persona marcada; cuenta **una** vez. Tomás (sin cuenta) entra con su ticket: cuenta una vez como inscripción ingresada. Una persona que llegó sin inscribirse y Rosa la anotó como visitante: cuenta una vez como persona. **HECHO (7 nov):** la pantalla de cualquier evento muestra «Asistieron N personas» con el detalle «En la lista», «Solo con ticket» y «Visitantes», contando una sola vez a quien está en la lista y además entró con ticket. Se actualiza cada 15 segundos.
 
 ## 5. Pruebas y verificación que no se hicieron
 
@@ -168,17 +186,19 @@ Los asistentes de un sub-evento son **las personas marcadas más las inscripcion
 
 ## 7. Orden sugerido y relación con la deuda técnica
 
-| Orden | Qué | Fila de deuda | Tamaño | Estado |
-| --- | --- | --- | --- | --- |
-| ~~1~~ | ~~Ingreso con el ticket del mega evento, tenga cuenta o no (§2)~~ | ~~40~~ (quitada) | M a L | **HECHO** |
-| ~~2~~ | ~~Compartir a todo el programa (P1)~~ | nueva | M | **HECHO** (local) |
-| ~~3~~ | ~~Duplicar el congreso y mover todo (P2)~~ | ~~41~~ | M | **DESESTIMADO** |
-| ~~4~~ | ~~«Programa» solo cuando hace falta (P3)~~ | ~~UI 32~~ | S | **HECHO** (local) |
-| 5 | Aviso al cambiar el modo y al borrar (P4) | nueva | M | [DECIDE] |
-| 6 | Número único de asistentes (§4) | nueva | S a M | por hacer |
-| 7 | Tickets por sub-evento, cupo propio y extras (P5, P6) | 40 | L | [DISEÑO] |
-| 8 | Calendario, rendimiento y reportes (P8, P9) | nueva | S a M | [DISEÑO] |
-| 9 | Etiqueta de agrupación o segundo nivel (P7) | 39 | M a L | [DISEÑO] |
-| ~~10~~ | ~~Repetir un congreso automáticamente~~ | 39 | L | **DESESTIMADO** |
+| Orden | Qué | Estado |
+| --- | --- | --- |
+| ~~1~~ | ~~Ingreso con el ticket del mega evento, tenga cuenta o no~~ | **HECHO** |
+| ~~2~~ | ~~Compartir a todo el programa (P1)~~ | **HECHO** |
+| ~~3~~ | ~~Duplicar el congreso y mover todo (P2)~~ | **DESESTIMADO** |
+| ~~4~~ | ~~«Programa» solo cuando hace falta (P3)~~ | **HECHO** |
+| ~~5~~ | ~~Aviso al cambiar el modo y al borrar (P4)~~ | **HECHO** |
+| ~~6~~ | ~~Número único de asistentes (§4)~~ | **HECHO** |
+| ~~7~~ | ~~Tickets por parte del programa y extras con pase (P5 A y B)~~ | **HECHO** |
+| 8 | Soltar un día / cancelación parcial (P5 C, P6) | pendiente |
+| ~~9~~ | ~~Calendario (P8), rendimiento y reportes (P9), etiqueta (P7)~~ | **HECHO / REVISADO** |
+| 10 | Segundo nivel real, vista agrupada por etiqueta | pendiente, solo si hace falta |
+| ~~11~~ | ~~Repetir un congreso automáticamente~~ | **DESESTIMADO** |
+| 12 | Pagos (Culqi) | fuera de esta feature |
 
 Las filas «nueva» todavía no están en la tabla de deuda de `docs/redesign.md`: cuando el dueño del producto confirme el orden, se agregan allí (regla del repo: lo pendiente va a esa tabla y no se hace nada de ella sin consultarlo).

@@ -30,6 +30,7 @@
 - [x] T014 `docs/redesign.md` §7 y §10.
 - [x] T015 `./mvnw spotless:apply`, `./mvnw verify` y `python3 scripts/check-language.py`.
 - [x] T017 Ingreso por inscripción y sub-evento (`V1.19.0`): ticket, marca a mano y QR del evento, lista de esperados del sub-evento y «Asistí» en Mi espacio.
+- [x] T018 Avisos al borrar y al dejar de usar la inscripción propia (`RegistrationNotices`); total único de asistentes (`GET /events/{id}/attendance/summary`); compartir a todo el programa; etiqueta del programa (`V1.20.0`); tickets con acceso a parte del programa (`V1.21.0`); sub-evento que exige el pase del mega evento (`V1.22.0`); `programSize` en la lista del calendario.
 
 ## Decisiones tomadas con el dueño del producto
 
