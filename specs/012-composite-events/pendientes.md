@@ -74,21 +74,9 @@ Marcas: **HECHO (local)** = ya está en las ramas, con pruebas, pero **sin subir
 **Qué arregla.** Programas públicos que se ven vacíos y talleres que nadie puede abrir.
 **Tamaño:** M, API y UI.
 
-### P2. Duplicar el congreso con su programa y moverlo entero
+### ~~P2. Duplicar el congreso con su programa~~ DESESTIMADO (7 nov, dueño del producto)
 
-> **Duplicar: HECHO (local, sin subir).** En la pantalla del congreso, el botón «Duplicar» pide la nueva fecha de inicio y el nombre, y crea una copia privada con todo el programa en los mismos días y horas relativos, con los mismos speakers, lugar y modo de inscripción de cada sub-evento. **No copia** inscritos, asistencia, cómo se comparte, ni la configuración de inscripción y tickets (hay que volver a configurarlos en la copia). **«Mover todo»: pendiente** (necesita avisar por correo a los inscritos; queda como siguiente paso).
-
-
-**Hoy.** Repetir el mega evento está desestimado, pero el congreso anual se vuelve a armar a mano cada año, y no se puede mover todo el programa si cambia la fecha.
-*Ejemplo:* en noviembre del año siguiente Marta tiene que crear de nuevo el congreso y cargar los 9 sub-eventos con sus horas, speakers, lugares y modos de inscripción. Si el congreso se corre una semana, tiene que ampliar el mega evento, mover los 9 uno por uno y volver a acortarlo.
-
-**Cómo debe ser.** Dos acciones en la pantalla del evento: **«Duplicar»** (crea una copia sin inscritos ni asistencia en otra fecha, con todo el programa desplazado) y **«Mover todo»** (cambia las fechas del congreso y de todo su programa a la vez, avisando a los inscritos). Es lo que hacen los sistemas de eventos con «copiar evento».
-
-**Flujo (duplicar).** Marta abre el congreso de este año → «Duplicar» → elige la nueva fecha de inicio → se crea «Avivamiento 2031 (copia)» con los 9 sub-eventos en los mismos días y horas relativos, los mismos speakers y lugares, la misma configuración de inscripción y tickets (cerrada) y el acceso en «Solo yo» para que lo revise antes de publicar. La copia nunca trae inscritos.
-**Flujo (mover todo).** Marta abre el congreso → «Mover todo» → nueva fecha de inicio → se muestra «Se moverán el congreso y 9 sub-eventos. Se avisará a 120 personas inscritas» → confirma.
-
-**Qué arregla.** Trabajo de horas cada año y el riesgo de dejar un sub-evento fuera de fechas.
-**Tamaño:** M, API y UI. *Nota:* repetir automáticamente (serie) sigue desestimado; esto es una copia puntual.
+> No se necesita. Se había hecho (copia privada con todo el programa) y se **eliminó** por decisión del dueño del producto; no queda código. «Mover todo» el programa a otra fecha tampoco se hará por ahora: si un congreso se corre de fecha, se mueven los sub-eventos uno por uno arrastrándolos en el calendario del programa (el mega evento primero se amplía).
 
 ### ~~P3. «Programa» solo cuando hace falta~~ HECHO (local, sin subir)
 
@@ -174,7 +162,7 @@ Los asistentes de un sub-evento son **las personas marcadas más las inscripcion
 1. ~~Asistencia de un sub-evento~~ **Resuelta:** personas marcadas e inscripciones ingresadas, sin duplicar.
 2. ¿Quieres **tickets que den acceso a solo parte del programa** («Pase sábado») y **talleres extra que exijan el pase del congreso**? Es P5 y define casi todo lo grande que queda.
 3. ¿El acceso se **hereda** siempre del congreso, o se **copia** al crear y se aplica a todo con una confirmación (propuesta de P1)?
-4. ¿Qué pesa más para ti, **duplicar** el congreso cada año o **mover todo**? (Hago los dos en P2.)
+4. ~~¿Duplicar el congreso o mover todo?~~ **Resuelta (7 nov):** ninguna de las dos se hará.
 5. Al cambiar el modo de inscripción de un sub-evento ya inscrito: ¿se impide, o se cancelan las inscripciones con aviso por correo?
 6. ¿Prefieres una **etiqueta de agrupación** (pista, sala, curso) o un **segundo nivel** real? (P7)
 
@@ -184,7 +172,7 @@ Los asistentes de un sub-evento son **las personas marcadas más las inscripcion
 | --- | --- | --- | --- | --- |
 | ~~1~~ | ~~Ingreso con el ticket del mega evento, tenga cuenta o no (§2)~~ | ~~40~~ (quitada) | M a L | **HECHO** |
 | ~~2~~ | ~~Compartir a todo el programa (P1)~~ | nueva | M | **HECHO** (local) |
-| 3 | Duplicar el congreso (hecho, local) y **mover todo** (pendiente) (P2) | 41 | M | parcial |
+| ~~3~~ | ~~Duplicar el congreso y mover todo (P2)~~ | ~~41~~ | M | **DESESTIMADO** |
 | ~~4~~ | ~~«Programa» solo cuando hace falta (P3)~~ | ~~UI 32~~ | S | **HECHO** (local) |
 | 5 | Aviso al cambiar el modo y al borrar (P4) | nueva | M | [DECIDE] |
 | 6 | Número único de asistentes (§4) | nueva | S a M | por hacer |
