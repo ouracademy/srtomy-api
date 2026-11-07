@@ -78,8 +78,8 @@ resource "google_service_account" "deploy" {
 
 resource "google_service_account_iam_member" "wif_impersonation" {
   service_account_id = google_service_account.deploy.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repo}"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repo}"
 }
 
 resource "google_project_iam_member" "deploy_run_admin" {

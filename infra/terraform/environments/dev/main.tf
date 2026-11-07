@@ -113,6 +113,9 @@ module "agent" {
   langsmith_api_key    = var.agent_langsmith_api_key
   database_url         = module.neon.agent_database_url
 
+  workload_identity_pool_id   = module.cicd.workload_identity_pool_id
+  workload_identity_pool_name = module.cicd.workload_identity_pool_name
+
   depends_on = [module.db_secrets]
 }
 
@@ -138,6 +141,14 @@ output "scheduler_service_account_email" {
 
 output "api_url" {
   value = module.tasks.api_url
+}
+
+output "agent_deploy_workload_identity_provider" {
+  value = module.agent.deploy_workload_identity_provider
+}
+
+output "agent_deploy_service_account_email" {
+  value = module.agent.deploy_service_account_email
 }
 
 output "agent_service_account_email" {

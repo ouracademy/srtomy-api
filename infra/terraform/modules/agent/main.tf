@@ -66,3 +66,60 @@ resource "google_secret_manager_secret_iam_member" "agent_reads_kapso_key" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.agent.email}"
 }
+
+# --- Deploying the agent from its own repo -------------------------------------------------------
+# Same idea as the cicd module (Workload Identity Federation, no JSON key), but with its own provider
+# and its own deploy account, so the agent's repo cannot deploy the API and the API's repo cannot
+# deploy the agent. The image goes to the same Artifact Registry repo as the API's.
+
+resource "google_iam_workload_identity_pool_provider" "agent" {
+  project                            = var.project_id
+  workload_identity_pool_id          = var.workload_identity_pool_id
+  workload_identity_pool_provider_id = "agent-github-actions"
+  display_name                       = "GitHub Actions OIDC (agent)"
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+    "attribute.ref"        = "assertion.ref"
+  }
+
+  attribute_condition = "assertion.repository == \"${var.github_repo}\" && assertion.ref == \"refs/heads/${var.deploy_branch}\""
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+resource "google_service_account" "agent_deploy" {
+  project      = var.project_id
+  account_id   = "gh-agent-deploy"
+  display_name = "GitHub Actions deploy (srtomy-agent)"
+  description  = "Impersonated by the agent's CI via Workload Identity Federation to push its image and deploy it to Cloud Run. Not used for anything else."
+}
+
+resource "google_service_account_iam_member" "agent_wif_impersonation" {
+  service_account_id = google_service_account.agent_deploy.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${var.workload_identity_pool_name}/attribute.repository/${var.github_repo}"
+}
+
+resource "google_project_iam_member" "agent_deploy_run_admin" {
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.agent_deploy.email}"
+}
+
+resource "google_project_iam_member" "agent_deploy_artifact_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.agent_deploy.email}"
+}
+
+# Deploying a service that runs as the agent's account needs permission to act as that account
+# (only that one, not every account of the project).
+resource "google_service_account_iam_member" "agent_deploy_acts_as_agent" {
+  service_account_id = google_service_account.agent.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.agent_deploy.email}"
+}

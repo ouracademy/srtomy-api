@@ -32,3 +32,25 @@ variable "database_url" {
   type        = string
   sensitive   = true
 }
+
+variable "workload_identity_pool_id" {
+  description = "Id of the GitHub Actions pool created by the cicd module; the agent's repo gets its own provider in it."
+  type        = string
+}
+
+variable "workload_identity_pool_name" {
+  description = "Full resource name of that pool."
+  type        = string
+}
+
+variable "github_repo" {
+  description = "Repo of the agent allowed to deploy it, as \"owner/repo\"."
+  type        = string
+  default     = "ouracademy/srtomy-agent"
+}
+
+variable "deploy_branch" {
+  description = "Only runs from this branch can get a deploy token."
+  type        = string
+  default     = "main"
+}
