@@ -161,6 +161,21 @@ Marcas: **HECHO** = ya está en las ramas, con pruebas. Lo marcado «local» se 
 
 El precio es informativo y no se cobra desde la plataforma (Culqi sin conectar). Un congreso de pago o un taller con extra no puede cobrarse aquí todavía. Depende de la integración de pagos y de P5.
 
+### ~~P11. Avisos en la página del evento, no solo por correo~~ HECHO (7 nov)
+
+**Pedido:** no todos usan correo; la app debe servir para gente con cuenta o sin ella; al menos hay que actualizar la página.
+*Ejemplo:* Marta cambia el lugar del taller de Pedro al «Salón 3». Tomás no tiene cuenta y casi no mira su correo; el sábado abre el enlace del taller que le pasaron por WhatsApp y arriba ve un aviso con la fecha: «Nuevo lugar: Salón 3.». Lucía, con cuenta, recibe además el correo.
+
+- **Qué quedó hecho:**
+  - **Avisos automáticos:** cuando se cambia la fecha, hora, nombre, lugar o ponentes de un evento; cuando un sub-evento se cancela dentro de un congreso que sigue (el aviso queda en el congreso); y cuando un sub-evento deja de usar su inscripción propia.
+  - **Avisos escritos por los organizadores:** en la pantalla del evento, «Avisos» → «Publicar aviso» (hasta 1000 caracteres).
+  - **Dónde se ven:** en la página pública del evento (`/e/…`), arriba, para cualquiera que abra el enlace, con o sin cuenta, y en la pantalla del organizador. Los 20 más recientes, el más nuevo primero.
+- **Qué no hace todavía:**
+  - Un evento **borrado** no deja aviso en su propia página, porque la página deja de existir (se avisa por correo, y el congreso muestra «Se canceló “…” del programa»).
+  - **Mi espacio** no muestra los avisos de cada evento; hay que abrir el evento.
+  - Los avisos no se pueden editar ni borrar.
+  - No hay notificaciones de teléfono o WhatsApp: eso necesitaría una integración aparte.
+
 ## 4. Asistentes de un sub-evento: cómo contarlos (decidido)
 
 Los asistentes de un sub-evento son **las personas marcadas más las inscripciones ingresadas, sin duplicar**.

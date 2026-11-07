@@ -36,4 +36,4 @@ Migración `V1.19.0__sub_event_check_in.sql`.
 | `V1.20.0__sub_event_track.sql` | `event.track varchar(100)` opcional: el curso o sala del programa al que pertenece un sub-evento. |
 | `V1.21.0__ticket_sub_events.sql` | `ticket_type_sub_event(ticket_type_id, event_id)`: a qué sub-eventos da acceso un ticket del mega evento; sin filas, a todo el programa. |
 | `V1.22.0__sub_event_requires_container.sql` | `event.requires_container_registration boolean`: un sub-evento de inscripción propia exige un lugar confirmado en el mega evento. |
-
+| `V1.23.0__event_notices.sql` | `event_notice(id, event_id, kind, message, created_at)`: avisos de un evento que se muestran en su página (`ANNOUNCEMENT`, `CHANGED`, `CANCELLED`, `REGISTRATION_CHANGED`). |
