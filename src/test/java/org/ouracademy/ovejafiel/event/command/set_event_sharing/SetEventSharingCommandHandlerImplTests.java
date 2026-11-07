@@ -46,4 +46,45 @@ class SetEventSharingCommandHandlerImplTests {
     assertThatThrownBy(() -> handler.handle(new SetEventSharingCommand(id, GeneralAccess.CHURCH)))
         .isInstanceOf(NoSuchElementException.class);
   }
+
+  @Test
+  void canGiveTheSameAccessToEverySubEventOfAMegaEvent() {
+    var mega =
+        singleEvent(
+            id,
+            "Congreso",
+            organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH),
+            List.of());
+    var workshop =
+        org.ouracademy.ovejafiel.event.EventFixtures.childOf(
+            mega, EventId.generate(), "Taller", mega.getStart(), mega.getEnd());
+    workshop.shareVia(GeneralAccess.RESTRICTED);
+    when(repository.findById(id)).thenReturn(Optional.of(mega));
+    when(repository.findByParentOrderByStart(mega)).thenReturn(List.of(workshop));
+
+    handler.handle(new SetEventSharingCommand(id, GeneralAccess.CHURCH, true));
+
+    assertThat(mega.getGeneralAccess()).isEqualTo(GeneralAccess.CHURCH);
+    assertThat(workshop.getGeneralAccess()).isEqualTo(GeneralAccess.CHURCH);
+  }
+
+  @Test
+  void leavesTheSubEventsAloneUnlessAskedTo() {
+    var mega =
+        singleEvent(
+            id,
+            "Congreso",
+            organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH),
+            List.of());
+    var workshop =
+        org.ouracademy.ovejafiel.event.EventFixtures.childOf(
+            mega, EventId.generate(), "Taller", mega.getStart(), mega.getEnd());
+    workshop.shareVia(GeneralAccess.RESTRICTED);
+    when(repository.findById(id)).thenReturn(Optional.of(mega));
+    when(repository.findByParentOrderByStart(mega)).thenReturn(List.of(workshop));
+
+    handler.handle(new SetEventSharingCommand(id, GeneralAccess.CHURCH));
+
+    assertThat(workshop.getGeneralAccess()).isEqualTo(GeneralAccess.RESTRICTED);
+  }
 }

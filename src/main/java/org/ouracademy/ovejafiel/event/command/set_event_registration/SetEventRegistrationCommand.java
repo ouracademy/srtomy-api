@@ -21,5 +21,18 @@ public record SetEventRegistrationCommand(
       String currency,
       Integer quantity,
       ZonedDateTime salesStart,
-      ZonedDateTime salesEnd) {}
+      ZonedDateTime salesEnd,
+      List<EventId> subEventIds) {
+
+    public Ticket(
+        TicketTypeId id,
+        String name,
+        int priceCents,
+        String currency,
+        Integer quantity,
+        ZonedDateTime salesStart,
+        ZonedDateTime salesEnd) {
+      this(id, name, priceCents, currency, quantity, salesStart, salesEnd, List.of());
+    }
+  }
 }

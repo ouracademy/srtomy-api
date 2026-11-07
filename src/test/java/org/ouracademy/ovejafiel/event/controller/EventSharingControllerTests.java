@@ -149,7 +149,10 @@ class EventSharingControllerTests {
                 List.of(new GetSharedEventResult.Ticket(TICKET, "General", 2000, "PEN", true, 5)))
             : null,
         canRegister,
-        null);
+        null,
+        List.of(),
+        null,
+        List.of());
   }
 
   @Test
@@ -415,7 +418,7 @@ class EventSharingControllerTests {
                     2,
                     List.of(
                         new GetEventRegistrationResult.Ticket(
-                            TICKET, "General", 0, "PEN", 20, null, null, 3)))));
+                            TICKET, "General", 0, "PEN", 20, null, null, 3, List.of())))));
 
     var body =
         assertThat(

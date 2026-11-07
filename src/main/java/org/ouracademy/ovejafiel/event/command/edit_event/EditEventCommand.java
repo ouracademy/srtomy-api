@@ -7,6 +7,7 @@ import java.util.List;
 import org.ouracademy.ovejafiel.event.domain.EventChangeOption;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.Recurrence;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 
 /**
@@ -29,4 +30,45 @@ public record EditEventCommand(
     List<PartyId> speakerIds,
     Recurrence recurrence,
     ZoneId timeZone,
-    Instant now) {}
+    EventId parentEventId,
+    RegistrationMode registrationMode,
+    Instant now,
+    String track,
+    Boolean requiresContainerRegistration) {
+
+  public EditEventCommand(
+      EventId id,
+      EventChangeOption option,
+      String name,
+      OffsetDateTime startTime,
+      OffsetDateTime endTime,
+      String address,
+      String description,
+      Boolean isACourse,
+      PartyId organizationId,
+      List<PartyId> speakerIds,
+      Recurrence recurrence,
+      ZoneId timeZone,
+      EventId parentEventId,
+      RegistrationMode registrationMode,
+      Instant now) {
+    this(
+        id,
+        option,
+        name,
+        startTime,
+        endTime,
+        address,
+        description,
+        isACourse,
+        organizationId,
+        speakerIds,
+        recurrence,
+        timeZone,
+        parentEventId,
+        registrationMode,
+        now,
+        null,
+        null);
+  }
+}

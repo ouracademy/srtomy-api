@@ -24,8 +24,14 @@ import org.ouracademy.ovejafiel.user.domain.UserId;
 class CheckInUserRegistrationCommandHandlerImplTests {
 
   EventRegistrationRepository repository = mock(EventRegistrationRepository.class);
+  org.ouracademy.ovejafiel.event.repository.EventRepository eventRepository =
+      mock(org.ouracademy.ovejafiel.event.repository.EventRepository.class);
+  org.ouracademy.ovejafiel.event.repository.SubEventCheckInRepository subEventCheckIns =
+      mock(org.ouracademy.ovejafiel.event.repository.SubEventCheckInRepository.class);
+  org.ouracademy.ovejafiel.event.query.InheritedCheckIns inheritedCheckIns =
+      new org.ouracademy.ovejafiel.event.query.InheritedCheckIns(subEventCheckIns);
   CheckInUserRegistrationCommandHandlerImpl handler =
-      new CheckInUserRegistrationCommandHandlerImpl(repository);
+      new CheckInUserRegistrationCommandHandlerImpl(repository, eventRepository, inheritedCheckIns);
 
   Event event =
       singleEvent(
@@ -77,5 +83,28 @@ class CheckInUserRegistrationCommandHandlerImplTests {
         .isEmpty();
     assertThat(handler.handle(new CheckInUserRegistrationCommand(event.getId(), userId, null)))
         .isEmpty();
+  }
+
+  @Test
+  void theEventQrInASubEventThatInheritsFindsTheSignUpOfTheMegaEventAndMarksTheSubEvent() {
+    var child =
+        org.ouracademy.ovejafiel.event.EventFixtures.childOf(
+            event, EventId.generate(), "Taller", event.getStart(), event.getEnd());
+    when(eventRepository.findById(child.getId())).thenReturn(Optional.of(child));
+    when(subEventCheckIns.save(any())).thenAnswer(call -> call.getArgument(0));
+    var registration =
+        registration(event, ticket(event, "General", 5), "lu@x.org", RegistrationStatus.CONFIRMED);
+    when(repository.findFirstByEventIdAndUserIdAndStatusNot(
+            event.getId(), userId, RegistrationStatus.CANCELLED))
+        .thenReturn(Optional.of(registration));
+
+    var result =
+        handler.handle(new CheckInUserRegistrationCommand(child.getId(), userId, "lu@x.org"));
+
+    assertThat(result).isPresent();
+    assertThat(result.get().inherited()).isTrue();
+    assertThat(result.get().alreadyCheckedIn()).isFalse();
+    assertThat(registration.isCheckedIn()).isFalse();
+    org.mockito.Mockito.verify(subEventCheckIns).save(any());
   }
 }

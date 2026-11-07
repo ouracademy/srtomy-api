@@ -73,6 +73,15 @@ class EventControllerTests {
   @MockitoBean CreateEventCommandHandler createEventCommandHandler;
   @MockitoBean DeleteEventCommandHandler deleteEventCommandHandler;
   @MockitoBean EditEventCommandHandler editEventCommandHandler;
+
+  @MockitoBean
+  org.ouracademy.ovejafiel.event.command.post_event_notice.PostEventNoticeCommandHandler
+      postEventNoticeCommandHandler;
+
+  @MockitoBean
+  org.ouracademy.ovejafiel.event.query.list_event_notices.ListEventNoticesQueryHandler
+      listEventNoticesQueryHandler;
+
   @MockitoBean AuthorizeEventQueryHandler authorizeEventQueryHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
 
@@ -212,7 +221,9 @@ class EventControllerTests {
                     Recurrence.EndType.UNTIL,
                     java.time.LocalDate.of(2026, 1, 14),
                     null),
-                ZoneId.of("America/Lima")));
+                ZoneId.of("America/Lima"),
+                null,
+                null));
   }
 
   @Test
@@ -364,6 +375,64 @@ class EventControllerTests {
   }
 
   @Test
+  void noticesAreListedForWhoCanViewAndPostedByAnEditor() {
+    var id = UUID.randomUUID();
+    given(listEventNoticesQueryHandler.handle(any()))
+        .willReturn(
+            List.of(
+                new org.ouracademy.ovejafiel.event.query.list_event_notices.NoticeResult(
+                    org.ouracademy.ovejafiel.event.domain.NoticeKind.ANNOUNCEMENT,
+                    "Traer Biblia",
+                    java.time.LocalDateTime.parse("2030-01-05T10:00:00"))));
+    given(postEventNoticeCommandHandler.handle(any()))
+        .willReturn(
+            new org.ouracademy.ovejafiel.event.command.post_event_notice.PostEventNoticeResult());
+
+    assertThat(
+            mvc.get().uri("/v1/events/" + id + "/notices").header("Authorization", bearerHeader()))
+        .hasStatusOk()
+        .bodyJson()
+        .extractingPath("$[0].message")
+        .isEqualTo("Traer Biblia");
+    assertThat(
+            mvc.post()
+                .uri("/v1/events/" + id + "/notices")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"Traer Biblia\"}"))
+        .hasStatus(201);
+    org.mockito.Mockito.verify(postEventNoticeCommandHandler)
+        .handle(
+            new org.ouracademy.ovejafiel.event.command.post_event_notice.PostEventNoticeCommand(
+                new EventId(id), "Traer Biblia"));
+  }
+
+  @Test
+  void postingANoticeNeedsAnEditorAndAMessage() {
+    var id = UUID.randomUUID();
+    assertThat(
+            mvc.post()
+                .uri("/v1/events/" + id + "/notices")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"\"}"))
+        .hasStatus(400);
+    given(
+            authorizeEventQueryHandler.handle(
+                new AuthorizeEventQuery("test-user", new EventId(id), AccessLevel.EDITOR)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/events/" + id + "/notices")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"Hola\"}"))
+        .hasStatus(403);
+    verifyNoInteractions(postEventNoticeCommandHandler);
+  }
+
+  @Test
   void editNeedsAnEditorOfTheEvent() {
     var id = UUID.randomUUID();
     given(
@@ -423,6 +492,30 @@ class EventControllerTests {
                 .header("Authorization", bearerHeader()))
         .hasStatus(404);
     verifyNoInteractions(findEventByIdQueryHandler);
+  }
+
+  @Test
+  void creatingASubEventNeedsEditingTheContainer() {
+    var parentId = UUID.randomUUID();
+    given(
+            authorizeEventQueryHandler.handle(
+                new AuthorizeEventQuery("test-user", new EventId(parentId), AccessLevel.EDITOR)))
+        .willThrow(new AccessDeniedException("no"));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/events")
+                .header("Authorization", bearerHeader())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name": "Taller", "startTime": "2026-01-05T10:00:00Z",
+                     "endTime": "2026-01-05T11:00:00Z", "organizationId": "%s",
+                     "parentEventId": "%s", "registrationMode": "OWN"}
+                    """
+                        .formatted(UUID.randomUUID(), parentId)))
+        .hasStatus(403);
+    verifyNoInteractions(createEventCommandHandler);
   }
 
   @Test

@@ -7,9 +7,12 @@ import lombok.AllArgsConstructor;
 import org.ouracademy.ovejafiel.attendance.command.register_attendance.RegisterAttendanceCommand;
 import org.ouracademy.ovejafiel.attendance.command.register_attendance.RegisterAttendanceCommandHandler;
 import org.ouracademy.ovejafiel.attendance.controller.dto.AttendanceRequest;
+import org.ouracademy.ovejafiel.attendance.controller.dto.AttendanceSummaryResponse;
 import org.ouracademy.ovejafiel.attendance.controller.dto.EventAttendanceResponse;
 import org.ouracademy.ovejafiel.attendance.query.get_attendance.GetAttendanceQuery;
 import org.ouracademy.ovejafiel.attendance.query.get_attendance.GetAttendanceQueryHandler;
+import org.ouracademy.ovejafiel.attendance.query.get_attendance_summary.GetAttendanceSummaryQuery;
+import org.ouracademy.ovejafiel.attendance.query.get_attendance_summary.GetAttendanceSummaryQueryHandler;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.iam.domain.Permission;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
@@ -33,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AttendanceController {
 
   GetAttendanceQueryHandler getAttendanceQueryHandler;
+  GetAttendanceSummaryQueryHandler getAttendanceSummaryQueryHandler;
   RegisterAttendanceCommandHandler registerAttendanceCommandHandler;
   EventAuthorization eventAuthorization;
 
@@ -57,6 +61,15 @@ public class AttendanceController {
                     .build())
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.noContent().build());
+  }
+
+  /** How many came, counting each person once (marked people, tickets and visitors). */
+  @GetMapping("{id}/attendance/summary")
+  public AttendanceSummaryResponse summary(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    eventAuthorization.require(jwt, id, Permission.EVENTS_READ);
+    return AttendanceSummaryResponse.from(
+        getAttendanceSummaryQueryHandler.handle(new GetAttendanceSummaryQuery(new EventId(id))));
   }
 
   @PutMapping("{id}/attendance")

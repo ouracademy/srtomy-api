@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.event.repository;
 
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,15 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
   Optional<Event> findByShareSlug(String shareSlug);
 
   List<Event> findBySeries(EventSeries series);
+
+  List<Event> findByParentOrderByStart(Event parent);
+
+  boolean existsByParent(Event parent);
+
+  /** Rows of {@code [parent id, how many sub-events]} for the events that have a program. */
+  @Query(
+      "select e.parent.id, count(e) from Event e where e.parent.id in :parentIds group by e.parent.id")
+  List<Object[]> countSubEvents(Collection<EventId> parentIds);
 
   List<Event> findBySeriesAndStartGreaterThanEqual(EventSeries series, ZonedDateTime start);
 
@@ -85,7 +95,8 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
                  max(x.ticket_name) as ticketName,
                  max(x.registration_status) as registrationStatus,
                  max(x.cancel_code) as cancelCode,
-                 max(x.ticket_code) as ticketCode
+                 max(x.ticket_code) as ticketCode,
+                 max(pe.name) as parentTitle
           from (
               select er.event_id as event_id, true as registered,
                      (er.checked_in_at is not null) as attended,
@@ -94,6 +105,25 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
                      er.ticket_code as ticket_code
               from event_registration er
               join ticket_type tt on tt.id = er.ticket_type_id
+              where er.status <> 'CANCELLED'
+                and (er.user_id = :userId
+                     or (cast(:email as text) is not null
+                         and lower(er.email) = lower(cast(:email as text))))
+              union all
+              -- the sub-events that inherit the ticket of a mega event they signed up for
+              select c.id, true,
+                     exists (select 1 from event_registration_check_in ci
+                             where ci.registration_id = er.id and ci.event_id = c.id),
+                     er.id, tt.name, er.status, er.cancel_code, er.ticket_code
+              from event_registration er
+              join ticket_type tt on tt.id = er.ticket_type_id
+              join event c on c.parent_event_id = er.event_id
+                          and c.registration_mode = 'INHERIT' and c.deleted_time is null
+                          and (not exists (select 1 from ticket_type_sub_event t
+                                           where t.ticket_type_id = er.ticket_type_id)
+                               or exists (select 1 from ticket_type_sub_event t
+                                          where t.ticket_type_id = er.ticket_type_id
+                                            and t.event_id = c.id))
               where er.status <> 'CANCELLED'
                 and (er.user_id = :userId
                      or (cast(:email as text) is not null
@@ -108,6 +138,7 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
           ) x
           join event e on e.id = x.event_id and e.deleted_time is null
           join party p on p.id = e.organization_id
+          left join event pe on pe.id = e.parent_event_id
           group by e.id, e.name, e.start_time, e.is_a_course, p.name, e.share_slug
           order by e.start_time desc
           """,
@@ -138,5 +169,8 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
     String getCancelCode();
 
     String getTicketCode();
+
+    /** The mega event this one belongs to; null when it is not a sub-event. */
+    String getParentTitle();
   }
 }

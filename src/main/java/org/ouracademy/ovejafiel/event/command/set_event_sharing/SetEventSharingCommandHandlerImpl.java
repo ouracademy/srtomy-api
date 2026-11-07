@@ -15,10 +15,16 @@ class SetEventSharingCommandHandlerImpl implements SetEventSharingCommandHandler
   @Override
   @Transactional
   public SetEventSharingResult handle(SetEventSharingCommand command) {
-    eventRepository
-        .findById(command.eventId())
-        .orElseThrow(() -> new NoSuchElementException("Event not found"))
-        .shareVia(command.generalAccess());
+    var event =
+        eventRepository
+            .findById(command.eventId())
+            .orElseThrow(() -> new NoSuchElementException("Event not found"));
+    event.shareVia(command.generalAccess());
+    if (command.applyToProgram()) {
+      eventRepository
+          .findByParentOrderByStart(event)
+          .forEach(child -> child.shareVia(command.generalAccess()));
+    }
     return new SetEventSharingResult();
   }
 }

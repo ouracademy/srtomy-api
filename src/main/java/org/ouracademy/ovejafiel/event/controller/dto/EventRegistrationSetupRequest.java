@@ -25,5 +25,6 @@ public record EventRegistrationSetupRequest(
       @Size(max = 3) String currency,
       @Min(1) Integer quantity,
       ZonedDateTime salesStart,
-      ZonedDateTime salesEnd) {}
+      ZonedDateTime salesEnd,
+      List<UUID> subEventIds) {}
 }

@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.event.query.get_event_registration;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.TicketTypeId;
 
 /**
@@ -24,7 +25,8 @@ public record GetEventRegistrationResult(
       Integer quantity,
       ZonedDateTime salesStart,
       ZonedDateTime salesEnd,
-      long sold) {}
+      long sold,
+      List<EventId> subEventIds) {}
 
   public static GetEventRegistrationResult disabled() {
     return new GetEventRegistrationResult(false, false, false, 0, 0, List.of());

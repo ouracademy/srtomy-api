@@ -1,6 +1,7 @@
 package org.ouracademy.ovejafiel.event.command.set_event_registration;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
@@ -64,6 +65,16 @@ class SetEventRegistrationCommandHandlerImpl implements SetEventRegistrationComm
           input.quantity(),
           input.salesStart(),
           input.salesEnd());
+      ticket.grantOnly(
+          input.subEventIds() == null
+              ? List.of()
+              : input.subEventIds().stream()
+                  .map(
+                      id ->
+                          eventRepository
+                              .findById(id)
+                              .orElseThrow(() -> new NoSuchElementException("Event not found")))
+                  .toList());
       ticket.moveTo(position++);
       ticketTypeRepository.save(ticket);
     }
