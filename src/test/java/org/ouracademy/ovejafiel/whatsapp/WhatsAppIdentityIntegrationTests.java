@@ -8,7 +8,6 @@ import com.nimbusds.jose.jwk.RSAKey;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +15,7 @@ import org.ouracademy.ovejafiel.iam.domain.PredefinedRoles;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.DelegatedTokens;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
+import org.ouracademy.ovejafiel.shared.TestPem;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
 import org.ouracademy.ovejafiel.user.command.link_user_to_person.LinkUserToPersonCommand;
 import org.ouracademy.ovejafiel.user.command.link_user_to_person.LinkUserToPersonCommandHandler;
@@ -57,11 +57,7 @@ class WhatsAppIdentityIntegrationTests {
         new RSAKey.Builder((RSAPublicKey) pair.getPublic())
             .privateKey((RSAPrivateKey) pair.getPrivate())
             .build();
-    var pem =
-        "-----BEGIN PRIVATE KEY-----\n"
-            + Base64.getMimeEncoder(64, "\n".getBytes())
-                .encodeToString(pair.getPrivate().getEncoded())
-            + "\n-----END PRIVATE KEY-----";
+    var pem = TestPem.pkcs8(pair.getPrivate());
     registry.add("delegation.private-key", () -> pem);
   }
 

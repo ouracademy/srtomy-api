@@ -13,7 +13,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -126,11 +125,7 @@ class DelegatedTokensTests {
 
   @Test
   void theKeyCanBeReadFromAPem() throws Exception {
-    var pem =
-        "-----BEGIN PRIVATE KEY-----\n"
-            + Base64.getMimeEncoder(64, "\n".getBytes())
-                .encodeToString(key.toRSAPrivateKey().getEncoded())
-            + "\n-----END PRIVATE KEY-----";
+    var pem = TestPem.pkcs8(key.toRSAPrivateKey());
 
     var tokens = DelegatedTokens.fromPem(pem);
 
