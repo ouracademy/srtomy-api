@@ -92,6 +92,17 @@ class CompositeEventsIntegrationTests {
     assertThat(child.get("parentTitle").asText()).isEqualTo("Mega evento");
     assertThat(child.get("registrationMode").asText()).isEqualTo("INHERIT");
     assertThat(json(alice, "/events/" + dinner).get("registrationMode").asText()).isEqualTo("OWN");
+
+    // The calendar list says how big the program of each event is, without loading it.
+    var listed =
+        json(
+            alice,
+            "/events?organizationId="
+                + churchId
+                + "&start=2030-01-01T00:00:00&end=2030-02-01T00:00:00");
+    var megaInList = find(listed, "Mega evento");
+    assertThat(megaInList.get("programSize").asInt()).isEqualTo(2);
+    assertThat(find(listed, "Taller").get("programSize").asInt()).isZero();
   }
 
   @Test

@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.event.repository;
 
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +22,11 @@ public interface EventRepository extends JpaRepository<Event, EventId> {
   List<Event> findByParentOrderByStart(Event parent);
 
   boolean existsByParent(Event parent);
+
+  /** Rows of {@code [parent id, how many sub-events]} for the events that have a program. */
+  @Query(
+      "select e.parent.id, count(e) from Event e where e.parent.id in :parentIds group by e.parent.id")
+  List<Object[]> countSubEvents(Collection<EventId> parentIds);
 
   List<Event> findBySeriesAndStartGreaterThanEqual(EventSeries series, ZonedDateTime start);
 

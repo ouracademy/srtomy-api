@@ -30,7 +30,8 @@ public record FindEventResult(
     String parentTitle,
     RegistrationMode registrationMode,
     String track,
-    List<ChildResult> children) {
+    List<ChildResult> children,
+    int programSize) {
 
   /** A sub-event listed inside its container. */
   public record ChildResult(
@@ -52,6 +53,29 @@ public record FindEventResult(
           child.getRegistrationMode(),
           child.getTrack());
     }
+  }
+
+  /** The same event saying how many sub-events it has, when the list does not carry them. */
+  public FindEventResult withProgramSize(int size) {
+    return new FindEventResult(
+        id,
+        title,
+        speakers,
+        start,
+        end,
+        address,
+        organization,
+        description,
+        isACourse,
+        recurrence,
+        createDate,
+        lastModifiedDate,
+        parentEventId,
+        parentTitle,
+        registrationMode,
+        track,
+        children,
+        size);
   }
 
   public static FindEventResult from(Event event) {
@@ -78,7 +102,8 @@ public record FindEventResult(
         parent == null ? null : parent.getTitle(),
         event.getRegistrationMode(),
         event.getTrack(),
-        children.stream().map(ChildResult::from).toList());
+        children.stream().map(ChildResult::from).toList(),
+        children.size());
   }
 
   private static List<FindPersonResult> speakersOf(Event event) {
