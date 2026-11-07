@@ -71,7 +71,7 @@ class QueueEventRemindersTests {
     return new Item(
         registration,
         "Ana",
-        "999111222",
+        "+51999111222",
         "Culto de jóvenes",
         ZonedDateTime.of(2026, 11, 7, 19, 30, 0, 0, ZoneId.of("America/Lima")),
         address,
@@ -109,7 +109,7 @@ class QueueEventRemindersTests {
     verify(enqueue).handle(sent.capture());
     assertThat(sent.getValue().channel()).isEqualTo(OutboxChannel.WHATSAPP);
     assertThat(sent.getValue().type()).isEqualTo("EVENT_REMINDER");
-    assertThat(sent.getValue().recipient()).isEqualTo("999111222");
+    assertThat(sent.getValue().recipient()).isEqualTo("+51999111222");
     assertThat(sent.getValue().payload())
         .contains(church.value().toString(), "EVENT_REMINDER")
         .contains("Ana", "Culto de jóvenes", "sábado 7 de noviembre, 19:30", "Av. Perú 123");
@@ -124,6 +124,27 @@ class QueueEventRemindersTests {
     var sent = ArgumentCaptor.forClass(EnqueueMessageCommand.class);
     verify(enqueue).handle(sent.capture());
     assertThat(sent.getValue().payload()).contains("por confirmar");
+  }
+
+  @Test
+  void aPhoneWithoutItsCountryCodeIsLeftOutAndNothingIsMarked() throws Exception {
+    var local =
+        new Item(
+            registration,
+            "Ana",
+            "999111222",
+            "Culto",
+            ZonedDateTime.of(2026, 11, 7, 19, 30, 0, 0, ZoneId.of("America/Lima")),
+            "x",
+            node);
+    scenario(local, true, true, true);
+
+    var result = handler().handle(window());
+
+    assertThat(result.queued()).isZero();
+    assertThat(result.skipped()).isEqualTo(1);
+    verifyNoInteractions(enqueue);
+    verify(reminders, never()).markQueued(any(), any());
   }
 
   @Test

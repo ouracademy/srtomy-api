@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import org.ouracademy.ovejafiel.outbox.PermanentDeliveryException;
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
+import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.HttpStatusCode;
@@ -60,15 +61,37 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
-  public String displayNumber(String phoneNumberId) {
+  public PhoneInfo phoneInfo(String phoneNumberId) {
     var response =
         platform.get().uri("/whatsapp/phone_numbers/" + phoneNumberId).retrieve().body(Map.class);
     if (response == null) {
-      return null;
+      return new PhoneInfo(null, null);
     }
-    // The number may come inside "data" or at the top.
+    // The fields may come inside "data" or at the top.
     var body = response.get("data") instanceof Map<?, ?> data ? data : response;
-    return (String) body.get("display_phone_number");
+    return new PhoneInfo(
+        (String) body.get("display_phone_number"), (String) body.get("business_account_id"));
+  }
+
+  @Override
+  public void createTemplate(String businessAccountId, WhatsAppTemplate template) {
+    var parameters = new ArrayList<String>(template.examples());
+    var body = new LinkedHashMap<String, Object>();
+    body.put("name", template.metaName());
+    body.put("category", WhatsAppTemplate.CATEGORY);
+    body.put("language", WhatsAppTemplate.LANGUAGE);
+    body.put("parameter_format", "POSITIONAL");
+    body.put(
+        "components",
+        List.of(
+            Map.of(
+                "type",
+                "BODY",
+                "text",
+                template.body(),
+                "example",
+                Map.of("body_text", List.of(parameters)))));
+    post(meta, "/" + businessAccountId + "/message_templates", body);
   }
 
   @Override

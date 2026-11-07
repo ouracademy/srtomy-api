@@ -18,6 +18,7 @@ import org.ouracademy.ovejafiel.outbox.domain.OutboxChannel;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.query.find_people_by_phone.FindPeopleByPhoneQuery;
 import org.ouracademy.ovejafiel.person.query.find_people_by_phone.FindPeopleByPhoneQueryHandler;
+import org.ouracademy.ovejafiel.whatsapp.domain.PhoneNumbers;
 import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppTemplate;
 import org.ouracademy.ovejafiel.whatsapp.gateway.WhatsAppPayload;
 import org.ouracademy.ovejafiel.whatsapp.repository.WhatsAppConnectionRepository;
@@ -65,6 +66,11 @@ class QueueEventRemindersCommandHandlerImpl implements QueueEventRemindersComman
             .handle(new FindChurchOfOrganizationQuery(item.organizationId()))
             .map(c -> c.churchId())
             .orElse(null);
+    // A phone without its country code cannot be delivered to: leave it out instead of letting
+    // Meta refuse it.
+    if (!PhoneNumbers.isInternational(item.phone())) {
+      return false;
+    }
     if (churchId == null || !hasWhatsApp(churchId) || askedToStop(item.phone(), churchId)) {
       return false;
     }

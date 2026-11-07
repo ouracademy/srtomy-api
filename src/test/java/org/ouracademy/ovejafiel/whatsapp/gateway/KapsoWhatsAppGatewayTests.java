@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.ovejafiel.outbox.PermanentDeliveryException;
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
+import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppTemplate;
 
 /** Against a local server that plays Kapso: what is sent and how its answers are read. */
 class KapsoWhatsAppGatewayTests {
@@ -115,6 +116,57 @@ class KapsoWhatsAppGatewayTests {
             "\"code\":\"es\"",
             "\"text\":\"Ana\"",
             "\"text\":\"Central\"");
+  }
+
+  @Test
+  void readsTheNumberPeopleSeeAndTheBusinessAccountOfAConnectedNumber() {
+    answer =
+        "{\"data\":{\"display_phone_number\":\"+51 999 888 777\","
+            + "\"business_account_id\":\"waba-9\"}}";
+
+    var info = gateway.phoneInfo("pn-1");
+
+    assertThat(info.displayNumber()).isEqualTo("+51 999 888 777");
+    assertThat(info.businessAccountId()).isEqualTo("waba-9");
+    assertThat(calls.getFirst().method()).isEqualTo("GET");
+    assertThat(calls.getFirst().path()).isEqualTo("/platform/v1/whatsapp/phone_numbers/pn-1");
+  }
+
+  @Test
+  void theFieldsMayAlsoComeAtTheTopOfTheAnswer() {
+    answer = "{\"display_phone_number\":\"+57 300\",\"business_account_id\":\"w\"}";
+
+    assertThat(gateway.phoneInfo("pn-1").displayNumber()).isEqualTo("+57 300");
+  }
+
+  @Test
+  void submitsTheTemplateToMetaAsUtilityInSpanishWithAnExamplePerVariable() {
+    answer = "{\"id\":\"123\",\"status\":\"PENDING\"}";
+
+    gateway.createTemplate("waba-9", WhatsAppTemplate.EVENT_REMINDER);
+
+    var call = calls.getFirst();
+    assertThat(call.method()).isEqualTo("POST");
+    assertThat(call.path()).isEqualTo("/meta/whatsapp/v24.0/waba-9/message_templates");
+    assertThat(call.apiKey()).isEqualTo("key-1");
+    assertThat(call.body())
+        .contains(
+            "\"name\":\"event_reminder\"",
+            "\"category\":\"UTILITY\"",
+            "\"language\":\"es\"",
+            "\"parameter_format\":\"POSITIONAL\"",
+            "{{4}}",
+            "\"body_text\":[[\"Ana\",\"Culto de jóvenes\"");
+  }
+
+  @Test
+  void aTemplateMetaRefusesRaisesAPermanentError() {
+    status = 400;
+    answer = "{\"error\":\"template already exists\"}";
+
+    assertThatThrownBy(() -> gateway.createTemplate("waba-9", WhatsAppTemplate.EVENT_REMINDER))
+        .isInstanceOf(PermanentDeliveryException.class)
+        .hasMessageContaining("400");
   }
 
   @Test

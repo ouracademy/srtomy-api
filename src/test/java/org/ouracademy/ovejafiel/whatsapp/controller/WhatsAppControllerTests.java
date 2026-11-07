@@ -19,6 +19,9 @@ import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
 import org.ouracademy.ovejafiel.whatsapp.command.disconnect.DisconnectCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.disconnect.DisconnectCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.disconnect.DisconnectResult;
+import org.ouracademy.ovejafiel.whatsapp.command.provision_templates.ProvisionTemplatesCommand;
+import org.ouracademy.ovejafiel.whatsapp.command.provision_templates.ProvisionTemplatesCommandHandler;
+import org.ouracademy.ovejafiel.whatsapp.command.provision_templates.ProvisionTemplatesResult;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkResult;
@@ -46,6 +49,7 @@ class WhatsAppControllerTests {
   @MockitoBean RequestSetupLinkCommandHandler requestSetupLinkCommandHandler;
   @MockitoBean DisconnectCommandHandler disconnectCommandHandler;
   @MockitoBean GetConnectionQueryHandler getConnectionQueryHandler;
+  @MockitoBean ProvisionTemplatesCommandHandler provisionTemplatesCommandHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
 
   PartyId node = PartyId.generate();
@@ -79,6 +83,26 @@ class WhatsAppControllerTests {
   }
 
   @Test
+  void submittingTheTemplatesNeedsOrgUpdateAndReportsEachOne() {
+    given(provisionTemplatesCommandHandler.handle(any()))
+        .willReturn(
+            new ProvisionTemplatesResult(
+                java.util.List.of(
+                    new ProvisionTemplatesResult.Outcome("event_reminder", true, null))));
+
+    var body =
+        assertThat(mvc.post().uri(uri + "/templates").header("Authorization", bearer()))
+            .hasStatusOk()
+            .bodyJson();
+    body.extractingPath("$.templates[0].name").isEqualTo("event_reminder");
+    body.extractingPath("$.templates[0].submitted").isEqualTo(true);
+
+    verify(authorizeQueryHandler)
+        .handle(new AuthorizeQuery("test-user", node, Permission.ORG_UPDATE));
+    verify(provisionTemplatesCommandHandler).handle(new ProvisionTemplatesCommand(node));
+  }
+
+  @Test
   void aMissingOrUnknownModeIsRejected() {
     for (var content : new String[] {"{}", "{\"mode\":\"OTHER\"}"}) {
       assertThat(
@@ -105,8 +129,12 @@ class WhatsAppControllerTests {
         .hasStatus(403);
     assertThat(mvc.get().uri(uri).header("Authorization", bearer())).hasStatus(403);
     assertThat(mvc.delete().uri(uri).header("Authorization", bearer())).hasStatus(403);
+    assertThat(mvc.post().uri(uri + "/templates").header("Authorization", bearer())).hasStatus(403);
     verifyNoInteractions(
-        requestSetupLinkCommandHandler, getConnectionQueryHandler, disconnectCommandHandler);
+        requestSetupLinkCommandHandler,
+        getConnectionQueryHandler,
+        disconnectCommandHandler,
+        provisionTemplatesCommandHandler);
   }
 
   @Test

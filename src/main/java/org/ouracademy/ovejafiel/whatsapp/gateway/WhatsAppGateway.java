@@ -3,6 +3,7 @@ package org.ouracademy.ovejafiel.whatsapp.gateway;
 import java.time.Instant;
 import java.util.List;
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
+import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppTemplate;
 
 /** What the app needs from the WhatsApp provider (Kapso today). */
 public interface WhatsAppGateway {
@@ -16,8 +17,19 @@ public interface WhatsAppGateway {
    */
   String createCustomer(String externalId, String name);
 
-  /** The number as people read it ("+51 999 888 777"), or null when it cannot be read. */
-  String displayNumber(String phoneNumberId);
+  /** What the provider knows of a connected number; fields it does not give are null. */
+  record PhoneInfo(String displayNumber, String businessAccountId) {}
+
+  PhoneInfo phoneInfo(String phoneNumberId);
+
+  /**
+   * Submits a template to Meta, through the provider, for the church's WhatsApp account. Meta
+   * reviews it (up to a day); sending it before it is approved fails.
+   *
+   * @throws org.ouracademy.ovejafiel.outbox.PermanentDeliveryException when the provider refuses it
+   *     (for instance because it already exists)
+   */
+  void createTemplate(String businessAccountId, WhatsAppTemplate template);
 
   SetupLink createSetupLink(String customerId, ConnectionMode mode, String language);
 

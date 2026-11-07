@@ -10,8 +10,11 @@ import org.ouracademy.ovejafiel.iam.query.authorize.AuthorizeQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.whatsapp.command.disconnect.DisconnectCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.disconnect.DisconnectCommandHandler;
+import org.ouracademy.ovejafiel.whatsapp.command.provision_templates.ProvisionTemplatesCommand;
+import org.ouracademy.ovejafiel.whatsapp.command.provision_templates.ProvisionTemplatesCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkCommandHandler;
+import org.ouracademy.ovejafiel.whatsapp.controller.dto.ProvisionTemplatesResponse;
 import org.ouracademy.ovejafiel.whatsapp.controller.dto.SetupLinkRequest;
 import org.ouracademy.ovejafiel.whatsapp.controller.dto.SetupLinkResponse;
 import org.ouracademy.ovejafiel.whatsapp.controller.dto.WhatsAppConnectionResponse;
@@ -41,6 +44,7 @@ public class WhatsAppController {
   RequestSetupLinkCommandHandler requestSetupLinkCommandHandler;
   DisconnectCommandHandler disconnectCommandHandler;
   GetConnectionQueryHandler getConnectionQueryHandler;
+  ProvisionTemplatesCommandHandler provisionTemplatesCommandHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
   @PostMapping("organizations/{id}/whatsapp/setup-link")
@@ -54,6 +58,16 @@ public class WhatsAppController {
     var result =
         requestSetupLinkCommandHandler.handle(new RequestSetupLinkCommand(node, request.mode()));
     return new SetupLinkResponse(result.url(), result.expiresAt());
+  }
+
+  /** Submits the message templates to Meta for review. Harmless to repeat. */
+  @PostMapping("organizations/{id}/whatsapp/templates")
+  public ProvisionTemplatesResponse provisionTemplates(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    var node = new PartyId(id);
+    authorize(jwt, node);
+    return ProvisionTemplatesResponse.from(
+        provisionTemplatesCommandHandler.handle(new ProvisionTemplatesCommand(node)));
   }
 
   @GetMapping("organizations/{id}/whatsapp")

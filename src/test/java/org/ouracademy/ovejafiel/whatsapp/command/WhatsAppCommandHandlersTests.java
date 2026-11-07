@@ -34,6 +34,8 @@ import org.ouracademy.ovejafiel.whatsapp.query.get_connection.GetConnectionQuery
 import org.ouracademy.ovejafiel.whatsapp.query.get_connection.GetConnectionResult.State;
 import org.ouracademy.ovejafiel.whatsapp.repository.WhatsAppConnectionRepository;
 import org.ouracademy.ovejafiel.whatsapp.repository.WhatsAppWebhookEventRepository;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** The handlers of the module, with the repositories and the provider replaced by mocks. */
 class WhatsAppCommandHandlersTests {
@@ -143,7 +145,18 @@ class WhatsAppCommandHandlersTests {
             + "ConfirmConnectionCommandHandlerImpl",
         connections,
         webhookEvents,
-        gateway);
+        gateway,
+        inTransaction());
+  }
+
+  /** A transaction that just runs what it is given: the database is not under test here. */
+  @SuppressWarnings("unchecked")
+  private static TransactionTemplate inTransaction() {
+    var transaction = mock(TransactionTemplate.class);
+    when(transaction.execute(any()))
+        .thenAnswer(
+            call -> ((TransactionCallback<Object>) call.getArgument(0)).doInTransaction(null));
+    return transaction;
   }
 
   @Test
@@ -166,20 +179,56 @@ class WhatsAppCommandHandlersTests {
     var connection = new WhatsAppConnection(church, "cus-1", ConnectionMode.DEDICATED);
     when(webhookEvents.markReceived(any(), any())).thenReturn(true);
     when(connections.findByKapsoCustomerId("cus-1")).thenReturn(Optional.of(connection));
-    when(gateway.displayNumber("pn-7")).thenReturn("+51 999 888 777");
+    when(gateway.phoneInfo("pn-7"))
+        .thenReturn(new WhatsAppGateway.PhoneInfo("+51 999 888 777", "waba-1"));
 
     confirmHandler().handle(new ConfirmConnectionCommand("k1", "cus-1", "pn-7"));
 
     assertThat(connection.getDisplayNumber()).isEqualTo("+51 999 888 777");
+    assertThat(connection.getBusinessAccountId()).isEqualTo("waba-1");
 
     var other = new WhatsAppConnection(church, "cus-2", ConnectionMode.DEDICATED);
     when(connections.findByKapsoCustomerId("cus-2")).thenReturn(Optional.of(other));
-    when(gateway.displayNumber("pn-8")).thenThrow(new IllegalStateException("kapso down"));
+    when(gateway.phoneInfo("pn-8")).thenThrow(new IllegalStateException("kapso down"));
 
     confirmHandler().handle(new ConfirmConnectionCommand("k2", "cus-2", "pn-8"));
 
     assertThat(other.isConnected()).isTrue();
     assertThat(other.getDisplayNumber()).isNull();
+    assertThat(other.getBusinessAccountId()).isNull();
+  }
+
+  @Test
+  void theProviderIsAskedBeforeTheTransactionOpens() {
+    var connection = new WhatsAppConnection(church, "cus-1", ConnectionMode.DEDICATED);
+    when(webhookEvents.markReceived(any(), any())).thenReturn(true);
+    when(connections.findByKapsoCustomerId("cus-1")).thenReturn(Optional.of(connection));
+    var order = new java.util.ArrayList<String>();
+    when(gateway.phoneInfo("pn-7"))
+        .thenAnswer(
+            call -> {
+              order.add("provider");
+              return new WhatsAppGateway.PhoneInfo(null, null);
+            });
+    var transaction = mock(TransactionTemplate.class);
+    when(transaction.execute(any()))
+        .thenAnswer(
+            call -> {
+              order.add("transaction");
+              return ConfirmConnectionResult.CONNECTED;
+            });
+    var handler =
+        this.<ConfirmConnectionCommandHandler>handler(
+            "org.ouracademy.ovejafiel.whatsapp.command.confirm_connection."
+                + "ConfirmConnectionCommandHandlerImpl",
+            connections,
+            webhookEvents,
+            gateway,
+            transaction);
+
+    handler.handle(new ConfirmConnectionCommand("k1", "cus-1", "pn-7"));
+
+    assertThat(order).containsExactly("provider", "transaction");
   }
 
   @Test

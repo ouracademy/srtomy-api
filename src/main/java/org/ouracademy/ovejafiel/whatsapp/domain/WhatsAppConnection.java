@@ -32,6 +32,10 @@ public class WhatsAppConnection extends DomainObject {
 
   String phoneNumberId;
   String displayNumber;
+
+  /** The account the message templates of the church belong to; null while unknown. */
+  String businessAccountId;
+
   LocalDateTime connectedAt;
 
   protected WhatsAppConnection() {
@@ -51,8 +55,14 @@ public class WhatsAppConnection extends DomainObject {
   }
 
   public void markConnected(String phoneNumberId, String displayNumber, LocalDateTime now) {
+    markConnected(phoneNumberId, displayNumber, null, now);
+  }
+
+  public void markConnected(
+      String phoneNumberId, String displayNumber, String businessAccountId, LocalDateTime now) {
     this.phoneNumberId = phoneNumberId;
     this.displayNumber = displayNumber;
+    this.businessAccountId = businessAccountId;
     this.status = ConnectionStatus.CONNECTED;
     this.connectedAt = now;
   }

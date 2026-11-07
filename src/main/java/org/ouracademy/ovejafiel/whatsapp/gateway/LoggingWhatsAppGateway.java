@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
+import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
@@ -22,8 +23,13 @@ class LoggingWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
-  public String displayNumber(String phoneNumberId) {
-    return null;
+  public PhoneInfo phoneInfo(String phoneNumberId) {
+    return new PhoneInfo(null, null);
+  }
+
+  @Override
+  public void createTemplate(String businessAccountId, WhatsAppTemplate template) {
+    log.info("WhatsApp template {} not created, no provider configured", template.metaName());
   }
 
   @Override

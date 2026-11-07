@@ -78,7 +78,8 @@ class WhatsAppReminderIntegrationTests {
             .get("id")
             .asText();
     phone =
-        "519" + java.util.concurrent.ThreadLocalRandom.current().nextLong(10_000_000L, 99_999_999L);
+        "+519"
+            + java.util.concurrent.ThreadLocalRandom.current().nextLong(10_000_000L, 99_999_999L);
   }
 
   /** An event that starts in {@code hours} hours with one person signed up with a phone. */
@@ -183,6 +184,18 @@ class WhatsAppReminderIntegrationTests {
 
     remind(TestSecurityConfig.schedulerToken(jwtEncoder));
 
+    assertThat(reminders()).isZero();
+  }
+
+  @Test
+  void aRegistrationWithoutCountryCodeIsLeftOutInsteadOfFailingAtMeta() {
+    connectWhatsApp();
+    phone = phone.substring(1); // typed without the plus and the code: 519...
+    eventIn(20);
+
+    var run = remind(TestSecurityConfig.schedulerToken(jwtEncoder));
+
+    assertThat(run.get("queued").asInt()).isZero();
     assertThat(reminders()).isZero();
   }
 
