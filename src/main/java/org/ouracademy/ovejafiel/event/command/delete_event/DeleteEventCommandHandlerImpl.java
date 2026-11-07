@@ -5,6 +5,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommand;
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommandHandler;
+import org.ouracademy.ovejafiel.event.command.RegistrationNotices;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventChangeOption;
 import org.ouracademy.ovejafiel.event.repository.EventRepository;
@@ -17,6 +18,7 @@ class DeleteEventCommandHandlerImpl implements DeleteEventCommandHandler {
 
   private final EventRepository eventRepository;
   private final DeleteAttendanceForEventsCommandHandler deleteAttendanceForEventsCommandHandler;
+  private final RegistrationNotices registrationNotices;
 
   @Override
   @Transactional
@@ -26,6 +28,8 @@ class DeleteEventCommandHandlerImpl implements DeleteEventCommandHandler {
     deleted.addAll(childrenOf(deleted));
     deleteAttendanceForEventsCommandHandler.handle(
         new DeleteAttendanceForEventsCommand(deleted.stream().map(Event::getId).toList()));
+    // Told before the events disappear: whoever signed up is not left waiting for them.
+    registrationNotices.cancelled(deleted);
     deleted.forEach(Event::delete);
     stopSeries(event, command.option());
     return new DeleteEventResult(command.id());

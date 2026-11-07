@@ -70,6 +70,7 @@ class EditEventCommandHandlerImplTests {
   @Mock FindEventIdsWithAttendanceQueryHandler findEventIdsWithAttendanceQueryHandler;
   @Mock DeleteAttendanceForEventsCommandHandler deleteAttendanceForEventsCommandHandler;
   @Mock SendEmailCommandHandler sendEmailCommandHandler;
+  @Mock org.ouracademy.ovejafiel.event.command.RegistrationNotices registrationNotices;
   @Mock jakarta.persistence.EntityManager entityManager;
 
   EditEventCommandHandlerImpl handler;
@@ -89,6 +90,7 @@ class EditEventCommandHandlerImplTests {
             findEventIdsWithAttendanceQueryHandler,
             deleteAttendanceForEventsCommandHandler,
             sendEmailCommandHandler,
+            registrationNotices,
             entityManager);
     lenient()
         .when(eventSeriesRepository.save(any(EventSeries.class)))

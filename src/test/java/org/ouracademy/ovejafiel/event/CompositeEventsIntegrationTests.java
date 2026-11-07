@@ -446,6 +446,53 @@ class CompositeEventsIntegrationTests {
         .hasSize(1);
   }
 
+  @Test
+  void deletingAnEventTellsWhoSignedUpAndChangingAnOwnSubEventToInheritCancelsItsSignUps() {
+    var dinner = subEvent("Cena", "OWN");
+    var ticket = openRegistration(dinner);
+    var email = "tomas-" + UUID.randomUUID() + "@example.org";
+    body(
+        carol,
+        HttpMethod.POST,
+        "/public/events/" + slugOf(dinner) + "/registrations",
+        register(ticket, email));
+
+    // Changing how it is entered cancels the sign-up of the dinner and tells its holder.
+    body(
+        alice,
+        HttpMethod.PUT,
+        "/events/" + dinner,
+        editJson(
+            "Cena",
+            "2030-01-06T10:00:00Z",
+            "2030-01-06T12:00:00Z",
+            ",\"registrationMode\":\"INHERIT\""));
+    assertThat(
+            jdbc.queryForList(
+                "select recipient from outbox_message where type = 'REGISTRATION_CHANGED' "
+                    + "and recipient = ?",
+                String.class,
+                email))
+        .hasSize(1);
+    assertThat(json(alice, "/events/" + dinner + "/registrations")).isEmpty();
+
+    // Deleting the mega event tells whoever signed up to it.
+    var megaEmail = "lucia-" + UUID.randomUUID() + "@example.org";
+    body(
+        carol,
+        HttpMethod.POST,
+        "/public/events/" + conferenceSlug + "/registrations",
+        register(openRegistration(conference), megaEmail));
+    status(alice, HttpMethod.DELETE, "/events/" + conference, "{\"option\":\"THIS_EVENT\"}");
+    assertThat(
+            jdbc.queryForList(
+                "select recipient from outbox_message where type = 'EVENT_CANCELLED' "
+                    + "and recipient = ?",
+                String.class,
+                megaEmail))
+        .hasSize(1);
+  }
+
   JsonNode find(JsonNode list, String title) {
     for (var item : list) {
       if (item.get("title").asText().equals(title)) {

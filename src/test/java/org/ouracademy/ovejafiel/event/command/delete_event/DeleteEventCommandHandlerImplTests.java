@@ -38,6 +38,7 @@ class DeleteEventCommandHandlerImplTests {
 
   @Mock EventRepository eventRepository;
   @Mock DeleteAttendanceForEventsCommandHandler deleteAttendanceForEventsCommandHandler;
+  @Mock org.ouracademy.ovejafiel.event.command.RegistrationNotices registrationNotices;
 
   DeleteEventCommandHandlerImpl handler;
 
@@ -47,7 +48,8 @@ class DeleteEventCommandHandlerImplTests {
   @BeforeEach
   void setUp() {
     handler =
-        new DeleteEventCommandHandlerImpl(eventRepository, deleteAttendanceForEventsCommandHandler);
+        new DeleteEventCommandHandlerImpl(
+            eventRepository, deleteAttendanceForEventsCommandHandler, registrationNotices);
     var church = organization(PartyId.generate(), "Iglesia", Organization.Type.CHURCH);
     series = eventSeries(church);
     event = occurrenceOf(series, EventId.generate());
@@ -65,6 +67,7 @@ class DeleteEventCommandHandlerImplTests {
         handler.handle(new DeleteEventCommand(event.getId(), EventChangeOption.THIS_EVENT));
 
     assertThat(result.id()).isEqualTo(event.getId());
+    verify(registrationNotices).cancelled(List.of(event));
     assertThat(event.getDeletedTime()).isNotNull();
     assertThat(series.getDeletedTime()).isNull();
     assertThat(series.getRecurrence().getEndType()).isEqualTo(Recurrence.EndType.UNTIL);

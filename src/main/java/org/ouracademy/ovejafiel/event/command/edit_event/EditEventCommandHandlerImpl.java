@@ -25,11 +25,13 @@ import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.
 import org.ouracademy.ovejafiel.attendance.command.delete_attendance_for_events.DeleteAttendanceForEventsCommandHandler;
 import org.ouracademy.ovejafiel.attendance.query.find_event_ids_with_attendance.FindEventIdsWithAttendanceQuery;
 import org.ouracademy.ovejafiel.attendance.query.find_event_ids_with_attendance.FindEventIdsWithAttendanceQueryHandler;
+import org.ouracademy.ovejafiel.event.command.RegistrationNotices;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventChangeOption;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.domain.EventSeries;
 import org.ouracademy.ovejafiel.event.domain.Recurrence;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.event.domain.RegistrationStatus;
 import org.ouracademy.ovejafiel.event.query.EffectiveRegistration;
 import org.ouracademy.ovejafiel.event.repository.EventRegistrationRepository;
@@ -71,6 +73,7 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
   private final FindEventIdsWithAttendanceQueryHandler findEventIdsWithAttendanceQueryHandler;
   private final DeleteAttendanceForEventsCommandHandler deleteAttendanceForEventsCommandHandler;
   private final SendEmailCommandHandler sendEmailCommandHandler;
+  private final RegistrationNotices registrationNotices;
   private final EntityManager entityManager;
 
   @Value("${app.url:http://localhost:3000}")
@@ -174,8 +177,18 @@ class EditEventCommandHandlerImpl implements EditEventCommandHandler {
   private void validateSchedule(Event event, Edit edit) {
     if (event.isChild()) {
       event.requireInside(event.getParent());
-      if (edit.command().registrationMode() != null) {
-        event.setRegistrationMode(edit.command().registrationMode());
+      var mode = edit.command().registrationMode();
+      if (mode != null) {
+        var wasOwn = event.getRegistrationMode() == RegistrationMode.OWN;
+        event.setRegistrationMode(mode);
+        if (wasOwn && mode != RegistrationMode.OWN) {
+          // Its own sign-ups no longer count: they are cancelled and their holders told.
+          registrationNotices.ownCancelled(
+              event,
+              mode == RegistrationMode.INHERIT
+                  ? "Ahora se entra con la inscripción del evento al que pertenece."
+                  : "Ahora no hace falta inscribirse: la entrada es libre.");
+        }
       }
     }
     eventRepository
