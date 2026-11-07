@@ -26,3 +26,9 @@ variable "langsmith_api_key" {
   sensitive   = true
   default     = "not-set"
 }
+
+variable "database_url" {
+  description = "Connection string of the agent's own database (the neon module gives it). Without it the agent keeps its state in memory and loses a pending confirmation when it restarts."
+  type        = string
+  sensitive   = true
+}

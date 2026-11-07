@@ -111,6 +111,7 @@ module "agent" {
   kapso_webhook_secret = var.agent_kapso_webhook_secret
   anthropic_api_key    = var.agent_anthropic_api_key
   langsmith_api_key    = var.agent_langsmith_api_key
+  database_url         = module.neon.agent_database_url
 
   depends_on = [module.db_secrets]
 }

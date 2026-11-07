@@ -77,10 +77,10 @@ Kapso creates a **project webhook** and shows its secret once it exists, so crea
 What Terraform now creates for them:
 
 - In Secret Manager, read by the API: `kapso-api-key`, `kapso-webhook-secret` and `whatsapp-delegation-key`. The last one is **generated** (a 2048-bit RSA key in PKCS#8 PEM, kept in the state) and signs the ten-minute tokens the agent uses to call the API as a member; nobody needs to see it. Replacing it only cuts the tokens in flight.
-- `modules/agent/`: the `srtomy-agent` service account (the only one the API lets call `/v1/internal/whatsapp/**`) and its own secrets `agent-kapso-webhook-secret`, `agent-anthropic-api-key` and `agent-langsmith-api-key`; it also reads the Kapso project key `kapso-api-key`.
+- `modules/agent/`: the `srtomy-agent` service account (the only one the API lets call `/v1/internal/whatsapp/**`) and its own secrets `agent-kapso-webhook-secret`, `agent-anthropic-api-key`, `agent-langsmith-api-key` and `agent-database-url`. The last one points to a second database (`srtomy_agent`) that the `neon` module creates in the same Neon project, where the agent keeps its conversations (a separate database, not a separate credential: it uses the API's role); it also reads the Kapso project key `kapso-api-key`.
 - The deploy workflows of the API pass `INTERNAL_AGENT_EMAIL=srtomy-agent@<project>.iam.gserviceaccount.com`, so the API accepts that account's Google ID tokens. Redeploy the API after the first `apply`.
 
-Not here yet: the agent's own Cloud Run service, container image and deploy workflow (they belong to the agent's repo and need its own Workload Identity binding). When they exist, run the service as `srtomy-agent@<project>.iam.gserviceaccount.com` and mount the three `agent-*` secrets plus `kapso-api-key` as `KAPSO_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY` and `KAPSO_API_KEY`.
+Not here yet: the agent's own Cloud Run service, container image and deploy workflow (they belong to the agent's repo and need its own Workload Identity binding). When they exist, run the service as `srtomy-agent@<project>.iam.gserviceaccount.com` and mount the four `agent-*` secrets plus `kapso-api-key` as `KAPSO_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY`, `DATABASE_URL` and `KAPSO_API_KEY`.
 
 ## Cloud Scheduler and Cloud Tasks
 

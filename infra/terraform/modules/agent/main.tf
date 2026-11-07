@@ -27,6 +27,8 @@ locals {
     "agent-kapso-webhook-secret" = var.kapso_webhook_secret
     "agent-anthropic-api-key"    = var.anthropic_api_key
     "agent-langsmith-api-key"    = var.langsmith_api_key
+    # Where it keeps the conversations and the messages it already handled.
+    "agent-database-url" = var.database_url
   }
 }
 
