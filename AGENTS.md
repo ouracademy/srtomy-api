@@ -9,6 +9,10 @@ Always use [Conventional Commits](https://www.conventionalcommits.org/) for comm
 `<type>(<optional scope>): <description>`, allowed types: feat, fix, docs, style, refactor, perf, test, chore, ci, build, revert.
 Enforced by `.githooks/commit-msg` (`git config core.hooksPath .githooks`) and by CI.
 
+## Dependencies
+
+The product owner wants the latest versions at all times. When a dependency problem shows up (the `secrets and dependencies` check, Dependabot or a CVE report a vulnerability, a deprecation, a failing check caused by an old library), do not patch around it by pinning or excluding only the vulnerable artifact: update the dependency and its parents (Spring Boot, plugins, the Maven wrapper) to the latest version, major ones included, and fix what breaks. Check `./mvnw versions:display-dependency-updates` and update the rest while you are at it. Pin or override a version only as a last resort when no released parent allows the fix, and write it in the technical debt table (see below) with when to remove it.
+
 ## Code style
 
 Java code is formatted with Spotless (`google-java-format`). It runs automatically on edit via the Claude Code hook; CI verifies it with `./mvnw spotless:check`.

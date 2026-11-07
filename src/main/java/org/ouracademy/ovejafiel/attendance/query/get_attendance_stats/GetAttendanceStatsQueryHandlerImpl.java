@@ -7,11 +7,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.attendance.domain.EventAttendance;
 import org.ouracademy.ovejafiel.attendance.query.get_attendance_stats.GetAttendanceStatsResult.Bucket;
 import org.ouracademy.ovejafiel.attendance.repository.EventAttendanceRepository;
+import org.ouracademy.ovejafiel.attendance.repository.EventAttendanceRepository.TicketOnlyOfEvent;
 import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.query.FindEventResult;
 import org.ouracademy.ovejafiel.event.query.find_events_in_range.FindEventsInRangeQuery;
@@ -25,7 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Events of the range (through the event module's own query, never its repository) plus their
  * attendance sheets, aggregated per period: how many events happened, how many marks (people plus
- * unnamed guests) and how many distinct people attended.
+ * unnamed guests plus entries by ticket, each counted once as in the event's own summary) and how
+ * many distinct people attended.
+ *
+ * <p>A mega event and each of its sub-events are events with their own list, so each counts once:
+ * the entrance to the mega event and the sessions inside it are separate marks, and a person who
+ * goes to three sub-events is three marks but one unique attendee.
  */
 @Service
 @RequiredArgsConstructor
@@ -49,6 +56,7 @@ class GetAttendanceStatsQueryHandlerImpl implements GetAttendanceStatsQueryHandl
         findEventsInRangeQueryHandler.handle(
             new FindEventsInRangeQuery(query.organizationIds(), query.start(), query.end()));
     var attendanceByEventId = attendanceByEventId(events);
+    var ticketOnlyByEventId = ticketOnlyByEventId(events);
 
     var tallies = new ArrayList<Tally>(periods.size());
     for (var i = 0; i < periods.size(); i++) {
@@ -68,6 +76,7 @@ class GetAttendanceStatsQueryHandlerImpl implements GetAttendanceStatsQueryHandl
         tally.attendanceMarks += attendance.getPersonIds().size() + attendance.getGuestCount();
         tally.attendees.addAll(attendance.getPersonIds());
       }
+      tally.attendanceMarks += ticketOnlyByEventId.getOrDefault(event.id().value(), 0L);
     }
 
     var buckets = new ArrayList<Bucket>(periods.size());
@@ -85,6 +94,17 @@ class GetAttendanceStatsQueryHandlerImpl implements GetAttendanceStatsQueryHandl
         .findByEventIds(events.stream().map(FindEventResult::id).toList())
         .stream()
         .collect(Collectors.toMap(EventAttendance::getId, attendance -> attendance));
+  }
+
+  /** Entries by ticket (own or inherited) of people not already marked, counted once. */
+  private Map<UUID, Long> ticketOnlyByEventId(List<FindEventResult> events) {
+    if (events.isEmpty()) {
+      return Map.of();
+    }
+    return eventAttendanceRepository
+        .ticketOnlyOf(events.stream().map(event -> event.id().value()).toList())
+        .stream()
+        .collect(Collectors.toMap(TicketOnlyOfEvent::getEventId, TicketOnlyOfEvent::getTicketOnly));
   }
 
   private static int indexOf(List<Period> periods, LocalDateTime at) {

@@ -44,6 +44,7 @@ class ListMyEventsQueryHandlerImplTests {
     when(row.getRegistrationStatus()).thenReturn("CONFIRMED");
     when(row.getCancelCode()).thenReturn("cancel");
     when(row.getTicketCode()).thenReturn("ticket");
+    when(row.getParentTitle()).thenReturn("Mega evento");
     when(repository.findOfUser(id.value(), "me@x.org")).thenReturn(List.of(row));
 
     var events = handler.handle(new ListMyEventsQuery("me"));
@@ -61,6 +62,7 @@ class ListMyEventsQueryHandlerImplTests {
     assertThat(event.registrationStatus()).isEqualTo(RegistrationStatus.CONFIRMED);
     assertThat(event.cancelCode()).isEqualTo("cancel");
     assertThat(event.ticketCode()).isEqualTo("ticket");
+    assertThat(event.parentTitle()).isEqualTo("Mega evento");
   }
 
   @Test

@@ -5,6 +5,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import org.ouracademy.ovejafiel.event.domain.Event;
 import org.ouracademy.ovejafiel.event.domain.EventId;
+import org.ouracademy.ovejafiel.event.domain.RegistrationMode;
 import org.ouracademy.ovejafiel.organization.query.FindOrganizationResult;
 import org.ouracademy.ovejafiel.person.query.FindPersonResult;
 
@@ -24,9 +25,68 @@ public record FindEventResult(
     Boolean isACourse,
     RecurrenceResult recurrence,
     LocalDateTime createDate,
-    LocalDateTime lastModifiedDate) {
+    LocalDateTime lastModifiedDate,
+    EventId parentEventId,
+    String parentTitle,
+    RegistrationMode registrationMode,
+    String track,
+    List<ChildResult> children,
+    int programSize,
+    boolean requiresContainerRegistration) {
+
+  /** A sub-event listed inside its container. */
+  public record ChildResult(
+      EventId id,
+      String title,
+      ZonedDateTime start,
+      ZonedDateTime end,
+      Boolean isACourse,
+      RegistrationMode registrationMode,
+      String track) {
+
+    static ChildResult from(Event child) {
+      return new ChildResult(
+          child.getId(),
+          child.getTitle(),
+          child.getStart(),
+          child.getEnd(),
+          child.getIsACourse(),
+          child.getRegistrationMode(),
+          child.getTrack());
+    }
+  }
+
+  /** The same event saying how many sub-events it has, when the list does not carry them. */
+  public FindEventResult withProgramSize(int size) {
+    return new FindEventResult(
+        id,
+        title,
+        speakers,
+        start,
+        end,
+        address,
+        organization,
+        description,
+        isACourse,
+        recurrence,
+        createDate,
+        lastModifiedDate,
+        parentEventId,
+        parentTitle,
+        registrationMode,
+        track,
+        children,
+        size,
+        requiresContainerRegistration);
+  }
 
   public static FindEventResult from(Event event) {
+    return from(event, List.of());
+  }
+
+  /** {@code children} are the sub-events of {@code event}, in chronological order. */
+  public static FindEventResult from(Event event, List<Event> children) {
+    var parent = event.getParent();
     return new FindEventResult(
         event.getId(),
         event.getTitle(),
@@ -39,7 +99,14 @@ public record FindEventResult(
         event.getIsACourse(),
         RecurrenceResult.from(event.getSeries()),
         event.getCreateDate(),
-        event.getLastModifiedDate());
+        event.getLastModifiedDate(),
+        parent == null ? null : parent.getId(),
+        parent == null ? null : parent.getTitle(),
+        event.getRegistrationMode(),
+        event.getTrack(),
+        children.stream().map(ChildResult::from).toList(),
+        children.size(),
+        event.isRequiresContainerRegistration());
   }
 
   private static List<FindPersonResult> speakersOf(Event event) {

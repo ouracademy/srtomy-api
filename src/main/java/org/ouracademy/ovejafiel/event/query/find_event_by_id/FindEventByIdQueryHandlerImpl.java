@@ -16,6 +16,8 @@ class FindEventByIdQueryHandlerImpl implements FindEventByIdQueryHandler {
   @Override
   @Transactional(readOnly = true)
   public Optional<FindEventResult> handle(FindEventByIdQuery query) {
-    return eventRepository.findById(query.id()).map(FindEventResult::from);
+    return eventRepository
+        .findById(query.id())
+        .map(event -> FindEventResult.from(event, eventRepository.findByParentOrderByStart(event)));
   }
 }

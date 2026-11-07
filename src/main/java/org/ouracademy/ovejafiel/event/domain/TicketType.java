@@ -3,8 +3,14 @@ package org.ouracademy.ovejafiel.event.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import java.time.ZonedDateTime;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.Getter;
 import org.ouracademy.ovejafiel.shared.domain.DomainObject;
 import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
@@ -36,6 +42,16 @@ public class TicketType extends DomainObject {
   ZonedDateTime salesEnd;
 
   int position;
+
+  /**
+   * The sub-events of the mega event this ticket gives access to; empty means the whole program.
+   */
+  @ManyToMany
+  @JoinTable(
+      name = "ticket_type_sub_event",
+      joinColumns = @JoinColumn(name = "ticket_type_id"),
+      inverseJoinColumns = @JoinColumn(name = "event_id"))
+  Set<Event> subEvents = new HashSet<>();
 
   protected TicketType() {
     // jpa only
@@ -72,6 +88,24 @@ public class TicketType extends DomainObject {
     this.quantity = quantity;
     this.salesStart = salesStart;
     this.salesEnd = salesEnd;
+  }
+
+  /** Limits the ticket to these sub-events of its event; none means the whole program. */
+  public void grantOnly(Collection<Event> subEvents) {
+    for (var subEvent : subEvents) {
+      if (!subEvent.isChild() || !subEvent.getParent().getId().equals(event.getId())) {
+        throw new DomainValidationException(
+            "«" + subEvent.getTitle() + "» no es parte del programa de este evento");
+      }
+    }
+    this.subEvents.clear();
+    this.subEvents.addAll(subEvents);
+  }
+
+  /** Whether the ticket lets its holder into {@code subEvent} (all of the program if unlimited). */
+  public boolean grants(Event subEvent) {
+    return subEvents.isEmpty()
+        || subEvents.stream().anyMatch(granted -> granted.getId().equals(subEvent.getId()));
   }
 
   public void moveTo(int position) {

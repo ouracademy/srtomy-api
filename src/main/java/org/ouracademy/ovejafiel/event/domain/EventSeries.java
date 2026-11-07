@@ -10,6 +10,7 @@ import jakarta.persistence.OneToMany;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -132,6 +133,34 @@ public class EventSeries extends DomainObject {
     event.speakers = new ArrayList<>(speakers);
     event.series = this;
     return event;
+  }
+
+  public void rename(String title) {
+    this.title = title;
+  }
+
+  /** New time of day and length for the occurrences to come; the first day does not change. */
+  public void reschedule(LocalTime time, Duration duration) {
+    this.startLocal = startLocal.toLocalDate().atTime(time);
+    this.durationSeconds = duration.toSeconds();
+  }
+
+  /**
+   * A series that takes over from this one: same data and same materialization state, so the job
+   * that extends series keeps creating its occurrences. The caller then edits it and moves the
+   * occurrences to it.
+   */
+  public EventSeries successor(
+      LocalDateTime startLocal, Duration duration, ZoneId timeZone, Recurrence recurrence) {
+    var next = new EventSeries(title, startLocal, duration, timeZone, recurrence);
+    next.address = address;
+    next.description = description;
+    next.isACourse = isACourse;
+    next.organization = organization;
+    next.speakers = new ArrayList<>(speakers);
+    next.materializedUntil = materializedUntil;
+    next.fullyMaterialized = fullyMaterialized;
+    return next;
   }
 
   /** The series stops repeating after {@code lastDay}; a series left without days is deleted. */

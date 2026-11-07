@@ -199,6 +199,92 @@ class AttendanceCheckInControllerTests {
     verifyNoInteractions(markUserPresentCommandHandler);
   }
 
+  private CheckInResult inheritedCheckIn(UserId account, boolean already) {
+    return new CheckInResult(
+        EventRegistrationId.generate(),
+        account,
+        "Ana Paz",
+        "General",
+        already,
+        java.time.LocalDateTime.of(2030, 1, 6, 10, 0),
+        true);
+  }
+
+  @Test
+  void theContainersTicketMarksThePersonInTheSubEventWithoutTouchingTheSignUp() {
+    var account = UserId.generate();
+    given(checkInRegistrationByTicketCommandHandler.handle(any()))
+        .willReturn(inheritedCheckIn(account, false));
+    given(markUserPresentCommandHandler.handle(any()))
+        .willReturn(Optional.of(new MarkUserPresentResult(PartyId.generate(), false)));
+
+    var body =
+        assertThat(
+                mvc.post()
+                    .uri("/v1/events/" + id + "/attendance/check-in")
+                    .header("Authorization", bearer())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"ticketCode\":\"abc\"}"))
+            .hasStatusOk()
+            .bodyJson();
+    body.extractingPath("$.name").isEqualTo("Ana Paz");
+    body.extractingPath("$.alreadyCheckedIn").isEqualTo(false);
+    verify(markUserPresentCommandHandler)
+        .handle(
+            new MarkUserPresentCommand(new EventId(id), account, CheckInSource.QR_TICKET, usher));
+  }
+
+  @Test
+  void scanningTheContainersTicketAgainInTheSubEventSaysTheyAlreadyCame() {
+    var account = UserId.generate();
+    given(checkInRegistrationByTicketCommandHandler.handle(any()))
+        .willReturn(inheritedCheckIn(account, true));
+    given(markUserPresentCommandHandler.handle(any()))
+        .willReturn(Optional.of(new MarkUserPresentResult(PartyId.generate(), true)));
+
+    assertThat(
+            mvc.post()
+                .uri("/v1/events/" + id + "/attendance/check-in")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"ticketCode\":\"abc\"}"))
+        .hasStatusOk()
+        .bodyJson()
+        .extractingPath("$.alreadyCheckedIn")
+        .isEqualTo(true);
+  }
+
+  @Test
+  void anInheritedTicketIsAcceptedWithOrWithoutAnAccountOrALinkedPerson() {
+    // No account: nobody to mark in the attendance list, but the entry is recorded.
+    given(checkInRegistrationByTicketCommandHandler.handle(any()))
+        .willReturn(inheritedCheckIn(null, false));
+    assertThat(
+            mvc.post()
+                .uri("/v1/events/" + id + "/attendance/check-in")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"ticketCode\":\"abc\"}"))
+        .hasStatusOk()
+        .bodyJson()
+        .extractingPath("$.checkedInAt")
+        .isNotNull();
+    verifyNoInteractions(markUserPresentCommandHandler);
+
+    // An account that is not linked to a person of the church.
+    var account = UserId.generate();
+    given(checkInRegistrationByTicketCommandHandler.handle(any()))
+        .willReturn(inheritedCheckIn(account, false));
+    given(markUserPresentCommandHandler.handle(any())).willReturn(Optional.empty());
+    assertThat(
+            mvc.post()
+                .uri("/v1/events/" + id + "/attendance/check-in")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"ticketCode\":\"abc\"}"))
+        .hasStatusOk();
+  }
+
   @Test
   void aTicketWithoutCodeOrOfNothingIsRejected() {
     assertThat(

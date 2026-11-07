@@ -3,6 +3,7 @@ package org.ouracademy.ovejafiel.event.controller.dto;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.ouracademy.ovejafiel.event.domain.EventId;
 import org.ouracademy.ovejafiel.event.query.get_event_registration.GetEventRegistrationResult;
 
 /**
@@ -25,7 +26,8 @@ public record EventRegistrationSetupResponse(
       Integer quantity,
       ZonedDateTime salesStart,
       ZonedDateTime salesEnd,
-      long sold) {}
+      long sold,
+      List<UUID> subEventIds) {}
 
   public static EventRegistrationSetupResponse from(GetEventRegistrationResult result) {
     return new EventRegistrationSetupResponse(
@@ -45,7 +47,8 @@ public record EventRegistrationSetupResponse(
                         ticket.quantity(),
                         ticket.salesStart(),
                         ticket.salesEnd(),
-                        ticket.sold()))
+                        ticket.sold(),
+                        ticket.subEventIds().stream().map(EventId::value).toList()))
             .toList());
   }
 }

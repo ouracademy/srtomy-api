@@ -123,7 +123,10 @@ public class EventSharingController {
       @RequestBody @Valid EventSharingRequest request) {
     manage(jwt, id);
     setEventSharingCommandHandler.handle(
-        new SetEventSharingCommand(new EventId(id), request.generalAccess()));
+        new SetEventSharingCommand(
+            new EventId(id),
+            request.generalAccess(),
+            Boolean.TRUE.equals(request.applyToProgram())));
     return sharing(jwt, id);
   }
 
@@ -203,7 +206,10 @@ public class EventSharingController {
                             ticket.currency(),
                             ticket.quantity(),
                             ticket.salesStart(),
-                            ticket.salesEnd()))
+                            ticket.salesEnd(),
+                            ticket.subEventIds() == null
+                                ? List.of()
+                                : ticket.subEventIds().stream().map(EventId::new).toList()))
                 .toList()));
     return currentRegistration(id);
   }

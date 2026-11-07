@@ -139,4 +139,62 @@ class GetAttendanceStatsQueryHandlerImplTests {
                         BucketUnit.DAY)))
         .isInstanceOf(DomainValidationException.class);
   }
+
+  @Test
+  void aMegaEventAndItsSubEventsCountOnceEachAndTicketEntriesAreAdded() {
+    var megaId = EventId.generate();
+    var courseId = EventId.generate();
+    var mega =
+        eventBetween(
+            megaId,
+            "Congreso",
+            church,
+            ZonedDateTime.parse("2026-10-01T10:00:00Z"),
+            ZonedDateTime.parse("2026-10-01T20:00:00Z"));
+    var course =
+        eventBetween(
+            courseId,
+            "Curso de liderazgo",
+            church,
+            ZonedDateTime.parse("2026-10-01T11:00:00Z"),
+            ZonedDateTime.parse("2026-10-01T13:00:00Z"));
+    var range = Instant.parse("2026-10-01T00:00:00Z");
+    var rangeEnd = Instant.parse("2026-10-01T23:59:59Z");
+    when(findEventsInRangeQueryHandler.handle(
+            new FindEventsInRangeQuery(List.of(node), range, rangeEnd)))
+        .thenReturn(List.of(FindEventResult.from(mega), FindEventResult.from(course)));
+    var ana = person(PartyId.generate(), "Ana", "Diaz");
+    when(eventAttendanceRepository.findByEventIds(List.of(megaId, courseId)))
+        .thenReturn(
+            List.of(eventAttendance(mega, List.of(ana)), eventAttendance(course, List.of(ana))));
+    // Three people came in with the ticket of the mega event and are in no list.
+    when(eventAttendanceRepository.ticketOnlyOf(List.of(megaId.value(), courseId.value())))
+        .thenReturn(List.of(ticketOnly(megaId, 3)));
+
+    var bucket =
+        handler
+            .handle(new GetAttendanceStatsQuery(List.of(node), range, rangeEnd, BucketUnit.DAY))
+            .buckets()
+            .get(0);
+
+    assertThat(bucket.eventsCount()).isEqualTo(2);
+    // Ana at the mega event and at the course, plus 3 entries by ticket.
+    assertThat(bucket.attendanceMarks()).isEqualTo(5);
+    assertThat(bucket.uniqueAttendees()).isEqualTo(1);
+    assertThat(bucket.averagePerEvent()).isEqualTo(2.5);
+  }
+
+  private static EventAttendanceRepository.TicketOnlyOfEvent ticketOnly(EventId id, long count) {
+    return new EventAttendanceRepository.TicketOnlyOfEvent() {
+      @Override
+      public java.util.UUID getEventId() {
+        return id.value();
+      }
+
+      @Override
+      public long getTicketOnly() {
+        return count;
+      }
+    };
+  }
 }

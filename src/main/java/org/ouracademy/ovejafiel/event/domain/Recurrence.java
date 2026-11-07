@@ -162,6 +162,19 @@ public class Recurrence {
         frequency, interval, daysOfWeek, monthlyMode, EndType.UNTIL, lastDay, null);
   }
 
+  /**
+   * What is left of this recurrence from {@code day} on, for a series that starts there. Only a
+   * recurrence that ends after a number of occurrences changes: it keeps the ones not yet done.
+   */
+  public Recurrence remainingFrom(LocalDateTime first, ZoneId zone, LocalDate day) {
+    if (endType != EndType.COUNT) {
+      return this;
+    }
+    var done = expand(first, zone, day.minusDays(1)).starts().size();
+    return new Recurrence(
+        frequency, interval, daysOfWeek, monthlyMode, endType, null, Math.max(1, count - done));
+  }
+
   /** The recurrence as an RFC 5545 RRULE value (informational, e.g. for the calendar feed). */
   public String toRRule(ZoneId zone) {
     var rule = new StringBuilder("FREQ=" + frequency + ";INTERVAL=" + interval);
