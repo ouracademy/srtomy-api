@@ -3,6 +3,8 @@ package org.ouracademy.ovejafiel.organization.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.LocalDate;
@@ -428,7 +430,7 @@ class OrganizationControllerTests {
     response.extractingPath("$.buckets[0].label").isEqualTo("2026-10-01");
     response.extractingPath("$.buckets[0].membersAtEnd").isEqualTo(10);
 
-    org.mockito.Mockito.verify(getMemberGrowthForRangeQueryHandler)
+    verify(getMemberGrowthForRangeQueryHandler)
         .handle(
             new GetMemberGrowthForRangeQuery(
                 List.of(id, below),
@@ -439,13 +441,13 @@ class OrganizationControllerTests {
                     .minusNanos(1)
                     .toInstant(),
                 BucketUnit.DAY));
-    org.mockito.Mockito.verify(authorizeQueryHandler)
+    verify(authorizeQueryHandler)
         .handle(new AuthorizeQuery("test-user", id, Permission.MEMBERS_READ));
   }
 
   @Test
   void growthRangeNeedsMembersRead() {
-    org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("no"))
+    doThrow(new org.springframework.security.access.AccessDeniedException("no"))
         .when(authorizeQueryHandler)
         .handle(any());
 

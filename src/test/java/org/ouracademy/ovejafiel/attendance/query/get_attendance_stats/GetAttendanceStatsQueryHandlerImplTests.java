@@ -129,14 +129,14 @@ class GetAttendanceStatsQueryHandlerImplTests {
 
   @Test
   void startAfterEndIsRejected() {
-    assertThatThrownBy(
-            () ->
-                handler.handle(
-                    new GetAttendanceStatsQuery(
-                        List.of(node),
-                        Instant.parse("2026-10-05T00:00:00Z"),
-                        Instant.parse("2026-10-01T00:00:00Z"),
-                        BucketUnit.DAY)))
+    var backwards =
+        new GetAttendanceStatsQuery(
+            List.of(node),
+            Instant.parse("2026-10-05T00:00:00Z"),
+            Instant.parse("2026-10-01T00:00:00Z"),
+            BucketUnit.DAY);
+
+    assertThatThrownBy(() -> handler.handle(backwards))
         .isInstanceOf(DomainValidationException.class);
   }
 

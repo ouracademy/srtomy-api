@@ -3,8 +3,6 @@ package org.ouracademy.ovejafiel.organization.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -51,9 +49,8 @@ import org.ouracademy.ovejafiel.organization.query.find_organization_children.Fi
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_subtree.FindOrganizationSubtreeQueryHandler;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
-import org.ouracademy.ovejafiel.shared.BucketUnit;
+import org.ouracademy.ovejafiel.shared.DateRange;
 import org.ouracademy.ovejafiel.shared.TokenClaims;
-import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -251,29 +248,14 @@ public class OrganizationController {
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
     authorize(jwt, id, Permission.MEMBERS_READ);
-    if (startDate.isAfter(endDate)) {
-      throw new DomainValidationException("La fecha de inicio no puede ser posterior a la de fin");
-    }
+    var range = new DateRange(startDate, endDate);
     var subtree =
         findOrganizationSubtreeQueryHandler.handle(
             new FindOrganizationSubtreeQuery(new PartyId(id)));
-    var start = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
-    var end = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).minusNanos(1).toInstant();
     return MemberGrowthRangeResponse.from(
         getMemberGrowthForRangeQueryHandler.handle(
             new GetMemberGrowthForRangeQuery(
-                subtree.ids(), start, end, bucketFor(startDate, endDate))));
-  }
-
-  private static BucketUnit bucketFor(LocalDate startDate, LocalDate endDate) {
-    var days = ChronoUnit.DAYS.between(startDate, endDate) + 1;
-    if (days <= 31) {
-      return BucketUnit.DAY;
-    }
-    if (days <= 120) {
-      return BucketUnit.WEEK;
-    }
-    return BucketUnit.MONTH;
+                subtree.ids(), range.start(), range.end(), range.bucket())));
   }
 
   @DeleteMapping("{id}")
