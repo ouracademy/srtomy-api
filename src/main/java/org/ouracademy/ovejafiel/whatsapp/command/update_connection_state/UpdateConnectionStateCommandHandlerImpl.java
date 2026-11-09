@@ -1,6 +1,7 @@
 package org.ouracademy.ovejafiel.whatsapp.command.update_connection_state;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ouracademy.ovejafiel.whatsapp.repository.WhatsAppConnectionRepository;
@@ -25,7 +26,7 @@ class UpdateConnectionStateCommandHandlerImpl implements UpdateConnectionStateCo
   @Override
   @Transactional
   public UpdateConnectionStateResult handle(UpdateConnectionStateCommand command) {
-    var now = LocalDateTime.now();
+    var now = LocalDateTime.now(ZoneOffset.UTC);
     if (command.idempotencyKey() != null
         && !webhookEvents.markReceived(command.idempotencyKey(), now)) {
       return new UpdateConnectionStateResult(0, true);

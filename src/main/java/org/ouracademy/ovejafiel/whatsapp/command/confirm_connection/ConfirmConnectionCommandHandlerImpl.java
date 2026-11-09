@@ -1,6 +1,7 @@
 package org.ouracademy.ovejafiel.whatsapp.command.confirm_connection;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import org.ouracademy.ovejafiel.whatsapp.gateway.WhatsAppGateway;
 import org.ouracademy.ovejafiel.whatsapp.gateway.WhatsAppGateway.PhoneInfo;
 import org.ouracademy.ovejafiel.whatsapp.repository.WhatsAppConnectionRepository;
@@ -62,7 +63,7 @@ class ConfirmConnectionCommandHandlerImpl implements ConfirmConnectionCommandHan
   }
 
   private ConfirmConnectionResult confirm(ConfirmConnectionCommand command, PhoneInfo info) {
-    var now = LocalDateTime.now();
+    var now = LocalDateTime.now(ZoneOffset.UTC);
     if (command.idempotencyKey() != null
         && !webhookEvents.markReceived(command.idempotencyKey(), now)) {
       return ConfirmConnectionResult.ALREADY_HANDLED;
@@ -82,7 +83,7 @@ class ConfirmConnectionCommandHandlerImpl implements ConfirmConnectionCommandHan
     try {
       var info = gateway.phoneInfo(phoneNumberId);
       return info == null ? new PhoneInfo(null, null) : info;
-    } catch (RuntimeException e) {
+    } catch (RuntimeException _) {
       return new PhoneInfo(null, null);
     }
   }

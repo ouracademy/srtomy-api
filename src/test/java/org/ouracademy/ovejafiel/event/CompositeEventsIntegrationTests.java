@@ -80,7 +80,9 @@ class CompositeEventsIntegrationTests {
   @Test
   void aMegaEventListsItsSubEventsAndEachOneKnowsItsContainer() {
     var workshop = subEvent("Taller", "INHERIT");
-    var dinner = subEvent("Cena", "OWN");
+    // After the workshop: two sub-events that start together have no order of their own.
+    var dinner =
+        createEvent("Cena", "2030-01-06T19:00:00Z", "2030-01-06T21:00:00Z", conference, "OWN");
 
     var detail = json(alice, "/events/" + conference);
     assertThat(detail.get("children"))

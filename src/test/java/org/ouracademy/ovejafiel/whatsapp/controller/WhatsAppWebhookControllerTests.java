@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.whatsapp.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -90,7 +91,7 @@ class WhatsAppWebhookControllerTests {
 
     assertThat(post(body, sign(body), "whatsapp.phone_number.created")).hasStatus(400);
     assertThat(post("not json", sign("not json"), "whatsapp.phone_number.created")).hasStatus(400);
-    verify(confirmConnectionCommandHandler, org.mockito.Mockito.never()).handle(any());
+    verify(confirmConnectionCommandHandler, never()).handle(any());
   }
 
   private static final String NUMBER_EVENT =

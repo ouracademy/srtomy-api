@@ -9,11 +9,8 @@ import java.util.Set;
 import org.ouracademy.ovejafiel.outbox.PermanentDeliveryException;
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
 import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppTemplate;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
@@ -22,12 +19,11 @@ import org.springframework.web.client.RestClient;
  * WhatsApp Cloud API proxy for messages. Meta fees are paid by us with Kapso credits ({@code
  * partner_managed}) and billed to the church.
  */
-@Component
-@ConditionalOnExpression("!'${kapso.api-key:}'.isEmpty()")
 class KapsoWhatsAppGateway implements WhatsAppGateway {
 
   private static final Set<Integer> RETRYABLE_4XX = Set.of(408, 409, 425, 429);
   private static final String META_VERSION = "v24.0";
+  private static final String LANGUAGE = "language";
 
   private final RestClient platform;
   private final RestClient meta;
@@ -35,10 +31,7 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
   private final String failureRedirectUrl;
 
   KapsoWhatsAppGateway(
-      @Value("${kapso.api-key}") String apiKey,
-      @Value("${kapso.url:https://api.kapso.ai}") String url,
-      @Value("${kapso.success-redirect-url:}") String successRedirectUrl,
-      @Value("${kapso.failure-redirect-url:}") String failureRedirectUrl) {
+      String apiKey, String url, String successRedirectUrl, String failureRedirectUrl) {
     this.platform =
         RestClient.builder()
             .baseUrl(url + "/platform/v1")
@@ -79,7 +72,7 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
     var body = new LinkedHashMap<String, Object>();
     body.put("name", template.metaName());
     body.put("category", WhatsAppTemplate.CATEGORY);
-    body.put("language", WhatsAppTemplate.LANGUAGE);
+    body.put(LANGUAGE, WhatsAppTemplate.LANGUAGE);
     body.put("parameter_format", "POSITIONAL");
     body.put(
         "components",
@@ -128,7 +121,7 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
     var link = new LinkedHashMap<String, Object>();
     link.put("allowed_connection_types", List.of(mode.kapsoValue()));
     link.put("meta_billing_mode", "partner_managed");
-    link.put("language", language);
+    link.put(LANGUAGE, language);
     if (!successRedirectUrl.isBlank()) {
       link.put("success_redirect_url", successRedirectUrl);
     }
@@ -158,7 +151,7 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
         Map.of(
             "name",
             template,
-            "language",
+            LANGUAGE,
             Map.of("code", language),
             "components",
             List.of(Map.of("type", "body", "parameters", parameters))));

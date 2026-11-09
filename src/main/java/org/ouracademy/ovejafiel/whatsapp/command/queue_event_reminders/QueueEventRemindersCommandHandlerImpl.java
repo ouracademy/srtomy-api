@@ -3,6 +3,7 @@ package org.ouracademy.ovejafiel.whatsapp.command.queue_event_reminders;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -75,7 +76,7 @@ class QueueEventRemindersCommandHandlerImpl implements QueueEventRemindersComman
       return false;
     }
     // Last, so only a reminder that will really be queued is marked.
-    if (!reminders.markQueued(item.registrationId(), LocalDateTime.now())) {
+    if (!reminders.markQueued(item.registrationId(), LocalDateTime.now(ZoneOffset.UTC))) {
       return false;
     }
     enqueueMessage.handle(

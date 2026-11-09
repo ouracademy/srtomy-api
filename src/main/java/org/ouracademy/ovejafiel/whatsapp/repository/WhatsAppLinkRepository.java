@@ -17,6 +17,9 @@ public class WhatsAppLinkRepository {
 
   public record Identity(UUID userId, LocalDateTime verifiedAt, String phoneDigits) {}
 
+  private static final String CHURCH = "church";
+  private static final String PHONE = "phone";
+
   private final JdbcClient jdbc;
 
   WhatsAppLinkRepository(JdbcClient jdbc) {
@@ -35,7 +38,7 @@ public class WhatsAppLinkRepository {
                   last_modified_date = now()
             """)
         .param("user", userId)
-        .param("church", churchId)
+        .param(CHURCH, churchId)
         .param("hash", hash)
         .param("expires", expiresAt)
         .update();
@@ -47,7 +50,7 @@ public class WhatsAppLinkRepository {
             "select user_id, church_id from whatsapp_link_code"
                 + " where code_hash = :hash and church_id = :church and expires_at > :now")
         .param("hash", hash)
-        .param("church", churchId)
+        .param(CHURCH, churchId)
         .param("now", now)
         .query((rs, i) -> new Code(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class)))
         .optional();
@@ -62,8 +65,8 @@ public class WhatsAppLinkRepository {
     jdbc.sql(
             "delete from whatsapp_identity where church_id = :church and phone_digits = :phone"
                 + " and user_id <> :user")
-        .param("church", churchId)
-        .param("phone", phoneDigits)
+        .param(CHURCH, churchId)
+        .param(PHONE, phoneDigits)
         .param("user", userId)
         .update();
     jdbc.sql(
@@ -74,8 +77,8 @@ public class WhatsAppLinkRepository {
               set phone_digits = :phone, verified_at = :now
             """)
         .param("user", userId)
-        .param("church", churchId)
-        .param("phone", phoneDigits)
+        .param(CHURCH, churchId)
+        .param(PHONE, phoneDigits)
         .param("now", now)
         .update();
   }
@@ -84,8 +87,8 @@ public class WhatsAppLinkRepository {
     return jdbc.sql(
             "select user_id from whatsapp_identity"
                 + " where church_id = :church and phone_digits = :phone")
-        .param("church", churchId)
-        .param("phone", phoneDigits)
+        .param(CHURCH, churchId)
+        .param(PHONE, phoneDigits)
         .query(UUID.class)
         .optional();
   }
@@ -95,7 +98,7 @@ public class WhatsAppLinkRepository {
             "select user_id, verified_at, phone_digits from whatsapp_identity"
                 + " where user_id = :user and church_id = :church")
         .param("user", userId)
-        .param("church", churchId)
+        .param(CHURCH, churchId)
         .query(
             (rs, i) ->
                 new Identity(
@@ -108,14 +111,14 @@ public class WhatsAppLinkRepository {
   public boolean deleteIdentity(UUID userId, UUID churchId) {
     return jdbc.sql("delete from whatsapp_identity where user_id = :user and church_id = :church")
             .param("user", userId)
-            .param("church", churchId)
+            .param(CHURCH, churchId)
             .update()
         > 0;
   }
 
   public void recordFailure(String phoneDigits, LocalDateTime now) {
     jdbc.sql("insert into whatsapp_link_attempt(phone_digits, attempted_at) values (:phone, :now)")
-        .param("phone", phoneDigits)
+        .param(PHONE, phoneDigits)
         .param("now", now)
         .update();
   }
@@ -124,7 +127,7 @@ public class WhatsAppLinkRepository {
     return jdbc.sql(
             "select count(*) from whatsapp_link_attempt"
                 + " where phone_digits = :phone and attempted_at > :since")
-        .param("phone", phoneDigits)
+        .param(PHONE, phoneDigits)
         .param("since", since)
         .query(Integer.class)
         .single();

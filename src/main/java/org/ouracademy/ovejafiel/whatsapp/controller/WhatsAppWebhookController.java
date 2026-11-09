@@ -77,7 +77,7 @@ public class WhatsAppWebhookController {
     JsonNode payload;
     try {
       payload = JSON.readTree(body);
-    } catch (java.io.IOException e) {
+    } catch (java.io.IOException _) {
       return ResponseEntity.badRequest().build();
     }
     var event = eventHeader != null ? eventHeader : payload.path("event").asText("");

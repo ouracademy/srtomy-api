@@ -7,13 +7,9 @@ import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
 import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppTemplate;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.stereotype.Component;
 
 /** Used when no provider key is configured (local runs and tests): nothing leaves the log. */
 @Slf4j
-@Component
-@ConditionalOnExpression("'${kapso.api-key:}'.isEmpty()")
 class LoggingWhatsAppGateway implements WhatsAppGateway {
 
   @Override

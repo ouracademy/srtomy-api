@@ -98,10 +98,9 @@ class WhatsAppOutboxHandlerTests {
   void givesUpOnWrongVariables() {
     connected();
 
-    assertThatThrownBy(
-            () ->
-                handler.deliver(
-                    OutboxMessageId.generate(), "51999", payload("EVENT_REMINDER", "[\"Ana\"]")))
+    var id = OutboxMessageId.generate();
+    var content = payload("EVENT_REMINDER", "[\"Ana\"]");
+    assertThatThrownBy(() -> handler.deliver(id, "51999", content))
         .isInstanceOf(PermanentDeliveryException.class);
     verifyNoInteractions(gateway);
   }

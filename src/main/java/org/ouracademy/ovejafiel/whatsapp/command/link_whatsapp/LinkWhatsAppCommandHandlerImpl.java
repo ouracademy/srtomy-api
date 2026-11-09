@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.whatsapp.command.link_whatsapp;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQueryHandler;
@@ -34,7 +35,7 @@ class LinkWhatsAppCommandHandlerImpl implements LinkWhatsAppCommandHandler {
     }
     var churchId = connection.get().getOrganizationId().value();
     var phone = LinkCodes.digitsOf(command.from());
-    var now = LocalDateTime.now();
+    var now = LocalDateTime.now(ZoneOffset.UTC);
 
     // Before looking at the code: a guesser must not learn whether a try was right.
     if (links.countFailuresSince(phone, now.minus(WINDOW)) >= MAX_FAILURES) {

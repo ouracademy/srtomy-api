@@ -314,9 +314,8 @@ class WhatsAppCommandHandlersTests {
         .when(gateway)
         .ensureMessageWebhook(any(), any(), any());
 
-    assertThatThrownBy(
-            () ->
-                routingConfirmHandler().handle(new ConfirmConnectionCommand("k1", "cus-1", "pn-7")))
+    var handler = routingConfirmHandler();
+    assertThatThrownBy(() -> handler.handle(new ConfirmConnectionCommand("k1", "cus-1", "pn-7")))
         .isInstanceOf(IllegalStateException.class);
     // The church is connected even so; the retry finishes the rest.
     assertThat(connection.isConnected()).isTrue();

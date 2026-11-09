@@ -1,0 +1,6 @@
+# The two "leaks" of the secret scan are not secrets: in the first commit of the WhatsApp work (PR
+# #75) two tests spelled out the PEM header around a key they generate on the spot. The later commit
+# bab691c builds it in pieces (TestPem), so the current code no longer matches; the old commit stays
+# in the history of the PR. Format: <commit>:<file>:<rule>:<line>.
+6d815d426e4226171b4665b5d0055efdd164cf7c:src/test/java/org/ouracademy/ovejafiel/shared/DelegatedTokensTests.java:private-key:130
+6d815d426e4226171b4665b5d0055efdd164cf7c:src/test/java/org/ouracademy/ovejafiel/whatsapp/WhatsAppIdentityIntegrationTests.java:private-key:61

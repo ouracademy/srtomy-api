@@ -37,15 +37,19 @@ class ProvisionTemplatesTests {
   WhatsAppConnectionRepository connections = mock(WhatsAppConnectionRepository.class);
   WhatsAppGateway gateway = mock(WhatsAppGateway.class);
 
-  ProvisionTemplatesCommandHandler handler() throws Exception {
-    var constructor =
-        Class.forName(
-                "org.ouracademy.ovejafiel.whatsapp.command.provision_templates."
-                    + "ProvisionTemplatesCommandHandlerImpl")
-            .getDeclaredConstructors()[0];
-    constructor.setAccessible(true);
-    return (ProvisionTemplatesCommandHandler)
-        constructor.newInstance(findChurch, connections, gateway);
+  ProvisionTemplatesCommandHandler handler() {
+    try {
+      var constructor =
+          Class.forName(
+                  "org.ouracademy.ovejafiel.whatsapp.command.provision_templates."
+                      + "ProvisionTemplatesCommandHandlerImpl")
+              .getDeclaredConstructors()[0];
+      constructor.setAccessible(true);
+      return (ProvisionTemplatesCommandHandler)
+          constructor.newInstance(findChurch, connections, gateway);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   void churchWith(String account) {
@@ -57,7 +61,7 @@ class ProvisionTemplatesTests {
   }
 
   @Test
-  void theTemplatesTheAppSendsAreSubmittedForTheChurchsAccount() throws Exception {
+  void theTemplatesTheAppSendsAreSubmittedForTheChurchsAccount() {
     churchWith("waba-1");
 
     var result = handler().handle(new ProvisionTemplatesCommand(node));
@@ -75,7 +79,7 @@ class ProvisionTemplatesTests {
   }
 
   @Test
-  void aTemplateMetaRefusesIsReportedAndDoesNotRaiseAnError() throws Exception {
+  void aTemplateMetaRefusesIsReportedAndDoesNotRaiseAnError() {
     churchWith("waba-1");
     doThrow(new PermanentDeliveryException("Kapso refused: 400 already exists"))
         .when(gateway)
@@ -93,31 +97,34 @@ class ProvisionTemplatesTests {
   }
 
   @Test
-  void aChurchWithoutWhatsappCannotHaveTemplates() throws Exception {
+  void aChurchWithoutWhatsappCannotHaveTemplates() {
     when(findChurch.handle(any()))
         .thenReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
     when(connections.findById(church)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> handler().handle(new ProvisionTemplatesCommand(node)))
+    var handler = handler();
+    assertThatThrownBy(() -> handler.handle(new ProvisionTemplatesCommand(node)))
         .isInstanceOf(DomainValidationException.class);
     verify(gateway, never()).createTemplate(any(), any());
   }
 
   @Test
-  void withoutKnowingTheAccountItAsksToConnectAgain() throws Exception {
+  void withoutKnowingTheAccountItAsksToConnectAgain() {
     churchWith(null);
 
-    assertThatThrownBy(() -> handler().handle(new ProvisionTemplatesCommand(node)))
+    var handler = handler();
+    assertThatThrownBy(() -> handler.handle(new ProvisionTemplatesCommand(node)))
         .isInstanceOf(DomainValidationException.class)
         .hasMessageContaining("vuelve a conectar");
     verify(gateway, never()).createTemplate(any(), any());
   }
 
   @Test
-  void anUnknownNodeHasNothing() throws Exception {
+  void anUnknownNodeHasNothing() {
     when(findChurch.handle(any())).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> handler().handle(new ProvisionTemplatesCommand(node)))
+    var handler = handler();
+    assertThatThrownBy(() -> handler.handle(new ProvisionTemplatesCommand(node)))
         .isInstanceOf(NoSuchElementException.class);
   }
 

@@ -54,10 +54,14 @@ class LinkHandlersTests {
   WhatsAppLinkRepository links = mock(WhatsAppLinkRepository.class);
 
   @SuppressWarnings("unchecked")
-  static <T> T build(String className, Object... args) throws Exception {
-    var constructor = Class.forName(className).getDeclaredConstructors()[0];
-    constructor.setAccessible(true);
-    return (T) constructor.newInstance(args);
+  static <T> T build(String className, Object... args) {
+    try {
+      var constructor = Class.forName(className).getDeclaredConstructors()[0];
+      constructor.setAccessible(true);
+      return (T) constructor.newInstance(args);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   void signedIn() {
@@ -77,7 +81,7 @@ class LinkHandlersTests {
 
   // --- asking for the code
 
-  CreateLinkCodeCommandHandler create() throws Exception {
+  CreateLinkCodeCommandHandler create() {
     return build(
         "org.ouracademy.ovejafiel.whatsapp.command.create_link_code."
             + "CreateLinkCodeCommandHandlerImpl",
@@ -89,7 +93,7 @@ class LinkHandlersTests {
   }
 
   @Test
-  void aPersonOfTheChurchGetsACodeAndOnlyItsHashIsKept() throws Exception {
+  void aPersonOfTheChurchGetsACodeAndOnlyItsHashIsKept() {
     signedIn();
     connected();
     when(findLinkedPerson.handle(any()))
@@ -110,30 +114,32 @@ class LinkHandlersTests {
   }
 
   @Test
-  void someoneWithoutAPersonInTheChurchGetsNoCode() throws Exception {
+  void someoneWithoutAPersonInTheChurchGetsNoCode() {
     signedIn();
     connected();
     when(findLinkedPerson.handle(any())).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> create().handle(new CreateLinkCodeCommand("auth0|ana", node)))
+    var create = create();
+    assertThatThrownBy(() -> create.handle(new CreateLinkCodeCommand("auth0|ana", node)))
         .isInstanceOf(DomainValidationException.class);
     verify(links, never()).saveCode(any(), any(), any(), any());
   }
 
   @Test
-  void aChurchWithoutWhatsappGivesNoCode() throws Exception {
+  void aChurchWithoutWhatsappGivesNoCode() {
     signedIn();
     when(connections.findById(church)).thenReturn(Optional.empty());
     when(findLinkedPerson.handle(any()))
         .thenReturn(Optional.of(new FindLinkedPersonResult(PartyId.generate())));
 
-    assertThatThrownBy(() -> create().handle(new CreateLinkCodeCommand("auth0|ana", node)))
+    var create = create();
+    assertThatThrownBy(() -> create.handle(new CreateLinkCodeCommand("auth0|ana", node)))
         .isInstanceOf(DomainValidationException.class);
   }
 
   // --- sending the code
 
-  LinkWhatsAppCommandHandler link() throws Exception {
+  LinkWhatsAppCommandHandler link() {
     return build(
         "org.ouracademy.ovejafiel.whatsapp.command.link_whatsapp.LinkWhatsAppCommandHandlerImpl",
         connections,
@@ -163,7 +169,7 @@ class LinkHandlersTests {
   }
 
   @Test
-  void theRightCodeFromANumberProvesItAndIsUsedUp() throws Exception {
+  void theRightCodeFromANumberProvesItAndIsUsedUp() {
     connected();
     churchIsFound();
     when(links.countFailuresSince(eq("51999111222"), any())).thenReturn(0);
@@ -180,7 +186,7 @@ class LinkHandlersTests {
   }
 
   @Test
-  void aWrongOrExpiredCodeIsRefusedAndCounted() throws Exception {
+  void aWrongOrExpiredCodeIsRefusedAndCounted() {
     connected();
     when(links.findValidCode(any(), any(), any())).thenReturn(Optional.empty());
 
@@ -192,7 +198,7 @@ class LinkHandlersTests {
   }
 
   @Test
-  void somethingThatIsNotEvenACodeIsCountedWithoutLookingItUp() throws Exception {
+  void somethingThatIsNotEvenACodeIsCountedWithoutLookingItUp() {
     connected();
 
     var result = link().handle(new LinkWhatsAppCommand("pn-1", "51999111222", "hola"));
@@ -203,7 +209,7 @@ class LinkHandlersTests {
   }
 
   @Test
-  void afterTooManyWrongTriesEvenTheRightCodeIsRefused() throws Exception {
+  void afterTooManyWrongTriesEvenTheRightCodeIsRefused() {
     connected();
     when(links.countFailuresSince(eq("51999111222"), any())).thenReturn(5);
     when(links.findValidCode(any(), any(), any()))
@@ -217,7 +223,7 @@ class LinkHandlersTests {
   }
 
   @Test
-  void aNumberThatIsNotAConnectedChurchLinksNothing() throws Exception {
+  void aNumberThatIsNotAConnectedChurchLinksNothing() {
     when(connections.findByPhoneNumberId("pn-x")).thenReturn(Optional.empty());
 
     assertThat(link().handle(new LinkWhatsAppCommand("pn-x", "51999111222", "AB12-CD34")).status())
@@ -227,7 +233,7 @@ class LinkHandlersTests {
 
   // --- undoing and looking
 
-  UnlinkWhatsAppCommandHandler unlink() throws Exception {
+  UnlinkWhatsAppCommandHandler unlink() {
     return build(
         "org.ouracademy.ovejafiel.whatsapp.command.unlink_whatsapp."
             + "UnlinkWhatsAppCommandHandlerImpl",
@@ -237,14 +243,14 @@ class LinkHandlersTests {
   }
 
   @Test
-  void unlinkingRemovesTheProofOfThatAccountOnly() throws Exception {
+  void unlinkingRemovesTheProofOfThatAccountOnly() {
     signedIn();
     when(links.deleteIdentity(user.value(), church.value())).thenReturn(true);
 
     assertThat(unlink().handle(new UnlinkWhatsAppCommand("auth0|ana", node)).wasLinked()).isTrue();
   }
 
-  GetLinkQueryHandler get() throws Exception {
+  GetLinkQueryHandler get() {
     return build(
         "org.ouracademy.ovejafiel.whatsapp.query.get_link.GetLinkQueryHandlerImpl",
         findUser,
@@ -253,7 +259,7 @@ class LinkHandlersTests {
   }
 
   @Test
-  void theLinkIsShownWithTheNumberMasked() throws Exception {
+  void theLinkIsShownWithTheNumberMasked() {
     signedIn();
     var verified = LocalDateTime.now();
     when(links.findIdentity(user.value(), church.value()))
@@ -270,7 +276,7 @@ class LinkHandlersTests {
   }
 
   @Test
-  void withoutALinkItSaysSo() throws Exception {
+  void withoutALinkItSaysSo() {
     signedIn();
     when(links.findIdentity(any(), any())).thenReturn(Optional.empty());
 

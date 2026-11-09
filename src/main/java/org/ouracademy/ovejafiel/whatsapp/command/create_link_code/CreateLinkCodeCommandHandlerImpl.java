@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.whatsapp.command.create_link_code;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
@@ -51,7 +52,7 @@ class CreateLinkCodeCommandHandlerImpl implements CreateLinkCodeCommandHandler {
     }
 
     var code = LinkCodes.generate();
-    var expiresAt = LocalDateTime.now().plus(LIFETIME);
+    var expiresAt = LocalDateTime.now(ZoneOffset.UTC).plus(LIFETIME);
     links.saveCode(user.id().value(), churchId.value(), LinkCodes.hash(code), expiresAt);
     return new CreateLinkCodeResult(code, expiresAt, connection.get().getDisplayNumber());
   }
