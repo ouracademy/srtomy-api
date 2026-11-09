@@ -29,3 +29,9 @@ variable "role_name" {
   type    = string
   default = "srtommy"
 }
+
+variable "agent_database_name" {
+  description = "Name of the database the WhatsApp agent keeps its conversations in, inside the same project. Empty creates none."
+  type        = string
+  default     = "srtomy_agent"
+}

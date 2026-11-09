@@ -18,6 +18,7 @@ public record FindPersonResult(
     Integer age,
     LocalDate birthdate,
     Boolean hasBeenBaptized,
+    boolean whatsappConsent,
     LocalDateTime createDate,
     LocalDateTime lastModifiedDate) {
 
@@ -34,6 +35,7 @@ public record FindPersonResult(
         person.getAge(),
         person.getBirthdate(),
         person.getHasBeenBaptized(),
+        person.isWhatsappConsent(),
         person.getCreateDate(),
         person.getLastModifiedDate());
   }

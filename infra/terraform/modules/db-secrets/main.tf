@@ -8,18 +8,32 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 
 # Names must match exactly what application-prod.yml references via
-# ${sm@db-url}, ${sm@db-user}, ${sm@db-password}, ${sm@resend-api-key} and
-# ${sm@attendance-qr-secret}.
+# ${sm@db-url}, ${sm@db-user}, ${sm@db-password}, ${sm@resend-api-key},
+# ${sm@attendance-qr-secret}, ${sm@kapso-api-key}, ${sm@kapso-webhook-secret} and
+# ${sm@whatsapp-delegation-key}.
 
 # Signs the code in the attendance QR of an event. Generated here and kept in the state, so nobody
 # has to invent or pass it around; replacing the resource changes it (open QR codes stop working).
 resource "random_password" "attendance_qr_secret" {
   length  = 48
   special = false
+}
+
+# Signs the short-lived tokens the WhatsApp agent uses to call the API as a member (see
+# DelegatedTokens in the API). Generated here, in PKCS#8 PEM as the API reads it, and kept in the
+# state: nobody sees or types it. Replacing the resource changes the key, which only cuts the tokens
+# in flight (they last ten minutes).
+resource "tls_private_key" "whatsapp_delegation" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
 }
 
 locals {
@@ -29,6 +43,11 @@ locals {
     "db-password"          = var.database_password
     "resend-api-key"       = var.resend_api_key
     "attendance-qr-secret" = random_password.attendance_qr_secret.result
+
+    # WhatsApp (specs 014 to 016).
+    "kapso-api-key"           = var.kapso_api_key
+    "kapso-webhook-secret"    = var.kapso_webhook_secret
+    "whatsapp-delegation-key" = tls_private_key.whatsapp_delegation.private_key_pem_pkcs8
   }
 }
 

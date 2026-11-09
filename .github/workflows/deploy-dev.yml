@@ -93,6 +93,8 @@ jobs:
           env_vars: |
             APP_URL=https://srtommy-ui-test.vercel.app
             INTERNAL_SCHEDULER_EMAIL=api-scheduler@sr-tommy-dev.iam.gserviceaccount.com
+            INTERNAL_AGENT_EMAIL=srtomy-agent@sr-tommy-dev.iam.gserviceaccount.com
+            AGENT_WEBHOOK_URL=${{ vars.DEV_AGENT_WEBHOOK_URL }}
             RESEND_FROM=Sr. Tommy <invitaciones@ovejafiel.com>
             TASKS_PROJECT=sr-tommy-dev
             TASKS_LOCATION=southamerica-east1

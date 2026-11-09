@@ -39,6 +39,11 @@ variable "jobs" {
       schedule    = "0 4 * * *"
       path        = "/v1/internal/outbox/dispatch-pending"
     }
+    "whatsapp-event-reminders" = {
+      description = "Daily: reminds by WhatsApp whoever is signed up for an event that starts in the next 12 to 36 hours (9:00 in Lima)."
+      schedule    = "0 14 * * *"
+      path        = "/v1/internal/events/whatsapp-reminders"
+    }
     "extend-event-series" = {
       description = "Adds upcoming occurrences to the event series that never end (or end far away)."
       schedule    = "30 3 * * *"
