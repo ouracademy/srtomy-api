@@ -146,7 +146,21 @@ class WhatsAppCommandHandlersTests {
         connections,
         webhookEvents,
         gateway,
-        inTransaction());
+        inTransaction(),
+        "",
+        "");
+  }
+
+  private ConfirmConnectionCommandHandler routingConfirmHandler() {
+    return handler(
+        "org.ouracademy.ovejafiel.whatsapp.command.confirm_connection."
+            + "ConfirmConnectionCommandHandlerImpl",
+        connections,
+        webhookEvents,
+        gateway,
+        inTransaction(),
+        "https://agent.example/webhooks/kapso",
+        "agent-secret");
   }
 
   /** A transaction that just runs what it is given: the database is not under test here. */
@@ -224,7 +238,9 @@ class WhatsAppCommandHandlersTests {
             connections,
             webhookEvents,
             gateway,
-            transaction);
+            transaction,
+            "",
+            "");
 
     handler.handle(new ConfirmConnectionCommand("k1", "cus-1", "pn-7"));
 
@@ -261,6 +277,62 @@ class WhatsAppCommandHandlersTests {
 
     assertThat(result).isEqualTo(ConfirmConnectionResult.CONNECTED);
     verify(webhookEvents, never()).markReceived(any(), any());
+  }
+
+  // --- the webhook of messages of each number
+
+  @Test
+  void aNewNumberGetsItsMessagesSentToTheAgent() {
+    var connection = new WhatsAppConnection(church, "cus-1", ConnectionMode.COEXISTENCE);
+    when(webhookEvents.markReceived(any(), any())).thenReturn(true);
+    when(connections.findByKapsoCustomerId("cus-1")).thenReturn(Optional.of(connection));
+
+    routingConfirmHandler().handle(new ConfirmConnectionCommand("k1", "cus-1", "pn-7"));
+
+    verify(gateway)
+        .ensureMessageWebhook("pn-7", "https://agent.example/webhooks/kapso", "agent-secret");
+  }
+
+  @Test
+  void aRetriedDeliveryStillMakesSureTheNumberReachesTheAgent() {
+    when(webhookEvents.markReceived(any(), any())).thenReturn(false);
+
+    var result =
+        routingConfirmHandler().handle(new ConfirmConnectionCommand("k1", "cus-1", "pn-7"));
+
+    assertThat(result).isEqualTo(ConfirmConnectionResult.ALREADY_HANDLED);
+    verify(gateway)
+        .ensureMessageWebhook("pn-7", "https://agent.example/webhooks/kapso", "agent-secret");
+  }
+
+  @Test
+  void ifTheWebhookCannotBeMadeTheErrorReachesTheProviderSoItDeliversAgain() {
+    var connection = new WhatsAppConnection(church, "cus-1", ConnectionMode.COEXISTENCE);
+    when(webhookEvents.markReceived(any(), any())).thenReturn(true);
+    when(connections.findByKapsoCustomerId("cus-1")).thenReturn(Optional.of(connection));
+    org.mockito.Mockito.doThrow(new IllegalStateException("kapso down"))
+        .when(gateway)
+        .ensureMessageWebhook(any(), any(), any());
+
+    assertThatThrownBy(
+            () ->
+                routingConfirmHandler().handle(new ConfirmConnectionCommand("k1", "cus-1", "pn-7")))
+        .isInstanceOf(IllegalStateException.class);
+    // The church is connected even so; the retry finishes the rest.
+    assertThat(connection.isConnected()).isTrue();
+  }
+
+  @Test
+  void aCustomerOfNobodyOrAnAgentNotConfiguredMakesNoWebhook() {
+    when(webhookEvents.markReceived(any(), any())).thenReturn(true);
+    when(connections.findByKapsoCustomerId("nobody")).thenReturn(Optional.empty());
+    routingConfirmHandler().handle(new ConfirmConnectionCommand("k1", "nobody", "pn-7"));
+
+    var connection = new WhatsAppConnection(church, "cus-1", ConnectionMode.COEXISTENCE);
+    when(connections.findByKapsoCustomerId("cus-1")).thenReturn(Optional.of(connection));
+    confirmHandler().handle(new ConfirmConnectionCommand("k2", "cus-1", "pn-8"));
+
+    verify(gateway, never()).ensureMessageWebhook(any(), any(), any());
   }
 
   // --- disconnect

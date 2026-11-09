@@ -152,7 +152,8 @@ class WhatsAppControllerTests {
                 "+51 999 111 222",
                 null,
                 true,
-                PartyId.generate()));
+                PartyId.generate(),
+                null));
 
     var body =
         assertThat(mvc.get().uri(uri).header("Authorization", bearer())).hasStatusOk().bodyJson();

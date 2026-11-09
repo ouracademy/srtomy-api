@@ -196,4 +196,35 @@ class KapsoWhatsAppGatewayTests {
     assertThatThrownBy(() -> gateway.sendTemplate("pn", "519", "welcome", "es", List.of("a", "b")))
         .isNotInstanceOf(PermanentDeliveryException.class);
   }
+
+  @Test
+  void makesTheWebhookOfMessagesOfTheNumberWithOurSecret() {
+    answer = "{\"data\":[]}";
+
+    gateway.ensureMessageWebhook("pn-7", "https://agent.example/webhooks/kapso", "agent-secret");
+
+    assertThat(calls).hasSize(2);
+    var list = calls.get(0);
+    assertThat(list.method()).isEqualTo("GET");
+    assertThat(list.path()).isEqualTo("/platform/v1/whatsapp/phone_numbers/pn-7/webhooks");
+    var create = calls.get(1);
+    assertThat(create.method()).isEqualTo("POST");
+    assertThat(create.path()).isEqualTo("/platform/v1/whatsapp/phone_numbers/pn-7/webhooks");
+    assertThat(create.apiKey()).isEqualTo("key-1");
+    assertThat(create.body())
+        .contains("\"url\":\"https://agent.example/webhooks/kapso\"")
+        .contains("\"secret_key\":\"agent-secret\"")
+        .contains("\"whatsapp.message.received\"")
+        .contains("\"kind\":\"kapso\"");
+  }
+
+  @Test
+  void doesNotMakeASecondWebhookWhenTheNumberAlreadyHasIt() {
+    answer = "{\"data\":[{\"id\":\"w1\",\"url\":\"https://agent.example/webhooks/kapso\"}]}";
+
+    gateway.ensureMessageWebhook("pn-7", "https://agent.example/webhooks/kapso", "agent-secret");
+
+    assertThat(calls).hasSize(1);
+    assertThat(calls.getFirst().method()).isEqualTo("GET");
+  }
 }

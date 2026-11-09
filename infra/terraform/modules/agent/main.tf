@@ -20,6 +20,23 @@ resource "google_service_account" "agent" {
   display_name = "WhatsApp agent: calls the API's WhatsApp endpoints"
 }
 
+# The model: Claude on Vertex AI, with the agent's own account (no API key to keep). The API has to be
+# on, and the account may call the models. Claude itself is enabled once per project in Model Garden
+# (a click in the console that accepts Anthropic's terms; Terraform cannot do it).
+resource "google_project_service" "aiplatform" {
+  project            = var.project_id
+  service            = "aiplatform.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_iam_member" "agent_vertex_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.agent.email}"
+
+  depends_on = [google_project_service.aiplatform]
+}
+
 # What only the agent reads. Names must match what the agent's deploy sets as environment secrets.
 locals {
   secrets = {
@@ -57,6 +74,20 @@ resource "google_secret_manager_secret_iam_member" "agent_access" {
   secret_id = google_secret_manager_secret.agent[each.key].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.agent.email}"
+}
+
+# The API makes the webhook of messages of each church number when the church connects (it tells
+# Kapso where to deliver and with which secret), so it reads the agent's webhook secret too. The API
+# runs as the default compute account, like for its own secrets (db-secrets).
+data "google_project" "this" {
+  project_id = var.project_id
+}
+
+resource "google_secret_manager_secret_iam_member" "api_reads_agent_webhook_secret" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.agent["agent-kapso-webhook-secret"].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.this.number}-compute@developer.gserviceaccount.com"
 }
 
 # The Kapso project key is shared with the API (it is the same project): one secret, two readers.

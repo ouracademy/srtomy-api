@@ -15,9 +15,10 @@ variable "kapso_webhook_secret" {
 }
 
 variable "anthropic_api_key" {
-  description = "Anthropic API key of the agent's model (https://console.anthropic.com). Pass it with TF_VAR_agent_anthropic_api_key; never commit it."
+  description = "Anthropic API key, only when the agent calls Anthropic directly (MODEL_PROVIDER=anthropic). On Vertex AI (the default of the deploy) nothing reads it. Pass it with TF_VAR_agent_anthropic_api_key; never commit it."
   type        = string
   sensitive   = true
+  default     = "not-used"
 }
 
 variable "langsmith_api_key" {

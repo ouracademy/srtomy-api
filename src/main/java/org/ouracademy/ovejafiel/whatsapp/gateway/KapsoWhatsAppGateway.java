@@ -95,6 +95,35 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
+  public void ensureMessageWebhook(String phoneNumberId, String url, String secret) {
+    var path = "/whatsapp/phone_numbers/" + phoneNumberId + "/webhooks";
+    var existing =
+        platform
+            .get()
+            .uri(
+                uri ->
+                    uri.path(path)
+                        .queryParam("url_contains", url)
+                        .queryParam("kind", "kapso")
+                        .build())
+            .retrieve()
+            .body(Map.class);
+    if (existing != null
+        && existing.get("data") instanceof List<?> hooks
+        && hooks.stream()
+            .anyMatch(h -> h instanceof Map<?, ?> hook && url.equals(hook.get("url")))) {
+      return;
+    }
+    var webhook = new LinkedHashMap<String, Object>();
+    webhook.put("kind", "kapso");
+    webhook.put("url", url);
+    webhook.put("events", List.of("whatsapp.message.received"));
+    webhook.put("secret_key", secret);
+    webhook.put("active", true);
+    post(platform, path, Map.of("whatsapp_webhook", webhook));
+  }
+
+  @Override
   public SetupLink createSetupLink(String customerId, ConnectionMode mode, String language) {
     var link = new LinkedHashMap<String, Object>();
     link.put("allowed_connection_types", List.of(mode.kapsoValue()));

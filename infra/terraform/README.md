@@ -60,25 +60,31 @@ export TF_VAR_resend_api_key="re_..."   # Resend API key (invitation and sharing
 **WhatsApp** (specs `014` to `016`; the agent is the repo `ouracademy/srtomy-agent`). Export these too, never commit them:
 
 ```sh
-export TF_VAR_kapso_api_key="..."                 # Kapso: Integrations > API keys
-export TF_VAR_kapso_webhook_secret="..."          # secret of the Kapso webhook that points to the API
-export TF_VAR_agent_kapso_webhook_secret="..."    # secret of the Kapso webhook that points to the agent
-export TF_VAR_agent_anthropic_api_key="sk-ant-..." # the agent's model
-export TF_VAR_agent_langsmith_api_key="..."       # optional: leave unset while traces are off
+export TF_VAR_kapso_api_key="..."                  # Kapso: Integrations > API keys
+export TF_VAR_kapso_webhook_secret="..."           # given by Kapso when you create the project webhook (below)
+export TF_VAR_agent_kapso_webhook_secret="$(openssl rand -hex 32)"  # you choose it: keep it, Kapso gets the same one
+export TF_VAR_agent_langsmith_api_key="..."        # optional: leave unset while traces are off
+# TF_VAR_agent_anthropic_api_key only if the agent calls Anthropic directly; the default is Claude on Vertex AI.
 ```
 
-Kapso creates a **project webhook** and shows its secret once it exists, so create both webhooks first (Kapso: Integrations > Webhooks > Platform webhooks), copy each secret, then apply:
+There are two kinds of webhook in Kapso, and only the first is made by hand:
 
-| Webhook | URL | Event |
-| --- | --- | --- |
-| API | `https://<api>/v1/webhooks/whatsapp` | `whatsapp.phone_number.created` |
-| Agent | `https://<agent>/webhooks/kapso` | `whatsapp.message.received` |
+| Webhook | Made by | URL | Events |
+| --- | --- | --- | --- |
+| **Project** (one) | You, in Kapso: Integrations > Webhooks > Platform webhooks > Add webhook, payload version **v2** | `https://<api>/v1/webhooks/whatsapp` | `whatsapp.phone_number.created`, `.deleted`, `.offboarded`, `.disconnected`, `.reconnected`, `whatsapp.account.disabled`, `.reinstated`, `.restricted`, `.violation` |
+| **Per number** (one for each church) | **The API**, when a church connects: it calls Kapso to make it | `https://<agent>/webhooks/kapso` | `whatsapp.message.received` |
+
+Kapso shows the secret of the project webhook when you create it (copy it to `TF_VAR_kapso_webhook_secret`). The secret of the per-number webhook is the one you chose (`TF_VAR_agent_kapso_webhook_secret`): the API reads it from Secret Manager and gives it to Kapso, and the agent checks the signature with it. Set `AGENT_WEBHOOK_URL` for the API through the repository variable `DEV_AGENT_WEBHOOK_URL` / `PROD_AGENT_WEBHOOK_URL` (the public URL of the agent's Cloud Run service). A number that was connected before this was set has no webhook: make it by hand once (`POST /platform/v1/whatsapp/phone_numbers/{id}/webhooks`, see `docs.kapso.ai`) or press "Connect" again.
+
+When Kapso says a number was deleted, offboarded or disconnected, or the account disabled, the API marks the connection as disconnected (with the reason) and everything that sends or answers stops; the portal shows it and offers to connect again. A number the pastor disconnected from the portal is never brought back by Kapso's "reconnected".
 
 What Terraform now creates for them:
 
 - In Secret Manager, read by the API: `kapso-api-key`, `kapso-webhook-secret` and `whatsapp-delegation-key`. The last one is **generated** (a 2048-bit RSA key in PKCS#8 PEM, kept in the state) and signs the ten-minute tokens the agent uses to call the API as a member; nobody needs to see it. Replacing it only cuts the tokens in flight.
-- `modules/agent/`: the `srtomy-agent` service account (the only one the API lets call `/v1/internal/whatsapp/**`) and its own secrets `agent-kapso-webhook-secret`, `agent-anthropic-api-key`, `agent-langsmith-api-key` and `agent-database-url`. The last one points to a second database (`srtomy_agent`) that the `neon` module creates in the same Neon project, where the agent keeps its conversations (a separate database, not a separate credential: it uses the API's role); it also reads the Kapso project key `kapso-api-key`.
+- `modules/agent/`: the `srtomy-agent` service account (the only one the API lets call `/v1/internal/whatsapp/**`) and its own secrets `agent-kapso-webhook-secret` (also read by the API), `agent-anthropic-api-key` (unused on Vertex), `agent-langsmith-api-key` and `agent-database-url`. The last one points to a second database (`srtomy_agent`) that the `neon` module creates in the same Neon project, where the agent keeps its conversations (a separate database, not a separate credential: it uses the API's role); it also reads the Kapso project key `kapso-api-key`.
 - The deploy workflows of the API pass `INTERNAL_AGENT_EMAIL=srtomy-agent@<project>.iam.gserviceaccount.com`, so the API accepts that account's Google ID tokens. Redeploy the API after the first `apply`.
+
+`modules/agent/` also turns on `aiplatform.googleapis.com` and gives the agent's account `roles/aiplatform.user`, so it calls Claude on Vertex AI with no key. One manual step remains: enable Claude in Model Garden for the project (console > Model Garden > Claude Sonnet 5.5 > Enable; it accepts Anthropic's terms).
 
 The agent deploys itself from its own repo (`.github/workflows/deploy-dev.yml` there, Google buildpacks, no Dockerfile). `modules/agent/` also creates what that needs: a provider `agent-github-actions` in the same Workload Identity pool (only `ouracademy/srtomy-agent` on `main`) and the account `gh-agent-deploy` (Cloud Run admin, Artifact Registry writer, and permission to act as `srtomy-agent` only). After `apply`, set these variables in the agent's repo (Settings > Variables): `DEV_WORKLOAD_IDENTITY_PROVIDER` = output `agent_deploy_workload_identity_provider`, `DEV_DEPLOY_SERVICE_ACCOUNT` = output `agent_deploy_service_account_email`, `DEV_ARTIFACT_REGISTRY_URL` = output `artifact_registry_repository_url`, and `DEV_API_URL` = the API's URL.
 

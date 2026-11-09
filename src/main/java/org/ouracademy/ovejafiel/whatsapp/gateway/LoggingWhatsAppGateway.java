@@ -33,6 +33,11 @@ class LoggingWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
+  public void ensureMessageWebhook(String phoneNumberId, String url, String secret) {
+    log.info("WhatsApp webhook of {} to {} not made, no provider configured", phoneNumberId, url);
+  }
+
+  @Override
   public SetupLink createSetupLink(String customerId, ConnectionMode mode, String language) {
     log.info("WhatsApp setup link for {} ({}) not made, no provider configured", customerId, mode);
     return new SetupLink(

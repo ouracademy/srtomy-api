@@ -26,6 +26,14 @@ kapso:
   success-redirect-url: ${KAPSO_SUCCESS_REDIRECT_URL:}
   failure-redirect-url: ${KAPSO_FAILURE_REDIRECT_URL:}
 
+# Where Kapso delivers the messages of every church number: the agent. When a church connects, we make
+# the webhook of its number with this URL and this secret (the same one the agent checks). Without
+# both, the number is connected but nobody answers.
+whatsapp:
+  agent:
+    webhook-url: ${AGENT_WEBHOOK_URL:}
+    webhook-secret: ${sm@agent-kapso-webhook-secret:}
+
 # Signs the short-lived tokens the WhatsApp agent uses to call this API as a member (PKCS#8 RSA key,
 # PEM). Without it the agent cannot get a token and none is accepted.
 delegation:

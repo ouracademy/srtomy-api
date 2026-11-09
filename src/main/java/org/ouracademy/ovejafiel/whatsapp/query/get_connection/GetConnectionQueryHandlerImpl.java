@@ -35,10 +35,11 @@ class GetConnectionQueryHandlerImpl implements GetConnectionQueryHandler {
                     c.getDisplayNumber(),
                     c.getConnectedAt(),
                     inherited,
-                    churchId))
+                    churchId,
+                    c.getDisconnectReason()))
         .orElseGet(
             () ->
                 new GetConnectionResult(
-                    State.NOT_CONNECTED, null, null, null, inherited, churchId));
+                    State.NOT_CONNECTED, null, null, null, inherited, churchId, null));
   }
 }

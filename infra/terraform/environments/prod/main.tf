@@ -52,6 +52,8 @@ variable "agent_kapso_webhook_secret" {
 variable "agent_anthropic_api_key" {
   type      = string
   sensitive = true
+  # The agent uses Claude on Vertex AI; only needed to call Anthropic directly.
+  default = "not-used"
 }
 
 variable "agent_langsmith_api_key" {

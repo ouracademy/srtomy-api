@@ -31,6 +31,13 @@ public interface WhatsAppGateway {
    */
   void createTemplate(String businessAccountId, WhatsAppTemplate template);
 
+  /**
+   * Makes sure the provider delivers the messages that arrive at the number to {@code url}, signed
+   * with {@code secret}. Calling it again does nothing when the webhook already exists, so a
+   * retried delivery cannot make two (the member would be answered twice).
+   */
+  void ensureMessageWebhook(String phoneNumberId, String url, String secret);
+
   SetupLink createSetupLink(String customerId, ConnectionMode mode, String language);
 
   /**

@@ -38,6 +38,10 @@ public class WhatsAppConnection extends DomainObject {
 
   LocalDateTime connectedAt;
 
+  /** Why it is not connected any more; null while connected. */
+  @Enumerated(EnumType.STRING)
+  DisconnectReason disconnectReason;
+
   protected WhatsAppConnection() {
     // jpa only
   }
@@ -65,10 +69,35 @@ public class WhatsAppConnection extends DomainObject {
     this.businessAccountId = businessAccountId;
     this.status = ConnectionStatus.CONNECTED;
     this.connectedAt = now;
+    this.disconnectReason = null;
   }
 
+  /** The pastor disconnects it from the portal. */
   public void disconnect() {
+    lose(DisconnectReason.PASTOR);
+  }
+
+  /** The provider says the number does not work any more. */
+  public void lose(DisconnectReason reason) {
     this.status = ConnectionStatus.DISCONNECTED;
+    this.disconnectReason = reason;
+  }
+
+  /**
+   * The provider says the number works again. It is ignored unless the number was lost for a reason
+   * that can heal: a number the pastor disconnected stays disconnected.
+   *
+   * @return whether the connection is connected again
+   */
+  public boolean restore() {
+    if (status != ConnectionStatus.DISCONNECTED
+        || disconnectReason == null
+        || !disconnectReason.healsOnItsOwn()) {
+      return false;
+    }
+    this.status = ConnectionStatus.CONNECTED;
+    this.disconnectReason = null;
+    return true;
   }
 
   public boolean isConnected() {
