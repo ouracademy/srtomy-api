@@ -17,8 +17,10 @@ import org.springframework.web.client.RestClient;
 
 /**
  * Talks to Kapso (https://docs.kapso.ai): the Platform API for customers and setup links, and its
- * WhatsApp Cloud API proxy for messages. Meta fees are paid by us with Kapso credits ({@code
- * partner_managed}) and billed to the church.
+ * WhatsApp Cloud API proxy for messages. Who pays Meta is the {@code billingMode} of the setup
+ * link: {@code customer_managed} (the church, with its own card at Meta, in the currency of its
+ * account) or {@code partner_managed} (us, with Kapso credits: Kapso only enables some currencies,
+ * and Peru's sol is not one of them yet).
  */
 @Slf4j
 class KapsoWhatsAppGateway implements WhatsAppGateway {
@@ -27,10 +29,13 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
   private static final String META_VERSION = "v24.0";
   private static final String LANGUAGE = "language";
 
+  private final String billingMode;
+
   private final RestClient platform;
   private final RestClient meta;
 
-  KapsoWhatsAppGateway(String apiKey, String url) {
+  KapsoWhatsAppGateway(String apiKey, String url, String billingMode) {
+    this.billingMode = billingMode;
     this.platform =
         RestClient.builder()
             .baseUrl(url + "/platform/v1")
@@ -185,7 +190,7 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
       String failureUrl) {
     var link = new LinkedHashMap<String, Object>();
     link.put("allowed_connection_types", List.of(mode.kapsoValue()));
-    link.put("meta_billing_mode", "partner_managed");
+    link.put("meta_billing_mode", billingMode);
     link.put(LANGUAGE, language);
     if (successUrl != null && !successUrl.isBlank()) {
       link.put("success_redirect_url", successUrl);

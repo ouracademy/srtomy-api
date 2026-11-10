@@ -22,6 +22,11 @@ resend:
 # the key nothing leaves the log. The webhook secret signs what Kapso calls us with.
 kapso:
   api-key: ${sm@kapso-api-key:}
+  # Who pays Meta for the messages of a church: the church with its own card ("customer_managed", in
+  # the currency of its account) or us with Kapso credits ("partner_managed", which Kapso only offers
+  # for the currencies it enables: not Peru's sol yet). It is read when a setup link is made; a
+  # connected account keeps the one it was connected with.
+  billing-mode: ${KAPSO_BILLING_MODE:customer_managed}
   webhook-secret: ${sm@kapso-webhook-secret:}
 
 # Where Kapso delivers the messages of every church number: the agent. When a church connects, we make
