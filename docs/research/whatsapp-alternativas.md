@@ -143,6 +143,36 @@ Qué funciona 100 % desde el celular, según lo que sé (lo marcado con * es inf
 
 Conclusión: un número aprovisionado por nosotros quita el SMS y el QR pero **no** la ventana de Meta; el número compartido es lo único que quita todo. Mientras tanto, la conexión asistida por videollamada resuelve el caso del pastor que solo tiene celular. Cambios sugeridos a la fase 0: probar la ventana de Meta desde el celular con un número preverificado, y ofrecer en la UI el enlace para abrir el setup link desde una computadora (o enviarlo por correo).
 
+## 7c. Hallazgo de la prueba real: moneda del WABA y modo `partner_managed`
+
+Lo reportó otra sesión de Claude (no lo reproduje). Con el setup link de Kapso en `partner_managed`, activar los créditos falla con `unsupported_currency`: el WABA de la iglesia de prueba quedó en **PEN**. Resultado: `not_funded`, envíos pausados y respuestas 402 de la API de Kapso.
+
+**Verificado en fuentes**
+- Kapso (FAQ de precios): los créditos y cargos del proyecto son en USD; un WABA en USD paga la tarifa publicada de Meta en USD; un WABA no USD "habilitado" paga además un margen de cambio que Kapso muestra en su panel. La página no dice qué monedas están habilitadas, no menciona PEN ni COP, no explica `unsupported_currency` ni da plazos. Tampoco lo cubre su blog de precios.
+- Kapso: no se puede pasar un WABA de créditos de Kapso a tarjeta de Meta; hay que crear otro WABA y migrar el número. Sí se pueden reactivar los créditos en el mismo WABA, si Kapso lo permite y Meta acepta.
+- Meta (documentación de líneas de crédito, que solo cubre a los Solution Partners): la línea de crédito no se puede cambiar una vez adjunta a la cuenta; para otra línea hay que crear una cuenta nueva. La moneda se indica al compartir la línea y los valores documentados son AUD, EUR, GBP, IDR, INR y USD. PEN y COP no figuran. La zona horaria y la moneda de la cuenta de mensajería no se pueden editar una vez adjunta la línea.
+
+**Sin confirmar** (fuentes secundarias o ausentes)
+- Una API de migración de moneda de Meta que traslade las plantillas a un WABA nuevo con otra moneda. Dos blogs la mencionan; no la vi en documentación de Meta.
+- Si un Tech Provider (nuestro caso vía Kapso) puede tener línea de crédito propia o si depende del Solution Partner. Un glosario de terceros dice que los clientes de Tech Providers agregan su propio medio de pago.
+- Qué monedas habilita Kapso hoy y en cuánto tiempo pondría PEN o COP. No hay respuesta pública; hay que preguntar a Kapso (el blog lista dev@kap.so como contacto).
+- La cantidad exacta de pasos extra de `customer_managed`.
+
+**Respuestas a las tres preguntas**
+1. *¿Sirve `partner_managed` para Perú y Colombia?* Hoy no, por lo observado: la cuenta quedó en PEN y no se pueden activar créditos. Que Kapso habilite PEN/COP depende de ellos y no encontré plazo. Un WABA en USD sí entra en el modo sin margen de cambio.
+2. *`customer_managed`:* la iglesia pone su tarjeta en Meta (un paso más en el flujo de Meta: medio de pago del WABA). Se puede evitar el bloqueo de la moneda del lado de Sr. Tommy, porque Meta cobra a la tarjeta en la moneda del WABA. Lo que no se puede es esconder la moneda de Meta al pastor; la verá en el formulario de pago. Ventaja: los primeros 1.000 mensajes de servicio al mes por número son gratis (FAQ de Kapso) y no hay riesgo de que Sr. Tommy financie los envíos. Costo: más fricción y una tarjeta que a veces el pastor no tiene en la moneda o con límite internacional (supuesto).
+3. *Moneda fijada al crear el WABA:* si la moneda solo se cambia creando un WABA nuevo, el onboarding debe fijar la moneda al principio, no corregirla después. Con un **número compartido o aprovisionado por nosotros con WABA propio en USD** el problema desaparece: el WABA es de Sr. Tommy, los créditos de Kapso son en USD y no hay margen de cambio. Costo: los envíos se facturan en USD a nosotros y se re-facturan a la iglesia (en soles, por Culqi u otro), con riesgo de tipo de cambio. Ese es un argumento más a favor del número compartido en la demo.
+
+**Riesgos**
+- Cada iglesia con WABA en PEN/COP queda sin envío hasta que Kapso habilite la moneda o se migre a `customer_managed` (otro WABA nuevo, porque no se cambia el modo).
+- Un WABA creado por error en la moneda equivocada obliga a migrar número y plantillas.
+- Cambiar el modo de facturación de iglesias ya conectadas cuesta un WABA nuevo y reaprobar plantillas (revisión de hasta un día, spec 014).
+
+**Acciones sugeridas**
+1. Preguntar a Kapso por escrito: monedas habilitadas, plazo para PEN y COP, y si el setup link permite elegir USD al crear el WABA.
+2. Mientras tanto, para pruebas y la demo, usar un WABA propio en USD.
+3. Documentar en la UI qué modo de pago aplica a cada país.
+
 ## 8. Preguntas abiertas para el dueño del producto
 
 1. ¿Aceptamos que la demo use una marca compartida ("Sr. Tommy") en vez del nombre de la iglesia?
