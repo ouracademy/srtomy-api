@@ -27,11 +27,8 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
 
   private final RestClient platform;
   private final RestClient meta;
-  private final String successRedirectUrl;
-  private final String failureRedirectUrl;
 
-  KapsoWhatsAppGateway(
-      String apiKey, String url, String successRedirectUrl, String failureRedirectUrl) {
+  KapsoWhatsAppGateway(String apiKey, String url) {
     this.platform =
         RestClient.builder()
             .baseUrl(url + "/platform/v1")
@@ -42,8 +39,6 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
             .baseUrl(url + "/meta/whatsapp/" + META_VERSION)
             .defaultHeader("X-API-Key", apiKey)
             .build();
-    this.successRedirectUrl = successRedirectUrl;
-    this.failureRedirectUrl = failureRedirectUrl;
   }
 
   @Override
@@ -117,16 +112,21 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
-  public SetupLink createSetupLink(String customerId, ConnectionMode mode, String language) {
+  public SetupLink createSetupLink(
+      String customerId,
+      ConnectionMode mode,
+      String language,
+      String successUrl,
+      String failureUrl) {
     var link = new LinkedHashMap<String, Object>();
     link.put("allowed_connection_types", List.of(mode.kapsoValue()));
     link.put("meta_billing_mode", "partner_managed");
     link.put(LANGUAGE, language);
-    if (!successRedirectUrl.isBlank()) {
-      link.put("success_redirect_url", successRedirectUrl);
+    if (successUrl != null && !successUrl.isBlank()) {
+      link.put("success_redirect_url", successUrl);
     }
-    if (!failureRedirectUrl.isBlank()) {
-      link.put("failure_redirect_url", failureRedirectUrl);
+    if (failureUrl != null && !failureUrl.isBlank()) {
+      link.put("failure_redirect_url", failureUrl);
     }
     var data =
         data(

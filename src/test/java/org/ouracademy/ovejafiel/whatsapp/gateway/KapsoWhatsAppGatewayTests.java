@@ -49,11 +49,7 @@ class KapsoWhatsAppGatewayTests {
         });
     server.start();
     gateway =
-        new KapsoWhatsAppGateway(
-            "key-1",
-            "http://127.0.0.1:" + server.getAddress().getPort(),
-            "https://app.example/ok",
-            "https://app.example/fail");
+        new KapsoWhatsAppGateway("key-1", "http://127.0.0.1:" + server.getAddress().getPort());
   }
 
   @AfterEach
@@ -82,7 +78,13 @@ class KapsoWhatsAppGatewayTests {
         "{\"data\":{\"id\":\"l1\",\"url\":\"https://setup.kapso.ai/s/abc\","
             + "\"expires_at\":\"2026-11-30T10:00:00Z\"}}";
 
-    var link = gateway.createSetupLink("cus-9", ConnectionMode.COEXISTENCE, "es");
+    var link =
+        gateway.createSetupLink(
+            "cus-9",
+            ConnectionMode.COEXISTENCE,
+            "es",
+            "https://app.example/ok",
+            "https://app.example/fail");
 
     assertThat(link.url()).isEqualTo("https://setup.kapso.ai/s/abc");
     assertThat(link.expiresAt()).isEqualTo(Instant.parse("2026-11-30T10:00:00Z"));

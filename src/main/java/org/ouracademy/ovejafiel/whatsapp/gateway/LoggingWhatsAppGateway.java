@@ -34,7 +34,12 @@ class LoggingWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
-  public SetupLink createSetupLink(String customerId, ConnectionMode mode, String language) {
+  public SetupLink createSetupLink(
+      String customerId,
+      ConnectionMode mode,
+      String language,
+      String successUrl,
+      String failureUrl) {
     log.info("WhatsApp setup link for {} ({}) not made, no provider configured", customerId, mode);
     return new SetupLink(
         "https://setup.invalid/" + UUID.randomUUID(), Instant.now().plus(30, ChronoUnit.DAYS));
