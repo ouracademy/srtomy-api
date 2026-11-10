@@ -54,7 +54,8 @@ class KapsoWhatsAppGatewayTests {
         });
     server.start();
     gateway =
-        new KapsoWhatsAppGateway("key-1", "http://127.0.0.1:" + server.getAddress().getPort());
+        new KapsoWhatsAppGateway(
+            "key-1", "http://127.0.0.1:" + server.getAddress().getPort(), "customer_managed");
   }
 
   @AfterEach
@@ -78,7 +79,7 @@ class KapsoWhatsAppGatewayTests {
   }
 
   @Test
-  void createsASpanishLinkInTheChosenModePaidByUs() {
+  void createsASpanishLinkInTheChosenModePaidByTheChurch() {
     answer =
         "{\"data\":{\"id\":\"l1\",\"url\":\"https://setup.kapso.ai/s/abc\","
             + "\"expires_at\":\"2026-11-30T10:00:00Z\"}}";
@@ -98,7 +99,7 @@ class KapsoWhatsAppGatewayTests {
     assertThat(call.body())
         .contains(
             "\"allowed_connection_types\":[\"coexistence\"]",
-            "\"meta_billing_mode\":\"partner_managed\"",
+            "\"meta_billing_mode\":\"customer_managed\"",
             "\"language\":\"es\"",
             "\"success_redirect_url\":\"https://app.example/ok\"",
             "\"failure_redirect_url\":\"https://app.example/fail\"");
