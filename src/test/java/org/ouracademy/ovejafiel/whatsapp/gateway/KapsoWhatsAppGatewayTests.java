@@ -26,6 +26,9 @@ class KapsoWhatsAppGatewayTests {
   private final List<Call> calls = new CopyOnWriteArrayList<>();
   private volatile int status = 200;
   private volatile String answer = "{}";
+  // Answers in order, when a test needs the server to say different things to each call.
+  private final java.util.Queue<String[]> script =
+      new java.util.concurrent.ConcurrentLinkedQueue<>();
   private KapsoWhatsAppGateway gateway;
 
   @BeforeEach
@@ -41,9 +44,11 @@ class KapsoWhatsAppGatewayTests {
                   exchange.getRequestURI().getPath(),
                   exchange.getRequestHeaders().getFirst("X-API-Key"),
                   body));
-          var bytes = answer.getBytes(StandardCharsets.UTF_8);
+          var next = script.poll();
+          var code = next != null ? Integer.parseInt(next[0]) : status;
+          var bytes = (next != null ? next[1] : answer).getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().add("Content-Type", "application/json");
-          exchange.sendResponseHeaders(status, bytes.length);
+          exchange.sendResponseHeaders(code, bytes.length);
           exchange.getResponseBody().write(bytes);
           exchange.close();
         });
@@ -228,5 +233,58 @@ class KapsoWhatsAppGatewayTests {
 
     assertThat(calls).hasSize(1);
     assertThat(calls.getFirst().method()).isEqualTo("GET");
+  }
+
+  private static final String TAKEN = "{\"error\":\"External customer has already been taken\"}";
+
+  @Test
+  void reusesTheCustomerThatKapsoAlreadyHasForTheChurch() {
+    script.add(new String[] {"422", TAKEN});
+    script.add(
+        new String[] {
+          "200",
+          "{\"data\":[{\"id\":\"cus-1\",\"external_customer_id\":\"other\"},"
+              + "{\"id\":\"cus-7\",\"external_customer_id\":\"church-1\"}],"
+              + "\"meta\":{\"page\":1,\"total_pages\":1}}"
+        });
+
+    var id = gateway.createCustomer("church-1", "Iglesia");
+
+    assertThat(id).isEqualTo("cus-7");
+    assertThat(calls).extracting(Call::method).containsExactly("POST", "GET");
+    assertThat(calls.get(1).path()).isEqualTo("/platform/v1/customers");
+  }
+
+  @Test
+  void looksForTheExistingCustomerInEveryPage() {
+    script.add(new String[] {"422", TAKEN});
+    script.add(
+        new String[] {
+          "200",
+          "{\"data\":[{\"id\":\"cus-1\",\"external_customer_id\":\"a\"}],"
+              + "\"meta\":{\"page\":1,\"total_pages\":2}}"
+        });
+    script.add(
+        new String[] {
+          "200",
+          "{\"data\":[{\"id\":\"cus-8\",\"external_customer_id\":\"church-1\"}],"
+              + "\"meta\":{\"page\":2,\"total_pages\":2}}"
+        });
+
+    assertThat(gateway.createCustomer("church-1", "Iglesia")).isEqualTo("cus-8");
+  }
+
+  @Test
+  void failsWhenTheCustomerCannotBeFoundOrTheRefusalIsAnotherOne() {
+    script.add(new String[] {"422", TAKEN});
+    script.add(new String[] {"200", "{\"data\":[],\"meta\":{\"page\":1,\"total_pages\":1}}"});
+    assertThatThrownBy(() -> gateway.createCustomer("church-1", "Iglesia"))
+        .isInstanceOf(PermanentDeliveryException.class);
+
+    calls.clear();
+    script.add(new String[] {"422", "{\"error\":\"Name can't be blank\"}"});
+    assertThatThrownBy(() -> gateway.createCustomer("church-1", ""))
+        .isInstanceOf(PermanentDeliveryException.class);
+    assertThat(calls).hasSize(1);
   }
 }
