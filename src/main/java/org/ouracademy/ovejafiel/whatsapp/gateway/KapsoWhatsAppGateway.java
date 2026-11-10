@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.ouracademy.ovejafiel.outbox.PermanentDeliveryException;
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
 import org.ouracademy.ovejafiel.whatsapp.domain.WhatsAppTemplate;
@@ -19,6 +20,7 @@ import org.springframework.web.client.RestClient;
  * WhatsApp Cloud API proxy for messages. Meta fees are paid by us with Kapso credits ({@code
  * partner_managed}) and billed to the church.
  */
+@Slf4j
 class KapsoWhatsAppGateway implements WhatsAppGateway {
 
   private static final Set<Integer> RETRYABLE_4XX = Set.of(408, 409, 425, 429);
@@ -100,6 +102,7 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
         && existing.get("data") instanceof List<?> hooks
         && hooks.stream()
             .anyMatch(h -> h instanceof Map<?, ?> hook && url.equals(hook.get("url")))) {
+      log.info("Kapso: number {} already has its webhook of messages", phoneNumberId);
       return;
     }
     var webhook = new LinkedHashMap<String, Object>();
@@ -109,6 +112,7 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
     webhook.put("secret_key", secret);
     webhook.put("active", true);
     post(platform, path, Map.of("whatsapp_webhook", webhook));
+    log.info("Kapso: webhook of messages made for number {}", phoneNumberId);
   }
 
   @Override
@@ -181,6 +185,12 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
           .retrieve()
           .body(Map.class);
     } catch (HttpClientErrorException e) {
+      // The path and the status, and the answer cut short: what Kapso says is what tells why.
+      log.warn(
+          "Kapso refused POST {}: {} {}",
+          uri,
+          e.getStatusCode(),
+          abbreviate(e.getResponseBodyAsString()));
       if (refusedForGood(e.getStatusCode())) {
         throw new PermanentDeliveryException(
             "Kapso refused the request: " + e.getStatusCode() + " " + e.getResponseBodyAsString(),
@@ -188,6 +198,10 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
       }
       throw e;
     }
+  }
+
+  private static String abbreviate(String text) {
+    return text.length() <= 300 ? text : text.substring(0, 300) + "…";
   }
 
   /** A 4xx means the request itself is wrong; timeouts and rate limits are worth another try. */

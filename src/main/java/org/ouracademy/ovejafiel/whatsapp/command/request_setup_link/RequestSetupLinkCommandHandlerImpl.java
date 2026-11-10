@@ -1,6 +1,7 @@
 package org.ouracademy.ovejafiel.whatsapp.command.request_setup_link;
 
 import java.util.NoSuchElementException;
+import lombok.extern.slf4j.Slf4j;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 class RequestSetupLinkCommandHandlerImpl implements RequestSetupLinkCommandHandler {
 
@@ -63,6 +65,13 @@ class RequestSetupLinkCommandHandlerImpl implements RequestSetupLinkCommandHandl
             WhatsAppTemplate.LANGUAGE,
             back + "completada",
             back + "fallida");
+    // The link itself is not logged: whoever has it can connect a number to the church.
+    log.info(
+        "WhatsApp setup link made: church={}, customer={}, mode={}, back to {}",
+        churchId.value(),
+        connection.getKapsoCustomerId(),
+        command.mode(),
+        back + "completada|fallida");
     return new RequestSetupLinkResult(link.url(), link.expiresAt());
   }
 

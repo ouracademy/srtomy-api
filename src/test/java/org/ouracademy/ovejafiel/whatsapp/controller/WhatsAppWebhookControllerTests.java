@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.ouracademy.ovejafiel.shared.OvejafielApplication;
 import org.ouracademy.ovejafiel.shared.SecurityConfig;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
@@ -19,6 +20,8 @@ import org.ouracademy.ovejafiel.whatsapp.command.update_connection_state.UpdateC
 import org.ouracademy.ovejafiel.whatsapp.command.update_connection_state.UpdateConnectionStateCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.domain.DisconnectReason;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -27,6 +30,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
+@ExtendWith(OutputCaptureExtension.class)
 @WebMvcTest(WhatsAppWebhookController.class)
 @ContextConfiguration(classes = OvejafielApplication.class)
 @Import({TestSecurityConfig.class, SecurityConfig.class})
@@ -168,5 +172,29 @@ class WhatsAppWebhookControllerTests {
         .hasStatusOk();
 
     verifyNoInteractions(updateConnectionStateCommandHandler);
+  }
+
+  @Test
+  void aRefusedSignatureLeavesALogThatSaysWhyWithoutTheSignature(CapturedOutput output) {
+    assertThat(post(CONNECTED, "deadbeefcafe", "whatsapp.phone_number.created")).hasStatus(401);
+
+    // The structured log escapes "=", so only the words are compared.
+    assertThat(output.getAll())
+        .contains("wrong or missing signature")
+        .contains("secret configured")
+        .doesNotContain("deadbeefcafe");
+  }
+
+  @Test
+  void aHandledEventLeavesALogWithItsNameAndKey(CapturedOutput output) {
+    assertThat(post(CONNECTED, sign(CONNECTED), "whatsapp.phone_number.created")).hasStatusOk();
+    assertThat(post(CONNECTED, sign(CONNECTED), "whatsapp.message.sent")).hasStatusOk();
+
+    assertThat(output.getAll())
+        .contains("WhatsApp webhook received")
+        .contains("whatsapp.phone_number.created")
+        .contains("key-1")
+        .contains("whatsapp.message.sent is not used")
+        .doesNotContain("s3cret");
   }
 }

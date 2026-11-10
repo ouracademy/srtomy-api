@@ -72,19 +72,35 @@ public class WhatsAppWebhookController {
       @RequestHeader(value = "X-Webhook-Event", required = false) String eventHeader,
       @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
     if (!WebhookSignature.isValid(body, signature, secret)) {
+      // Nothing the caller sent is logged (an unsigned request is the one anybody can forge), only
+      // whether a signature came and whether this service has a secret: that tells "Kapso signs
+      // with another secret" from "this service has none".
+      log.warn(
+          "WhatsApp webhook refused: wrong or missing signature (signature sent={}, secret"
+              + " configured={})",
+          signature != null,
+          !secret.isBlank());
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
     JsonNode payload;
     try {
       payload = JSON.readTree(body);
     } catch (java.io.IOException _) {
+      log.warn("WhatsApp webhook refused: the body is not JSON (event={})", eventHeader);
       return ResponseEntity.badRequest().build();
     }
     var event = eventHeader != null ? eventHeader : payload.path("event").asText("");
+    log.info("WhatsApp webhook received: event={}, key={}", event, idempotencyKey);
     if (PHONE_NUMBER_CREATED.equals(event)) {
       var customerId = payload.path("customer").path("id").asText("");
       var phoneNumberId = payload.path("phone_number_id").asText("");
       if (customerId.isBlank() || phoneNumberId.isBlank()) {
+        log.warn(
+            "WhatsApp webhook refused: {} without customer or phone number id (customer={},"
+                + " phone number={})",
+            event,
+            customerId,
+            phoneNumberId);
         return ResponseEntity.badRequest().build();
       }
       confirmConnectionCommandHandler.handle(
@@ -92,12 +108,15 @@ public class WhatsAppWebhookController {
     } else if (LOST.containsKey(event) || RESTORED.contains(event)) {
       var phoneNumberIds = phoneNumberIds(payload);
       if (phoneNumberIds.isEmpty()) {
+        log.warn("WhatsApp webhook refused: {} without any phone number id", event);
         return ResponseEntity.badRequest().build();
       }
       updateConnectionStateCommandHandler.handle(
           new UpdateConnectionStateCommand(idempotencyKey, phoneNumberIds, LOST.get(event)));
     } else if (WARNINGS.contains(event)) {
       log.warn("Kapso reports {} for {}", event, phoneNumberIds(payload));
+    } else {
+      log.info("WhatsApp webhook ignored: {} is not used", event);
     }
     // Other events are not used yet; answering 200 keeps the provider from retrying them.
     return ResponseEntity.ok().build();

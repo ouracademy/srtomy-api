@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.whatsapp.command.confirm_connection;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import lombok.extern.slf4j.Slf4j;
 import org.ouracademy.ovejafiel.whatsapp.gateway.WhatsAppGateway;
 import org.ouracademy.ovejafiel.whatsapp.gateway.WhatsAppGateway.PhoneInfo;
 import org.ouracademy.ovejafiel.whatsapp.repository.WhatsAppConnectionRepository;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+@Slf4j
 @Service
 class ConfirmConnectionCommandHandlerImpl implements ConfirmConnectionCommandHandler {
 
@@ -43,6 +45,22 @@ class ConfirmConnectionCommandHandlerImpl implements ConfirmConnectionCommandHan
   public ConfirmConnectionResult handle(ConfirmConnectionCommand command) {
     var info = phoneInfo(command.phoneNumberId());
     var result = transaction.execute(status -> confirm(command, info));
+    switch (result) {
+      case CONNECTED ->
+          log.info(
+              "WhatsApp connected: customer={}, phone number id={}",
+              command.customerId(),
+              command.phoneNumberId());
+      case ALREADY_HANDLED ->
+          log.info("WhatsApp connection already handled (key={})", command.idempotencyKey());
+      case UNKNOWN_CUSTOMER ->
+          log.warn(
+              "WhatsApp connection ignored: no church has the provider customer {} (phone number"
+                  + " id {}); a new setup link may have been made in another project or the"
+                  + " customer is not one of ours",
+              command.customerId(),
+              command.phoneNumberId());
+    }
     if (result == ConfirmConnectionResult.CONNECTED
         || result == ConfirmConnectionResult.ALREADY_HANDLED) {
       // Also when the delivery is a retry: if the first try connected the church but failed here,
@@ -57,9 +75,23 @@ class ConfirmConnectionCommandHandlerImpl implements ConfirmConnectionCommandHan
   /** Every number needs its own webhook for messages; the provider does not make it by itself. */
   private void routeMessagesToTheAgent(String phoneNumberId) {
     if (agentWebhookUrl.isBlank() || agentWebhookSecret.isBlank()) {
+      log.warn(
+          "WhatsApp number {} will not reach the agent: AGENT_WEBHOOK_URL or the agent secret is"
+              + " not configured",
+          phoneNumberId);
       return;
     }
-    gateway.ensureMessageWebhook(phoneNumberId, agentWebhookUrl, agentWebhookSecret);
+    try {
+      gateway.ensureMessageWebhook(phoneNumberId, agentWebhookUrl, agentWebhookSecret);
+      log.info("WhatsApp number {}: messages go to the agent", phoneNumberId);
+    } catch (RuntimeException e) {
+      log.error(
+          "WhatsApp number {}: could not make the webhook of messages; the provider will deliver"
+              + " the event again",
+          phoneNumberId,
+          e);
+      throw e;
+    }
   }
 
   private ConfirmConnectionResult confirm(ConfirmConnectionCommand command, PhoneInfo info) {
@@ -83,7 +115,12 @@ class ConfirmConnectionCommandHandlerImpl implements ConfirmConnectionCommandHan
     try {
       var info = gateway.phoneInfo(phoneNumberId);
       return info == null ? new PhoneInfo(null, null) : info;
-    } catch (RuntimeException _) {
+    } catch (RuntimeException e) {
+      log.warn(
+          "WhatsApp number {}: could not read its data from the provider ({}); the connection"
+              + " goes on without it",
+          phoneNumberId,
+          e.getMessage());
       return new PhoneInfo(null, null);
     }
   }
