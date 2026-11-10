@@ -287,4 +287,27 @@ class KapsoWhatsAppGatewayTests {
         .isInstanceOf(PermanentDeliveryException.class);
     assertThat(calls).hasSize(1);
   }
+
+  @Test
+  void removesTheNumberFromTheProject() {
+    status = 204;
+    answer = "";
+
+    gateway.deleteNumber("pn-7");
+
+    assertThat(calls).hasSize(1);
+    assertThat(calls.getFirst().method()).isEqualTo("DELETE");
+    assertThat(calls.getFirst().path()).isEqualTo("/platform/v1/whatsapp/phone_numbers/pn-7");
+    assertThat(calls.getFirst().apiKey()).isEqualTo("key-1");
+  }
+
+  @Test
+  void aNumberKapsoNoLongerHasIsNotAnError() {
+    status = 404;
+    answer = "{\"error\":\"not found\"}";
+
+    gateway.deleteNumber("pn-7");
+
+    assertThat(calls).hasSize(1);
+  }
 }

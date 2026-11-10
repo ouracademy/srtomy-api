@@ -360,7 +360,9 @@ class WhatsAppCommandHandlersTests {
     return handler(
         "org.ouracademy.ovejafiel.whatsapp.command.disconnect.DisconnectCommandHandlerImpl",
         connections,
-        findChurch);
+        findChurch,
+        gateway,
+        inTransaction());
   }
 
   @Test
@@ -374,6 +376,59 @@ class WhatsAppCommandHandlersTests {
     assertThat(result.wasConnected()).isTrue();
     assertThat(connection.getStatus()).isEqualTo(ConnectionStatus.DISCONNECTED);
     verify(connections).save(connection);
+  }
+
+  @Test
+  void disconnectingAlsoRemovesTheNumberFromTheProviderAfterMarkingIt() {
+    churchOf(church);
+    var connection = existing(ConnectionMode.COEXISTENCE);
+    connection.markConnected("pn-7", "+51", LocalDateTime.now());
+    var order = new java.util.ArrayList<String>();
+    when(connections.save(connection))
+        .thenAnswer(
+            call -> {
+              order.add("marked");
+              return connection;
+            });
+    org.mockito.Mockito.doAnswer(
+            call -> {
+              order.add("removed");
+              return null;
+            })
+        .when(gateway)
+        .deleteNumber("pn-7");
+
+    disconnectHandler().handle(new DisconnectCommand(church));
+
+    assertThat(order).containsExactly("marked", "removed");
+    assertThat(connection.getDisconnectReason())
+        .isEqualTo(org.ouracademy.ovejafiel.whatsapp.domain.DisconnectReason.PASTOR);
+  }
+
+  @Test
+  void ifTheProviderCannotRemoveTheNumberTheChurchIsDisconnectedAnyway() {
+    churchOf(church);
+    var connection = existing(ConnectionMode.COEXISTENCE);
+    connection.markConnected("pn-7", "+51", LocalDateTime.now());
+    org.mockito.Mockito.doThrow(new IllegalStateException("kapso down"))
+        .when(gateway)
+        .deleteNumber("pn-7");
+
+    var result = disconnectHandler().handle(new DisconnectCommand(church));
+
+    assertThat(result.wasConnected()).isTrue();
+    assertThat(connection.isConnected()).isFalse();
+  }
+
+  @Test
+  void aChurchThatWasNotConnectedHasNothingToRemoveAtTheProvider() {
+    churchOf(church);
+    existing(ConnectionMode.COEXISTENCE);
+
+    var result = disconnectHandler().handle(new DisconnectCommand(church));
+
+    assertThat(result.wasConnected()).isFalse();
+    verify(gateway, never()).deleteNumber(any());
   }
 
   @Test

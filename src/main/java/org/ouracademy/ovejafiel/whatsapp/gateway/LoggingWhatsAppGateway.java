@@ -34,6 +34,11 @@ class LoggingWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
+  public void deleteNumber(String phoneNumberId) {
+    log.info("WhatsApp number {} not removed, no provider configured", phoneNumberId);
+  }
+
+  @Override
   public SetupLink createSetupLink(
       String customerId,
       ConnectionMode mode,
