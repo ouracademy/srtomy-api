@@ -125,6 +125,24 @@ Supuestos o no confirmados:
 - Baileys / Evolution como producto por defecto (riesgo de baneo y de cumplimiento, sin recurso). No hay fase para ello salvo decisión explícita del dueño con las condiciones de la sección 4A.
 - Cambiar de proveedor de WhatsApp ahora: no reduce la barrera central.
 
+## 7b. Hallazgo de la prueba real: conectar desde el celular
+
+Lo reportó otra sesión de Claude que probó el setup link de Kapso (no lo reproduje yo). Con Coexistence, el flujo exige escanear un QR con la app WhatsApp Business del teléfono, y Kapso avisa «usa un computador de escritorio». Desde el mismo celular no se puede escanear su propio QR, y la ventana emergente de Meta se cancela al cambiar de pestaña («Falló la configuración: cancelada o no fue autorizada»). Con Dedicated no hay QR (código por SMS), pero el número no puede seguir en la app Business.
+
+Qué funciona 100 % desde el celular, según lo que sé (lo marcado con * es inferencia mía, sin probar):
+
+| Vía | ¿Solo celular? | Comentario |
+|---|---|---|
+| Número compartido de Sr. Tommy | Sí | El pastor solo envía `UNIRME <código>`. Sin Meta, sin QR. Encaje con Meta sin verificar. |
+| Conexión asistida por nosotros | Sí | Nosotros operamos el escritorio por videollamada; el pastor solo aprueba. |
+| Número aprovisionado por Kapso (preverificado) | Parcial* | Evita el SMS y el QR, pero sigue el inicio de sesión de Facebook y la ventana de Meta, que es donde se cancela. Hay que probarlo desde el celular. |
+| Dedicated (código por SMS) | Sí* | Sin QR, pero el pastor pierde la app Business en ese número, y la ventana emergente puede fallar igual. |
+| Coexistence | No | Necesita un segundo dispositivo con pantalla para el QR. |
+| Chat web, Telegram | Sí | Ambos funcionan en el navegador o app del celular. |
+| Baileys por QR | No* | También necesita escanear desde otro dispositivo; existe vinculación por código numérico, que no verifiqué. |
+
+Conclusión: un número aprovisionado por nosotros quita el SMS y el QR pero **no** la ventana de Meta; el número compartido es lo único que quita todo. Mientras tanto, la conexión asistida por videollamada resuelve el caso del pastor que solo tiene celular. Cambios sugeridos a la fase 0: probar la ventana de Meta desde el celular con un número preverificado, y ofrecer en la UI el enlace para abrir el setup link desde una computadora (o enviarlo por correo).
+
 ## 8. Preguntas abiertas para el dueño del producto
 
 1. ¿Aceptamos que la demo use una marca compartida ("Sr. Tommy") en vez del nombre de la iglesia?
