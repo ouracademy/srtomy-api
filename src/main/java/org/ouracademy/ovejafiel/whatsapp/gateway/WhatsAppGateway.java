@@ -38,7 +38,17 @@ public interface WhatsAppGateway {
    */
   void ensureMessageWebhook(String phoneNumberId, String url, String secret);
 
-  SetupLink createSetupLink(String customerId, ConnectionMode mode, String language);
+  /**
+   * @param successUrl where the provider sends the pastor when the registration ends well (the
+   *     portal, to see the result); null or blank for none
+   * @param failureUrl the same when it fails
+   */
+  SetupLink createSetupLink(
+      String customerId,
+      ConnectionMode mode,
+      String language,
+      String successUrl,
+      String failureUrl);
 
   /**
    * Sends an approved template.

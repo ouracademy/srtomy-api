@@ -3,6 +3,7 @@ package org.ouracademy.ovejafiel.whatsapp.command;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -72,7 +73,8 @@ class WhatsAppCommandHandlersTests {
         connections,
         gateway,
         findChurch,
-        findOrganization);
+        findOrganization,
+        "https://app.example/");
   }
 
   private <T> T handler(String className, Object... args) {
@@ -96,7 +98,8 @@ class WhatsAppCommandHandlersTests {
         .thenReturn(Optional.of(organizationNamed("Iglesia Central")));
     when(gateway.createCustomer(church.value().toString(), "Iglesia Central")).thenReturn("cus-9");
     var expires = Instant.parse("2026-12-01T00:00:00Z");
-    when(gateway.createSetupLink("cus-9", ConnectionMode.COEXISTENCE, "es"))
+    when(gateway.createSetupLink(
+            eq("cus-9"), eq(ConnectionMode.COEXISTENCE), eq("es"), any(), any()))
         .thenReturn(new WhatsAppGateway.SetupLink("https://setup/x", expires));
 
     var result =
@@ -112,11 +115,28 @@ class WhatsAppCommandHandlersTests {
   }
 
   @Test
+  void theLinkSendsThePastorBackToTheWhatsappScreenOfTheChurch() {
+    churchOf(branch);
+    existing(ConnectionMode.COEXISTENCE);
+    when(gateway.createSetupLink(any(), any(), any(), any(), any()))
+        .thenReturn(new WhatsAppGateway.SetupLink("https://setup/z", Instant.now()));
+
+    // Asked from a branch: it still goes back to the church, whose number it is.
+    requestHandler().handle(new RequestSetupLinkCommand(branch, ConnectionMode.COEXISTENCE));
+
+    var base = "https://app.example/portal/" + church.value() + "/whatsapp?conexion=";
+    verify(gateway)
+        .createSetupLink(
+            "cus-1", ConnectionMode.COEXISTENCE, "es", base + "completada", base + "fallida");
+  }
+
+  @Test
   void aNewLinkReusesTheCustomerAndSendsAConnectedChurchBackToPending() {
     churchOf(church);
     var connection = existing(ConnectionMode.DEDICATED);
     connection.markConnected("pn", "+51", LocalDateTime.now());
-    when(gateway.createSetupLink("cus-1", ConnectionMode.COEXISTENCE, "es"))
+    when(gateway.createSetupLink(
+            eq("cus-1"), eq(ConnectionMode.COEXISTENCE), eq("es"), any(), any()))
         .thenReturn(new WhatsAppGateway.SetupLink("https://setup/y", Instant.now()));
 
     requestHandler().handle(new RequestSetupLinkCommand(church, ConnectionMode.COEXISTENCE));

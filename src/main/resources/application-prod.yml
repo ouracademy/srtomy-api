@@ -23,8 +23,6 @@ resend:
 kapso:
   api-key: ${sm@kapso-api-key:}
   webhook-secret: ${sm@kapso-webhook-secret:}
-  success-redirect-url: ${KAPSO_SUCCESS_REDIRECT_URL:}
-  failure-redirect-url: ${KAPSO_FAILURE_REDIRECT_URL:}
 
 # Where Kapso delivers the messages of every church number: the agent. When a church connects, we make
 # the webhook of its number with this URL and this secret (the same one the agent checks). Without
