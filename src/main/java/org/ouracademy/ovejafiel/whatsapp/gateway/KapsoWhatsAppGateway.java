@@ -46,8 +46,55 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
   @Override
   public String createCustomer(String externalId, String name) {
     var body = Map.of("customer", Map.of("name", name, "external_customer_id", externalId));
-    var data = data(post(platform, "/customers", body));
-    return (String) data.get("id");
+    try {
+      var data = data(post(platform, "/customers", body));
+      return (String) data.get("id");
+    } catch (PermanentDeliveryException e) {
+      // Kapso keeps one customer per external id. If it exists already (our row was lost, or two
+      // requests raced), that customer is the church's: use it instead of failing the setup.
+      if (e.getMessage() == null || !e.getMessage().contains("already been taken")) {
+        throw e;
+      }
+      var existing = findCustomer(externalId);
+      if (existing == null) {
+        throw e;
+      }
+      log.info("Kapso: the customer of {} already existed, reusing {}", externalId, existing);
+      return existing;
+    }
+  }
+
+  /** The id of the customer with that external id, or null. Customers are listed page by page. */
+  private String findCustomer(String externalId) {
+    for (var page = 1; ; page++) {
+      var current = page;
+      var response =
+          platform
+              .get()
+              .uri(
+                  uri ->
+                      uri.path("/customers")
+                          .queryParam("page", current)
+                          .queryParam("per_page", 100)
+                          .build())
+              .retrieve()
+              .body(Map.class);
+      if (response == null || !(response.get("data") instanceof List<?> customers)) {
+        return null;
+      }
+      for (var customer : customers) {
+        if (customer instanceof Map<?, ?> c && externalId.equals(c.get("external_customer_id"))) {
+          return (String) c.get("id");
+        }
+      }
+      var more =
+          response.get("meta") instanceof Map<?, ?> meta
+              && meta.get("total_pages") instanceof Number total
+              && page < total.intValue();
+      if (!more) {
+        return null;
+      }
+    }
   }
 
   @Override
