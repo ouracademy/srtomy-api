@@ -43,6 +43,12 @@ public interface WhatsAppGateway {
    *     portal, to see the result); null or blank for none
    * @param failureUrl the same when it fails
    */
+  /**
+   * Removes the number from the provider's project, so the church stops being connected there too
+   * (and Meta lets go of it). A number the provider no longer has is not an error.
+   */
+  void deleteNumber(String phoneNumberId);
+
   SetupLink createSetupLink(
       String customerId,
       ConnectionMode mode,

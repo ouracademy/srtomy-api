@@ -163,6 +163,20 @@ class KapsoWhatsAppGateway implements WhatsAppGateway {
   }
 
   @Override
+  public void deleteNumber(String phoneNumberId) {
+    try {
+      platform
+          .delete()
+          .uri("/whatsapp/phone_numbers/" + phoneNumberId)
+          .retrieve()
+          .toBodilessEntity();
+      log.info("Kapso: number {} removed", phoneNumberId);
+    } catch (HttpClientErrorException.NotFound _) {
+      log.info("Kapso: number {} was already gone", phoneNumberId);
+    }
+  }
+
+  @Override
   public SetupLink createSetupLink(
       String customerId,
       ConnectionMode mode,
