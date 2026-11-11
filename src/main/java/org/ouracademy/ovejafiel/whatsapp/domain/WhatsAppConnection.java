@@ -38,6 +38,10 @@ public class WhatsAppConnection extends DomainObject {
 
   LocalDateTime connectedAt;
 
+  /** The pastor paused the assistant: the number stays connected but the assistant is silent. */
+  @Column(nullable = false)
+  boolean agentPaused;
+
   /** Why it is not connected any more; null while connected. */
   @Enumerated(EnumType.STRING)
   DisconnectReason disconnectReason;
@@ -70,6 +74,16 @@ public class WhatsAppConnection extends DomainObject {
     this.status = ConnectionStatus.CONNECTED;
     this.connectedAt = now;
     this.disconnectReason = null;
+    // A new connection starts with the assistant on.
+    this.agentPaused = false;
+  }
+
+  public void pauseAgent() {
+    this.agentPaused = true;
+  }
+
+  public void resumeAgent() {
+    this.agentPaused = false;
   }
 
   /** The pastor disconnects it from the portal. */

@@ -13,7 +13,9 @@ public record WhatsAppConnectionResponse(
     LocalDateTime connectedAt,
     boolean inherited,
     @Schema(description = "Why the number stopped working, when status is DISCONNECTED")
-        DisconnectReason disconnectReason) {
+        DisconnectReason disconnectReason,
+    @Schema(description = "The assistant is paused: the number is connected but it does not answer")
+        boolean agentPaused) {
 
   public static WhatsAppConnectionResponse from(GetConnectionResult result) {
     return new WhatsAppConnectionResponse(
@@ -22,6 +24,7 @@ public record WhatsAppConnectionResponse(
         result.displayNumber(),
         result.connectedAt(),
         result.inherited(),
-        result.disconnectReason());
+        result.disconnectReason(),
+        result.agentPaused());
   }
 }

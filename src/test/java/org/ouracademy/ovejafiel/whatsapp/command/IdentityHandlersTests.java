@@ -178,6 +178,22 @@ class IdentityHandlersTests {
   }
 
   @Test
+  void aPausedAssistantAnswersNobodyAndAsksNothingAboutThePerson() throws Exception {
+    keyConfigured();
+    var connection = new WhatsAppConnection(church, "cus-1", ConnectionMode.COEXISTENCE);
+    connection.markConnected("pn-1", "+51 1", LocalDateTime.now());
+    connection.pauseAgent();
+    when(connections.findByPhoneNumberId("pn-1")).thenReturn(Optional.of(connection));
+
+    var result = resolver().handle(writes());
+
+    assertThat(result.status()).isEqualTo(Status.AGENT_PAUSED);
+    assertThat(result.token()).isNull();
+    assertThat(result.churchSlug()).isNull();
+    verifyNoInteractions(findPeople, resolveUser);
+  }
+
+  @Test
   void aDisconnectedChurchGetsNothing() throws Exception {
     keyConfigured();
     var connection = new WhatsAppConnection(church, "cus-1", ConnectionMode.DEDICATED);

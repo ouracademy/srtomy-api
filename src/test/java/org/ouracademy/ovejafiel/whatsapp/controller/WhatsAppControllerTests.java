@@ -25,6 +25,8 @@ import org.ouracademy.ovejafiel.whatsapp.command.provision_templates.ProvisionTe
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkResult;
+import org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused.SetAgentPausedCommand;
+import org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused.SetAgentPausedCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.domain.ConnectionMode;
 import org.ouracademy.ovejafiel.whatsapp.query.get_connection.GetConnectionQueryHandler;
 import org.ouracademy.ovejafiel.whatsapp.query.get_connection.GetConnectionResult;
@@ -48,6 +50,7 @@ class WhatsAppControllerTests {
 
   @MockitoBean RequestSetupLinkCommandHandler requestSetupLinkCommandHandler;
   @MockitoBean DisconnectCommandHandler disconnectCommandHandler;
+  @MockitoBean SetAgentPausedCommandHandler setAgentPausedCommandHandler;
   @MockitoBean GetConnectionQueryHandler getConnectionQueryHandler;
   @MockitoBean ProvisionTemplatesCommandHandler provisionTemplatesCommandHandler;
   @MockitoBean AuthorizeQueryHandler authorizeQueryHandler;
@@ -153,13 +156,15 @@ class WhatsAppControllerTests {
                 null,
                 true,
                 PartyId.generate(),
-                null));
+                null,
+                true));
 
     var body =
         assertThat(mvc.get().uri(uri).header("Authorization", bearer())).hasStatusOk().bodyJson();
     body.extractingPath("$.status").isEqualTo("CONNECTED");
     body.extractingPath("$.displayNumber").isEqualTo("+51 999 111 222");
     body.extractingPath("$.inherited").isEqualTo(true);
+    body.extractingPath("$.agentPaused").isEqualTo(true);
   }
 
   @Test
@@ -176,5 +181,61 @@ class WhatsAppControllerTests {
     given(disconnectCommandHandler.handle(any())).willThrow(new NoSuchElementException("none"));
 
     assertThat(mvc.delete().uri(uri).header("Authorization", bearer())).hasStatus(404);
+  }
+
+  @Test
+  void theAssistantCanBePausedAndResumed() {
+    var json = MediaType.APPLICATION_JSON;
+
+    assertThat(
+            mvc.put()
+                .uri(uri + "/agent")
+                .header("Authorization", bearer())
+                .contentType(json)
+                .content("{\"paused\":true}"))
+        .hasStatus(204);
+    assertThat(
+            mvc.put()
+                .uri(uri + "/agent")
+                .header("Authorization", bearer())
+                .contentType(json)
+                .content("{\"paused\":false}"))
+        .hasStatus(204);
+
+    verify(setAgentPausedCommandHandler).handle(new SetAgentPausedCommand(node, true));
+    verify(setAgentPausedCommandHandler).handle(new SetAgentPausedCommand(node, false));
+  }
+
+  @Test
+  void pausingNeedsTheFlagThePermissionAndAConnectedChurch() {
+    var json = MediaType.APPLICATION_JSON;
+    assertThat(
+            mvc.put()
+                .uri(uri + "/agent")
+                .header("Authorization", bearer())
+                .contentType(json)
+                .content("{}"))
+        .hasStatus(400);
+
+    given(authorizeQueryHandler.handle(any())).willThrow(new AccessDeniedException("no"));
+    assertThat(
+            mvc.put()
+                .uri(uri + "/agent")
+                .header("Authorization", bearer())
+                .contentType(json)
+                .content("{\"paused\":true}"))
+        .hasStatus(403);
+
+    org.mockito.BDDMockito.willThrow(new NoSuchElementException("none"))
+        .given(setAgentPausedCommandHandler)
+        .handle(any());
+    org.mockito.Mockito.reset(authorizeQueryHandler);
+    assertThat(
+            mvc.put()
+                .uri(uri + "/agent")
+                .header("Authorization", bearer())
+                .contentType(json)
+                .content("{\"paused\":true}"))
+        .hasStatus(404);
   }
 }
