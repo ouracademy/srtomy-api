@@ -173,6 +173,39 @@ Lo reportó otra sesión de Claude (no lo reproduje). Con el setup link de Kapso
 2. Mientras tanto, para pruebas y la demo, usar un WABA propio en USD.
 3. Documentar en la UI qué modo de pago aplica a cada país.
 
+## 7d. Hallazgo de la prueba real: desconectar un número en Coexistence
+
+Lo reportó otra sesión de Claude (no lo reproduje). Borrar el número en Kapso no libera el vínculo: la app WhatsApp Business sigue listando a Kapso en Ajustes, Cuenta, Plataforma comercial. La referencia de Meta del endpoint de deregistro dice que no se pueden desregistrar números de cuentas SMB (app Business).
+
+**Verificado en la documentación de Meta (Coexistence)**
+- Quien desconecta es el cliente en la app: Ajustes, Cuenta, Plataforma comercial, Desconectar cuenta. El documento no describe una desconexión desde el proveedor y dice que la API de deregistro no sirve con un número activo en la API y en la app.
+- El proveedor recibe el webhook `account_update` con evento `PARTNER_REMOVED` y un motivo: `ACCOUNT_DISCONNECTED`, `BUSINESS_DOWNGRADE`, `CHANGE_NUMBER`, `COMPANION_INACTIVITY`, `PRIMARY_INACTIVITY` o `USER_RE_REGISTERED`, iniciado por `USER` o `SYSTEM`.
+- Inactividad: cerca de 14 días sin abrir la app Business desconecta el número (`PRIMARY_INACTIVITY`); cerca de 30 días en un dispositivo vinculado (`COMPANION_INACTIVITY`). Una fuente de proveedor habla de 13 días: usar el valor de Meta, ~14.
+- La sincronización de contactos y de historial solo corre una vez; para repetirla hay que desconectar y repetir Embedded Signup.
+- Si el cliente comparte la línea de crédito de un socio anterior, puede ver un error al cambiar de socio.
+
+**Cómo lo manejan otros proveedores** (blogs y ayudas de 360dialog, WATI, SleekFlow, Chakra, entre otros; no son fuentes de Meta). Todos dicen lo mismo: ningún proveedor puede desconectar desde el servidor; el dueño lo hace en la app, espera unos 15 minutos y recién entonces otro proveedor puede conectar el número. Errores como 3441049 o 2655094 indican que el número sigue ligado a una plataforma. Recomiendan avisar al proveedor actual antes de desconectar para no perder datos y no desinstalar la app, porque eso también desconecta.
+
+**Qué alternativas evitan esta fricción**
+| Vía | ¿Evita el vínculo en la app? |
+|---|---|
+| Número aprovisionado por nosotros | Sí: no hay app Business en el teléfono; borrar el número lo libera. |
+| Dedicated | Sí: el número no está en la app Business, así que el deregistro por API aplica (el número no puede volver a la app). |
+| Número compartido | Sí: la iglesia no aporta número. Solo se borra su vínculo con nosotros. |
+| Chat web, Telegram, correo | Sí: no hay vínculo con la app. |
+| Coexistence | No: el dueño tiene que desconectar en su celular. |
+
+**Qué implica para quien se va o cambia de proveedor**
+- Con Coexistence, el pastor que se va de Sr. Tommy debe desconectar en su app; mientras no lo haga, el número queda atado a nosotros y a Kapso, y ningún otro proveedor puede conectarlo. Eso no es un secuestro nuestro, pero se vive como tal: hay que explicarlo antes.
+- Para cambiar de proveedor: desconectar en la app, esperar ~15 minutos y repetir el registro con el proveedor nuevo. Se pierde la sincronización de historial ya hecha (corre una vez) y hay que reaprobar plantillas en el WABA nuevo (spec 014: revisión de hasta un día).
+- Si el número se desconecta solo (14 días sin abrir la app), el webhook `PARTNER_REMOVED` debe pasar la conexión a `DISCONNECTED` y avisar al pastor; si no, los avisos fallan sin explicación.
+
+**Acciones sugeridas**
+1. En la UI de desconexión de una conexión Coexistence, mostrar las instrucciones de la app (Plataforma comercial, Desconectar cuenta) en vez de afirmar que quedó desconectado.
+2. Tratar `PARTNER_REMOVED` como desconexión y registrar el motivo, sin guardar datos personales.
+3. Dar a elegir el modo con esta información: Coexistence conserva la app pero ata el número; Dedicated es más limpio de desvincular.
+4. Documentar la salida (cómo irse) en los términos del servicio.
+
 ## 8. Preguntas abiertas para el dueño del producto
 
 1. ¿Aceptamos que la demo use una marca compartida ("Sr. Tommy") en vez del nombre de la iglesia?
