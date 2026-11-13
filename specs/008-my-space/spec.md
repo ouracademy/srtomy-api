@@ -6,7 +6,7 @@
 
 **Status**: Implemented (API y UI, esta última en el repo `srtomy-ui`)
 
-**Input**: Desde la 004b el acceso nace de los cargos: una persona con cuenta y **sin cargo** no tiene ningún acceso (deuda técnica 9). Esta fase le da el nivel **Miembro** y una vista propia, «Mi espacio» (`/portal/me`). Diseño: [`docs/redesign.md`](../../docs/redesign.md) §4.6 y §9.
+**Input**: Desde la 004b el acceso nace de los cargos: una persona con cuenta y **sin cargo** no tiene ningún acceso (deuda técnica 9). Esta fase le da el nivel **Miembro** y una vista propia, «Mi espacio» (`/portal/me`). Diseño: `docs/redesign.md` (retirado; ver `git show e4026aa:docs/redesign.md`) §4.6 y §9.
 
 ## Decisiones
 
@@ -42,4 +42,4 @@ Ruta `/portal/me` para cualquier usuario con sesión, con las secciones Mis even
 
 ## Fuera de alcance (deuda técnica)
 
-Ver la tabla de `docs/redesign.md` §10: la ocurrencia de una serie y las inscripciones de gente sin ficha siguen como estaban (ítems 17 y 18).
+Ver la tabla de `docs/tech-debt-and-future-work.md`: la ocurrencia de una serie y las inscripciones de gente sin ficha siguen como estaban (ítems 17 y 18).

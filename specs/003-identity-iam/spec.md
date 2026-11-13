@@ -8,7 +8,7 @@
 
 **Input**: User description: "003-identity-iam: Identidad de usuario e IAM jerárquico estilo GCP. Un usuario se registra, crea una o varias iglesias. Crear una iglesia exige su primera sede, de forma atómica, y copia cargos ministeriales sugeridos (editables, por iglesia, sin lista cerrada). Jerarquía recursiva iglesia > sede > grupo/ministerio (anidables). Roles de acceso predefinidos (Propietario, Administrador, Líder, Colaborador, Miembro) con permisos heredados a los descendientes, verificados en todos los endpoints. Enlaces sociales opcionales. Se elimina la iglesia de prueba, los cargos globales y la escritura del orgId en el proveedor de identidad."
 
-Diseño completo y fases siguientes: [`docs/redesign.md`](../../docs/redesign.md).
+Diseño completo y fases siguientes: `docs/redesign.md` (retirado; ver `git show e4026aa:docs/redesign.md`).
 
 ## User Scenarios & Testing *(mandatory)*
 

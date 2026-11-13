@@ -67,6 +67,6 @@
 - **SC-001**: Sin `parentEventId` nada cambia respecto de hoy (migración aditiva; `registration_mode` por defecto `INHERIT` sin efecto en eventos sin padre).
 - **SC-002**: Ninguna prueba deja a una persona con lugar en un hijo `OWN` por su inscripción al padre.
 
-## Fuera de alcance (deuda técnica, `docs/redesign.md` §10)
+## Fuera de alcance (deuda técnica, `docs/tech-debt-and-future-work.md`)
 
 Recurrencia de contenedores; más de un nivel de anidación; asistencia consolidada por inscrito en todo el mega evento; cobro (Culqi); una inscripción que aplique a algunos hijos pero no a otros según el ticket (tickets por sub-evento).

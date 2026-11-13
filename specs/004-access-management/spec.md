@@ -8,7 +8,7 @@
 
 **Input**: User description: "004-access-management: pestaña \"Accesos\" por nodo (asignaciones heredadas y directas, otorgar y quitar roles) y roles IAM personalizados por iglesia (crear, editar, borrar con borrado lógico, eligiendo permisos del catálogo, desde cero o desde un rol predefinido). Reglas: no se otorga un rol que uno no tiene en ese nodo o un ancestro; no se quita al último Propietario; el Administrador no otorga ni revoca Propietario."
 
-Depende de [`003-identity-iam`](../003-identity-iam/spec.md). Diseño completo: [`docs/redesign.md`](../../docs/redesign.md).
+Depende de [`003-identity-iam`](../003-identity-iam/spec.md). Diseño completo: `docs/redesign.md` (retirado; ver `git show e4026aa:docs/redesign.md`).
 
 ## User Scenarios & Testing *(mandatory)*
 

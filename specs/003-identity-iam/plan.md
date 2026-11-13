@@ -91,7 +91,7 @@ Introduce users, GCP-style access roles inherited down the organization tree, an
    4. creates the positions,
    5. grants Owner.
 7. **Social links**: an `@Embeddable SocialLinks(website, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl)` inside `OrganizationInfo`. On requests, each link is validated with `@URL(regexp = "^https?://.*")`.
-8. **Removal**: delete the `auth` module (gateway, command, config, tests), the `auth0.clientId`/`clientSecret` and `resilience4j` config, and the resilience4j dependency. Terraform still creates the `auth0-client-*` secrets; that clean-up is noted as a follow-up in `docs/redesign.md`, not done here.
+8. **Removal**: delete the `auth` module (gateway, command, config, tests), the `auth0.clientId`/`clientSecret` and `resilience4j` config, and the resilience4j dependency. Terraform still creates the `auth0-client-*` secrets; that clean-up is noted as a follow-up in `docs/tech-debt-and-future-work.md`, not done here.
 
 ## Project Structure
 
