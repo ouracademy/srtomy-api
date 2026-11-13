@@ -6,7 +6,7 @@
 
 **Status**: Implemented (API)
 
-**Input**: Hoy la gente de un grupo solo la ve quien administra. Cada iglesia, sede, grupo o ministerio decide quién ve a su gente, la iglesia tiene un directorio y cada nodo puede tener una página pública. Diseño: [`docs/redesign.md`](../../docs/redesign.md) §6.
+**Input**: Hoy la gente de un grupo solo la ve quien administra. Cada iglesia, sede, grupo o ministerio decide quién ve a su gente, la iglesia tiene un directorio y cada nodo puede tener una página pública. Diseño: `docs/redesign.md` (retirado; ver `git show e4026aa:docs/redesign.md`) §6.
 
 ## Decisiones
 

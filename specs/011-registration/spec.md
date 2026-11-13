@@ -6,7 +6,7 @@
 
 **Status**: Implemented (API y UI, esta última en el repo `srtomy-ui`). Incluye asistencia por QR (decisiones 15 a 21).
 
-**Input**: El dueño del producto revisó la 007 y la juzgó mal planteada: inscribirse era un *rol del enlace* (`REGISTRANT`, solo cursos) y solo guardaba nombre, correo y teléfono. Ahora la **inscripción es un proceso aparte** del compartir, como en Eventbrite o Meetup: el evento define si es gratis o tiene tipos de ticket, cupos y una ventana de venta. Diseño: [`docs/redesign.md`](../../docs/redesign.md) §7.
+**Input**: El dueño del producto revisó la 007 y la juzgó mal planteada: inscribirse era un *rol del enlace* (`REGISTRANT`, solo cursos) y solo guardaba nombre, correo y teléfono. Ahora la **inscripción es un proceso aparte** del compartir, como en Eventbrite o Meetup: el evento define si es gratis o tiene tipos de ticket, cupos y una ventana de venta. Diseño: `docs/redesign.md` (retirado; ver `git show e4026aa:docs/redesign.md`) §7.
 
 ## Decisiones (acordadas con el dueño del producto)
 
@@ -35,7 +35,7 @@
 21. **Quién marca**: quien tiene `ATTENDANCE_WRITE` (pastor, ujier) marca a mano, escanea tickets, anota visitantes, sube el contador y **genera el QR del evento** que enseña a la gente. Escanear el QR del evento no pide permiso (es la autoasistencia que el ujier invita a hacer).
 
 22. **Inscripción más simple.** Los cupos son solo la **cantidad de cada ticket** (vacío: sin límite): se quita el «cupo total» del evento. Con un solo ticket, la UI lo muestra como «Cupos» y «Precio», sin hablar de tickets; los varios tipos de ticket quedan en «Más opciones». La migración `V1.13.0` pasa el cupo total de los eventos con un solo ticket a la cantidad de ese ticket (con varios tickets conserva el total, que sigue limitando).
-23. **Sin lista de espera.** Nadie avisa a quien espera cuando se libera un lugar (no se envía correo), así que la lista de espera no sirve y se **quitó del todo** (`V1.14.0`): la inscripción llena responde 400 «se agotaron los lugares» y las personas que esperaban pasaron a `CANCELLED`. Si vuelve, irá con los avisos por correo (`docs/redesign.md` §11).
+23. **Sin lista de espera.** Nadie avisa a quien espera cuando se libera un lugar (no se envía correo), así que la lista de espera no sirve y se **quitó del todo** (`V1.14.0`): la inscripción llena responde 400 «se agotaron los lugares» y las personas que esperaban pasaron a `CANCELLED`. Si vuelve, irá con los avisos por correo (`docs/tech-debt-and-future-work.md`, «Trabajo futuro»).
 24. **Cerrar y reabrir inscripciones** es una acción propia, no un campo del formulario: `PUT /events/{id}/registration/open {open}`. La configuración y las inscripciones se conservan; al reabrir entran los que esperan si hay lugar. Una inscripción nueva nace abierta.
 25. **Un permiso por acción** (se agregan al catálogo de IAM, grupo `registrations`): `registrations.read` (ver la configuración y los inscritos), `registrations.configure` (activar, cambiar o quitar la inscripción), `registrations.close` (cerrar o reabrir) y `registrations.remove` (quitar a un inscrito). Marcar el ingreso sigue siendo `attendance.write`. Cada endpoint pide solo su permiso (la respuesta de quien configura o cierra no exige además `registrations.read`). La migración `V1.13.0` se los da a todos los roles y cargos que ya tenían `events.write`, para que nadie pierda lo que podía hacer.
 
@@ -105,6 +105,6 @@ Los organizadores ven los inscritos con ticket y estado (`GET /events/{id}/regis
 - **SC-001**: Un evento sin configuración se comporta como antes, salvo que ya no hay inscripción por enlace.
 - **SC-002**: Ninguna prueba de cupos deja más confirmadas que el cupo.
 
-## Fuera de alcance (deuda técnica, `docs/redesign.md` §10)
+## Fuera de alcance (deuda técnica, `docs/tech-debt-and-future-work.md`)
 
 Pagos reales; reconocimiento de caras o validación de ubicación al escanear; correo de confirmación con el enlace de cancelación y aviso al pasar de la espera a confirmada (outbox); preguntas propias por evento; varios boletos por compra; convertir inscritos en personas de la iglesia (ítem 17); cancelar con un plazo.

@@ -6,7 +6,7 @@
 
 **Status**: Draft → Implemented (API); la UI va en el repo `srtomy-ui` (`specs/013-edit-events`)
 
-**Input**: Hoy no se puede editar un evento o curso ya creado: `PUT /v1/events/{id}` existe pero `EditEventCommandHandler` lanza `NotImplementedException("TODO:")` (deuda 21 de `docs/redesign.md`). Se quiere editarlo de punta a punta (API + UI), incluidas las series (`EventChangeOption`).
+**Input**: Hoy no se puede editar un evento o curso ya creado: `PUT /v1/events/{id}` existe pero `EditEventCommandHandler` lanza `NotImplementedException("TODO:")` (deuda 21 de `docs/redesign.md`, ya retirada; ver `git show e4026aa:docs/redesign.md`). Se quiere editarlo de punta a punta (API + UI), incluidas las series (`EventChangeOption`).
 
 ## Decisiones
 

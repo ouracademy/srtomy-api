@@ -37,7 +37,7 @@ All code must be in English: file names, classes, methods, variables, comments. 
 
 ## Pending work and cleanup
 
-Anything left to do or to clean up (unused secrets, dead code, legacy names...) goes into the technical debt table of `docs/redesign.md` (section 10, "009"). Ask the product owner before doing any item from that list, especially cleanups; never remove things on your own initiative.
+Anything left to do or to clean up (unused secrets, dead code, legacy names...) goes into `docs/tech-debt-and-future-work.md`. Ask the product owner before doing any item from that list, especially cleanups; never remove things on your own initiative.
 
 ## Specs and plans
 

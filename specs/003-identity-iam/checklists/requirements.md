@@ -32,4 +32,4 @@
 ## Notes
 
 - Permission names (`org.read`, …) appear in the spec because they are part of the domain the user talks about (GCP-style roles), not an implementation choice.
-- Open decisions were settled with the user in the design conversation; see `docs/redesign.md`.
+- Open decisions were settled with the user in the design conversation; see `docs/redesign.md` (retired; `git show e4026aa:docs/redesign.md`).

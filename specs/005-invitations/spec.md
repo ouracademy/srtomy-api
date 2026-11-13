@@ -6,7 +6,7 @@
 
 **Status**: Implemented (API)
 
-**Input**: Hasta la 004b solo el creador de una iglesia puede estar vinculado a un usuario. Para que el resto de la gente use la app, quien lidera invita por correo y, al aceptar, la persona queda vinculada a su cuenta y con su cargo. Diseño: [`docs/redesign.md`](../../docs/redesign.md) §5.
+**Input**: Hasta la 004b solo el creador de una iglesia puede estar vinculado a un usuario. Para que el resto de la gente use la app, quien lidera invita por correo y, al aceptar, la persona queda vinculada a su cuenta y con su cargo. Diseño: `docs/redesign.md` (retirado; ver `git show e4026aa:docs/redesign.md`) §5.
 
 ## Decisiones
 

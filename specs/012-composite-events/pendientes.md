@@ -2,7 +2,7 @@
 
 **Fecha**: 2026-10-31
 
-**Alcance**: API ([`srtomy-api#74`](https://github.com/ouracademy/srtomy-api/pull/74)) y UI ([`srtomy-ui#93`](https://github.com/ouracademy/srtomy-ui/pull/93)), rama `ccr-5c538956-covxf8` en ambos repos. Spec: [`spec.md`](./spec.md). Las filas de deuda técnica que se citan están en `docs/redesign.md` §10 (API: 39 a 41; UI: 32).
+**Alcance**: API ([`srtomy-api#74`](https://github.com/ouracademy/srtomy-api/pull/74)) y UI ([`srtomy-ui#93`](https://github.com/ouracademy/srtomy-ui/pull/93)), rama `ccr-5c538956-covxf8` en ambos repos. Spec: [`spec.md`](./spec.md). Las filas de deuda técnica que se citan están en `docs/tech-debt-and-future-work.md` (API: 39 a 41; UI: 32).
 
 Cada punto dice qué pasa hoy, qué se propone y de qué tamaño es (S: horas, M: un día o dos, L: más). «API» y «UI» indican en qué repo se hace.
 
@@ -216,4 +216,4 @@ Los asistentes de un sub-evento son **las personas marcadas más las inscripcion
 | ~~11~~ | ~~Repetir un congreso automáticamente~~ | **DESESTIMADO** |
 | 12 | Pagos (Culqi) | fuera de esta feature |
 
-Las filas «nueva» todavía no están en la tabla de deuda de `docs/redesign.md`: cuando el dueño del producto confirme el orden, se agregan allí (regla del repo: lo pendiente va a esa tabla y no se hace nada de ella sin consultarlo).
+Las filas «nueva» todavía no están en la tabla de deuda de `docs/tech-debt-and-future-work.md`: cuando el dueño del producto confirme el orden, se agregan allí (regla del repo: lo pendiente va a esa tabla y no se hace nada de ella sin consultarlo).

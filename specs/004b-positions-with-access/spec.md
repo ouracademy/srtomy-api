@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: Quien administra una iglesia piensa "si es pastor debe tener estos accesos, si es servidor estos otros". Hoy el **cargo** (etiqueta de una persona) y el **rol** (permisos de un usuario) son dos cosas sin conexión, y dar acceso exige otorgar un rol aparte por correo. Se unifican: el cargo lleva un nivel de acceso. Diseño: [`docs/redesign.md`](../../docs/redesign.md) §3.
+**Input**: Quien administra una iglesia piensa "si es pastor debe tener estos accesos, si es servidor estos otros". Hoy el **cargo** (etiqueta de una persona) y el **rol** (permisos de un usuario) son dos cosas sin conexión, y dar acceso exige otorgar un rol aparte por correo. Se unifican: el cargo lleva un nivel de acceso. Diseño: `docs/redesign.md` (retirado; ver `git show e4026aa:docs/redesign.md`) §3.
 
 ## Decisiones tomadas con el dueño del producto
 

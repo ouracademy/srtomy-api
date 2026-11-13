@@ -6,7 +6,7 @@
 
 **Status**: Implemented (API)
 
-**Input**: Un evento o curso hoy lo ve solo quien tiene `events.read` en su nodo. Se comparte como en Drive: con personas por correo, con la iglesia o con quien tenga el enlace, y por el enlace de un curso la gente se inscribe. Diseño: [`docs/redesign.md`](../../docs/redesign.md) §7.
+**Input**: Un evento o curso hoy lo ve solo quien tiene `events.read` en su nodo. Se comparte como en Drive: con personas por correo, con la iglesia o con quien tenga el enlace, y por el enlace de un curso la gente se inscribe. Diseño: `docs/redesign.md` (retirado; ver `git show e4026aa:docs/redesign.md`) §7.
 
 ## Decisiones
 
