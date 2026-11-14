@@ -14,6 +14,9 @@ import org.ouracademy.ovejafiel.whatsapp.command.provision_templates.ProvisionTe
 import org.ouracademy.ovejafiel.whatsapp.command.provision_templates.ProvisionTemplatesCommandHandler;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkCommand;
 import org.ouracademy.ovejafiel.whatsapp.command.request_setup_link.RequestSetupLinkCommandHandler;
+import org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused.SetAgentPausedCommand;
+import org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused.SetAgentPausedCommandHandler;
+import org.ouracademy.ovejafiel.whatsapp.controller.dto.AgentPausedRequest;
 import org.ouracademy.ovejafiel.whatsapp.controller.dto.ProvisionTemplatesResponse;
 import org.ouracademy.ovejafiel.whatsapp.controller.dto.SetupLinkRequest;
 import org.ouracademy.ovejafiel.whatsapp.controller.dto.SetupLinkResponse;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,6 +47,7 @@ public class WhatsAppController {
 
   RequestSetupLinkCommandHandler requestSetupLinkCommandHandler;
   DisconnectCommandHandler disconnectCommandHandler;
+  SetAgentPausedCommandHandler setAgentPausedCommandHandler;
   GetConnectionQueryHandler getConnectionQueryHandler;
   ProvisionTemplatesCommandHandler provisionTemplatesCommandHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
@@ -84,6 +89,18 @@ public class WhatsAppController {
     var node = new PartyId(id);
     authorize(jwt, node);
     disconnectCommandHandler.handle(new DisconnectCommand(node));
+  }
+
+  /** Pauses or resumes the assistant of the church; the number stays connected. */
+  @PutMapping("organizations/{id}/whatsapp/agent")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void setAgentPaused(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable UUID id,
+      @RequestBody @Valid AgentPausedRequest request) {
+    var node = new PartyId(id);
+    authorize(jwt, node);
+    setAgentPausedCommandHandler.handle(new SetAgentPausedCommand(node, request.paused()));
   }
 
   private void authorize(Jwt jwt, PartyId node) {

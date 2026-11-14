@@ -14,7 +14,9 @@ public record GetConnectionResult(
     boolean inherited,
     PartyId churchId,
     /** Why it is disconnected; null otherwise. */
-    DisconnectReason disconnectReason) {
+    DisconnectReason disconnectReason,
+    /** The pastor paused the assistant (the number is still connected). */
+    boolean agentPaused) {
 
   public enum State {
     NOT_CONNECTED,

@@ -67,4 +67,18 @@ class WhatsAppConnectionTests {
 
     assertThat(connection.getDisconnectReason()).isNull();
   }
+
+  @Test
+  void pausingTheAssistantKeepsTheNumberConnectedAndAReconnectionStartsItOn() {
+    var connection = connected();
+
+    connection.pauseAgent();
+
+    assertThat(connection.isAgentPaused()).isTrue();
+    assertThat(connection.isConnected()).isTrue();
+
+    connection.markConnected("pn-2", "+51 999 333 444", LocalDateTime.now());
+
+    assertThat(connection.isAgentPaused()).isFalse();
+  }
 }
