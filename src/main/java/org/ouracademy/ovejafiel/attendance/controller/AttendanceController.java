@@ -40,6 +40,13 @@ public class AttendanceController {
   RegisterAttendanceCommandHandler registerAttendanceCommandHandler;
   EventAuthorization eventAuthorization;
 
+  /**
+   * Gets who attended an event. Returns the ids of the people marked present, how each one was
+   * marked and the count of guests without a name; 204 with no body when attendance was never
+   * taken. Needs {@code events.read}.
+   *
+   * @param id Id of the event or course.
+   */
   @GetMapping("{id}/attendance")
   public ResponseEntity<EventAttendanceResponse> getAttendance(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -63,7 +70,12 @@ public class AttendanceController {
         .orElse(ResponseEntity.noContent().build());
   }
 
-  /** How many came, counting each person once (marked people, tickets and visitors). */
+  /**
+   * Counts how many came to an event. Each person counts once, whether marked on the list, checked
+   * in with a ticket or added as a visitor. Needs {@code events.read}.
+   *
+   * @param id Id of the event or course.
+   */
   @GetMapping("{id}/attendance/summary")
   public AttendanceSummaryResponse summary(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -72,6 +84,13 @@ public class AttendanceController {
         getAttendanceSummaryQueryHandler.handle(new GetAttendanceSummaryQuery(new EventId(id))));
   }
 
+  /**
+   * Saves the attendance list of an event, replacing the previous one. The people in {@code
+   * personIds} are present and nobody else is, so send the complete list. Needs {@code
+   * attendance.write} on the node of the event.
+   *
+   * @param id Id of the event or course.
+   */
   @PutMapping("{id}/attendance")
   @ResponseStatus(code = HttpStatus.CREATED)
   public void registerAttendance(

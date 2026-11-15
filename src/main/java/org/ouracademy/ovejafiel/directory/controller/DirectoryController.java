@@ -38,7 +38,12 @@ public class DirectoryController {
   GetPublicPageQueryHandler getPublicPageQueryHandler;
   GetMyNodesQueryHandler getMyNodesQueryHandler;
 
-  /** Every node of the church with its basic information. */
+  /**
+   * Lists every node of a church with its basic information: name, type, description, schedule and
+   * leaders. For anyone with access somewhere in the church.
+   *
+   * @param churchId Id of the church.
+   */
   @GetMapping("organizations/{churchId}/directory")
   public List<DirectoryNodeResponse> directory(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID churchId) {
@@ -50,7 +55,7 @@ public class DirectoryController {
         .toList();
   }
 
-  /** The groups and ministries where the signed-in user's own person is a member or a leader. */
+  /** Lists the groups and ministries where the signed-in user is a member or a leader. */
   @GetMapping("me/nodes")
   public List<MyNodeResponse> myNodes(@AuthenticationPrincipal Jwt jwt) {
     return getMyNodesQueryHandler.handle(new GetMyNodesQuery(jwt.getSubject())).stream()
@@ -58,7 +63,12 @@ public class DirectoryController {
         .toList();
   }
 
-  /** A node of the directory, with its people when its visibility lets the caller see them. */
+  /**
+   * Gets a node of the church directory. Includes its people when the visibility of the node lets
+   * the caller see them.
+   *
+   * @param nodeId Id of the node: a church, location, group or ministry.
+   */
   @GetMapping("organizations/{nodeId}/directory-entry")
   public DirectoryEntryResponse entry(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID nodeId) {
     return DirectoryEntryResponse.from(
@@ -66,7 +76,13 @@ public class DirectoryController {
             new GetDirectoryEntryQuery(jwt.getSubject(), new PartyId(nodeId))));
   }
 
-  /** The public page of a node; 404 unless the node is public. No sign-in needed. */
+  /**
+   * Gets the public page of a church, location, group or ministry by its slug: what it publishes
+   * about itself (description, address, phone, schedule, links, team). 404 unless the node is
+   * public. No sign-in needed.
+   *
+   * @param slug The slug of the node: the last part of the address of its public page.
+   */
   @GetMapping("public/organizations/{slug}")
   public PublicPageResponse publicPage(@PathVariable String slug) {
     return getPublicPageQueryHandler

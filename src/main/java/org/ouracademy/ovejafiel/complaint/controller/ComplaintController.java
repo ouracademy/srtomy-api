@@ -22,6 +22,10 @@ public class ComplaintController {
 
   CreateComplaintCommandHandler createComplaintCommandHandler;
 
+  /**
+   * Files a complaint in the complaints book (libro de reclamaciones) of the product. It is the
+   * public legal form; no sign-in needed.
+   */
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
   public ComplaintResponse create(@RequestBody @Valid CreateComplaintRequest request) {

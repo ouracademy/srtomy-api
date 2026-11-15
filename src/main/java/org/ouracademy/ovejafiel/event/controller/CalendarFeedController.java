@@ -35,6 +35,10 @@ public class CalendarFeedController {
   RenewCalendarFeedCommandHandler renewCalendarFeedCommandHandler;
   GetCalendarFeedQueryHandler getCalendarFeedQueryHandler;
 
+  /**
+   * Gets the private calendar address of the signed-in user. Calendar apps subscribe to it to show
+   * the user's events; it is created the first time it is asked for.
+   */
   @GetMapping("me/calendar-feed")
   public CalendarFeedResponse myFeed(@AuthenticationPrincipal Jwt jwt) {
     return CalendarFeedResponse.of(
@@ -43,7 +47,10 @@ public class CalendarFeedController {
             .token());
   }
 
-  /** The old address stops working. */
+  /**
+   * Replaces the private calendar address of the signed-in user. The old address stops working, so
+   * calendar apps must subscribe again.
+   */
   @PostMapping("me/calendar-feed/renew")
   public CalendarFeedResponse renew(@AuthenticationPrincipal Jwt jwt) {
     return CalendarFeedResponse.of(
@@ -52,7 +59,12 @@ public class CalendarFeedController {
             .token());
   }
 
-  /** 404 for an unknown or renewed token, without saying which. */
+  /**
+   * The calendar of a user in iCalendar format, for calendar apps. 404 for an unknown or renewed
+   * token.
+   *
+   * @param token The secret token of the calendar address.
+   */
   @GetMapping(value = "public/calendar/{token}.ics", produces = TEXT_CALENDAR)
   public ResponseEntity<String> feed(@PathVariable String token) {
     var result =

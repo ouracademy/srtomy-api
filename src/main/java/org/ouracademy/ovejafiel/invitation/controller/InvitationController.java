@@ -71,7 +71,13 @@ public class InvitationController {
   FindOutboxStatusesQueryHandler findOutboxStatusesQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
-  /** Invites someone to the node; inviting the same email again resends the email. */
+  /**
+   * Invites someone by email to use the app as a person of a node, optionally with a position.
+   * Inviting the same email again sends the email again. Needs {@code invitations.send} on the
+   * node.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @PostMapping("organizations/{id}/invitations")
   @ResponseStatus(HttpStatus.CREATED)
   public CreateInvitationResponse create(
@@ -102,7 +108,12 @@ public class InvitationController {
         emailStatus == OutboxStatus.SENT);
   }
 
-  /** The pending invitations of the node (the expired ones are flagged by their status). */
+  /**
+   * Lists the invitations of a node that nobody accepted yet. Expired ones are included and flagged
+   * by their status. Needs {@code invitations.send}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @GetMapping("organizations/{id}/invitations")
   public List<InvitationResponse> ofOrganization(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -115,6 +126,11 @@ public class InvitationController {
         .toList();
   }
 
+  /**
+   * Cancels an invitation so its link stops working. Needs {@code invitations.send} on its node.
+   *
+   * @param id Id of the invitation.
+   */
   @DeleteMapping("invitations/{id}")
   public ResponseEntity<Void> revoke(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var invitation = find(new InvitationId(id));
@@ -123,6 +139,12 @@ public class InvitationController {
     return ResponseEntity.noContent().build();
   }
 
+  /**
+   * Shows what an invitation is for, to whoever opens the link of the email: the church and who
+   * invites. No sign-in needed; 404 when the token is not valid.
+   *
+   * @param token The token in the link of the invitation email.
+   */
   @GetMapping("public/invitations/{token}")
   public InvitationPreviewResponse preview(@PathVariable String token) {
     return findInvitationByTokenQueryHandler
@@ -131,6 +153,12 @@ public class InvitationController {
         .orElseThrow(InvitationController::notFound);
   }
 
+  /**
+   * Accepts an invitation with the token of its link. The signed-in user's verified email must be
+   * the invited one; the user then becomes that person of the node.
+   *
+   * @param token The token in the link of the invitation email.
+   */
   @PostMapping("invitations/{token}/accept")
   public AcceptInvitationResponse accept(
       @AuthenticationPrincipal Jwt jwt,
@@ -143,7 +171,7 @@ public class InvitationController {
     return accept(jwt, invitation.id(), request);
   }
 
-  /** The invitations waiting for the signed-in user's verified email. */
+  /** Lists the invitations waiting for the signed-in user, found by their verified email. */
   @GetMapping("me/invitations")
   public List<InvitationResponse> mine(@AuthenticationPrincipal Jwt jwt) {
     return findUserBySubjectQueryHandler
@@ -159,6 +187,12 @@ public class InvitationController {
         .orElse(List.of());
   }
 
+  /**
+   * Accepts one of the invitations waiting for the signed-in user. The user becomes that person of
+   * the node.
+   *
+   * @param id Id of the invitation, from the invitations of the signed-in user.
+   */
   @PostMapping("me/invitations/{id}/accept")
   public AcceptInvitationResponse acceptMine(
       @AuthenticationPrincipal Jwt jwt,

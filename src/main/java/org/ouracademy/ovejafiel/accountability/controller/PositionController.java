@@ -73,7 +73,12 @@ public class PositionController {
   FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
-  /** The positions of the church that {@code id} (any node) belongs to. */
+  /**
+   * Lists the positions (cargos) of a church, such as pastor or usher, with the access level each
+   * one gives. Needs {@code org.read}.
+   *
+   * @param id Id of any node of the church.
+   */
   @GetMapping("organizations/{id}/positions")
   public List<PositionSummaryResponse> findAll(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -86,6 +91,12 @@ public class PositionController {
         .toList();
   }
 
+  /**
+   * Creates a position (cargo) in a church, optionally with an access level. Whoever holds the
+   * position gets that access. Needs {@code positions.manage} on the church.
+   *
+   * @param id Id of any node of the church.
+   */
   @PostMapping("organizations/{id}/positions")
   @ResponseStatus(HttpStatus.CREATED)
   public PositionResponse create(
@@ -106,6 +117,11 @@ public class PositionController {
             .position());
   }
 
+  /**
+   * Renames a position (cargo). Needs {@code positions.manage} on its church.
+   *
+   * @param id Id of the position.
+   */
   @PutMapping("positions/{id}")
   public ResponseEntity<PositionResponse> rename(
       @AuthenticationPrincipal Jwt jwt,
@@ -119,7 +135,13 @@ public class PositionController {
             .map(result -> PositionResponse.from(result.position())));
   }
 
-  /** Changes what a position gives; no roles and no permissions make it a plain label. */
+  /**
+   * Changes the access a position gives to whoever holds it. With no roles and no permissions it
+   * becomes a plain label. Needs {@code positions.manage}, and the caller cannot give more access
+   * than they have.
+   *
+   * @param id Id of the position.
+   */
   @PutMapping("positions/{id}/access")
   public ResponseEntity<PositionResponse> setAccess(
       @AuthenticationPrincipal Jwt jwt,
@@ -138,6 +160,12 @@ public class PositionController {
             .map(result -> PositionResponse.from(result.position())));
   }
 
+  /**
+   * Deletes a position (cargo); whoever held it loses the access it gave. Needs {@code
+   * positions.manage} on its church.
+   *
+   * @param id Id of the position.
+   */
   @DeleteMapping("positions/{id}")
   public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var positionId = new AccountabilityTypeId(id);
@@ -146,6 +174,10 @@ public class PositionController {
     return ResponseEntity.noContent().build();
   }
 
+  /**
+   * Lists common names of positions (pastor, deacon, usher...) to offer when a church creates its
+   * own. Nothing is specific to a church.
+   */
   @GetMapping("positions/suggestions")
   public List<PositionSuggestionResponse> suggestions() {
     return getPositionSuggestionsQueryHandler
@@ -156,6 +188,12 @@ public class PositionController {
         .toList();
   }
 
+  /**
+   * Lists the positions (cargos) a person holds in a node. Needs {@code members.read} on the node.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   * @param personId Id of the person.
+   */
   @GetMapping("organizations/{id}/people/{personId}/positions")
   public List<PositionResponse> findOfPerson(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @PathVariable UUID personId) {

@@ -14,6 +14,7 @@ import org.ouracademy.ovejafiel.organization.domain.Organization;
 @Getter
 public class LocationChildRequest extends OrganizationRequest {
 
+  /** GROUP or MINISTRY. */
   @NotNull Organization.Type type;
 
   /** People to start the group with, as members. Optional. */
