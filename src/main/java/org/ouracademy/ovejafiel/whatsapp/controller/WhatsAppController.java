@@ -114,7 +114,14 @@ public class WhatsAppController {
     disconnectCommandHandler.handle(new DisconnectCommand(node));
   }
 
-  /** Pauses or resumes the assistant of the church; the number stays connected. */
+  /**
+   * Pauses or resumes the AI assistant that answers the WhatsApp of a church, so the church can
+   * answer by hand. The number stays connected, reminders keep going out and STOP, ALTA and
+   * VINCULAR still work; only the answers to questions stop. Only a connected church can be paused.
+   * Needs {@code org.update}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @PutMapping("organizations/{id}/whatsapp/agent")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void setAgentPaused(
