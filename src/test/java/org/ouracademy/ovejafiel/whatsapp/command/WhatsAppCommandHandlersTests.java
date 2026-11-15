@@ -440,6 +440,58 @@ class WhatsAppCommandHandlersTests {
         .isInstanceOf(NoSuchElementException.class);
   }
 
+  // --- pause the assistant
+
+  private org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused.SetAgentPausedCommandHandler
+      pauseHandler() {
+    return handler(
+        "org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused."
+            + "SetAgentPausedCommandHandlerImpl",
+        connections,
+        findChurch);
+  }
+
+  @Test
+  void pausingKeepsTheChurchConnectedAndResumingBringsTheAssistantBack() {
+    churchOf(branch);
+    var connection = existing(ConnectionMode.COEXISTENCE);
+    connection.markConnected("pn", "+51", LocalDateTime.now());
+
+    var paused =
+        pauseHandler()
+            .handle(
+                new org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused
+                    .SetAgentPausedCommand(branch, true));
+
+    assertThat(paused.paused()).isTrue();
+    assertThat(connection.isAgentPaused()).isTrue();
+    assertThat(connection.isConnected()).isTrue();
+    verify(connections).save(connection);
+
+    pauseHandler()
+        .handle(
+            new org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused.SetAgentPausedCommand(
+                branch, false));
+
+    assertThat(connection.isAgentPaused()).isFalse();
+  }
+
+  @Test
+  void aChurchThatIsNotConnectedCannotBePausedAndOneThatNeverConnectedHasNothing() {
+    churchOf(church);
+    existing(ConnectionMode.COEXISTENCE);
+    var pause =
+        new org.ouracademy.ovejafiel.whatsapp.command.set_agent_paused.SetAgentPausedCommand(
+            church, true);
+
+    assertThatThrownBy(() -> pauseHandler().handle(pause))
+        .isInstanceOf(org.ouracademy.ovejafiel.shared.domain.DomainValidationException.class);
+
+    when(connections.findById(church)).thenReturn(Optional.empty());
+    assertThatThrownBy(() -> pauseHandler().handle(pause))
+        .isInstanceOf(NoSuchElementException.class);
+  }
+
   // --- get connection
 
   private GetConnectionQueryHandler queryHandler() {

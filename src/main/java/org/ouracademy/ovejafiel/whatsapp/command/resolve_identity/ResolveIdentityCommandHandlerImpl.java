@@ -48,6 +48,9 @@ class ResolveIdentityCommandHandlerImpl implements ResolveIdentityCommandHandler
     if (connection.isEmpty()) {
       return ResolveIdentityResult.of(Status.CHURCH_NOT_CONNECTED);
     }
+    if (connection.get().isAgentPaused()) {
+      return ResolveIdentityResult.of(Status.AGENT_PAUSED);
+    }
     var churchId = connection.get().getOrganizationId();
     var church = findOrganization.handle(new FindOrganizationByIdQuery(churchId)).orElse(null);
     if (church == null) {

@@ -33,6 +33,8 @@ public record ResolveIdentityResult(
     LINKED,
     /** The number they wrote to is not a connected church number. */
     CHURCH_NOT_CONNECTED,
+    /** The pastor paused the assistant of the church: nobody is answered (the church does it). */
+    AGENT_PAUSED,
     /** No active person of the church has that phone: they may still ask about the church. */
     UNKNOWN,
     /** Several people share that phone: the agent cannot tell who writes. */
