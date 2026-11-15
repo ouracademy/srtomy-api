@@ -74,7 +74,12 @@ public class AttendanceCheckInController {
   SetAttendanceGuestsCommandHandler setAttendanceGuestsCommandHandler;
   FindUserBySubjectQueryHandler findUserBySubjectQueryHandler;
 
-  /** The code for the QR the usher shows; it changes every few minutes. */
+  /**
+   * Gets the code for the QR that an usher shows so people mark their own attendance. The code
+   * changes every few minutes; the answer says when to ask again. Needs {@code attendance.write}.
+   *
+   * @param id Id of the event or course.
+   */
   @GetMapping("events/{id}/attendance/qr")
   public AttendanceQrResponse qr(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     eventAuthorization.require(jwt, id, Permission.ATTENDANCE_WRITE);
@@ -82,7 +87,12 @@ public class AttendanceCheckInController {
     return new AttendanceQrResponse(result.token(), result.refreshAt());
   }
 
-  /** What someone sees after scanning the QR; 404 when the code is not one of ours. */
+  /**
+   * Says what event the scanned QR belongs to, before marking attendance. 404 when the code is not
+   * valid. No sign-in needed.
+   *
+   * @param token The code inside the QR of the event.
+   */
   @GetMapping("public/attendance/{token}")
   public AttendanceWelcomeResponse welcome(@PathVariable String token) {
     return getAttendanceWelcomeQueryHandler
@@ -91,7 +101,12 @@ public class AttendanceCheckInController {
         .orElseThrow(() -> new NoSuchElementException("Attendance code not found"));
   }
 
-  /** Marks the attendance of whoever scanned the QR, with or without an account. */
+  /**
+   * Marks the attendance of whoever scanned the QR of the event. Works with or without an account;
+   * without one the name may be sent.
+   *
+   * @param token The code inside the QR of the event.
+   */
   @PostMapping("public/attendance/{token}")
   public SelfAttendanceResponse markMyself(
       @AuthenticationPrincipal Jwt jwt,
@@ -105,7 +120,12 @@ public class AttendanceCheckInController {
                 request == null ? null : request.name())));
   }
 
-  /** An usher scanned the QR of a ticket. */
+  /**
+   * Checks in a sign-up by the code of its ticket QR, as an usher does at the door. Needs {@code
+   * attendance.write}.
+   *
+   * @param id Id of the event or course.
+   */
   @PostMapping("events/{id}/attendance/check-in")
   public CheckInResponse checkInWithTicket(
       @AuthenticationPrincipal Jwt jwt,
@@ -119,7 +139,12 @@ public class AttendanceCheckInController {
     return CheckInResponse.from(result);
   }
 
-  /** Marks a sign-up as present by hand, or takes the mark back. */
+  /**
+   * Marks a sign-up as present by hand, or takes the mark back. Needs {@code attendance.write}.
+   *
+   * @param id Id of the event or course.
+   * @param registrationId Id of the sign-up, from the list of registrations of the event.
+   */
   @PutMapping("events/{id}/registrations/{registrationId}/check-in")
   public CheckInResponse setCheckIn(
       @AuthenticationPrincipal Jwt jwt,
@@ -137,7 +162,12 @@ public class AttendanceCheckInController {
     return CheckInResponse.from(result);
   }
 
-  /** A person who comes for the first time: registered as a visitor and marked as present. */
+  /**
+   * Registers someone who comes for the first time as a visitor of the node of the event and marks
+   * them present. Returns the id of the new person. Needs {@code attendance.write}.
+   *
+   * @param id Id of the event or course.
+   */
   @PostMapping("events/{id}/attendance/visitors")
   @ResponseStatus(HttpStatus.CREATED)
   public VisitorResponse addVisitor(
@@ -164,7 +194,12 @@ public class AttendanceCheckInController {
     return new VisitorResponse(result.personId().value());
   }
 
-  /** How many visitors without a name came. */
+  /**
+   * Sets how many visitors without a name came to an event. It replaces the previous count. Needs
+   * {@code attendance.write}.
+   *
+   * @param id Id of the event or course.
+   */
   @PutMapping("events/{id}/attendance/guests")
   public GuestsResponse setGuests(
       @AuthenticationPrincipal Jwt jwt,

@@ -75,6 +75,17 @@ public class EventController {
   AuthorizeEventQueryHandler authorizeEventQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
+  /**
+   * Lists the events and courses of a node between two moments. Every occurrence of a recurring
+   * event comes as its own event. Needs {@code events.read} on the node.
+   *
+   * @param organizationId Id of the node (church, location, group or ministry) whose events are
+   *     listed.
+   * @param start Start of the range: date and time in UTC, without offset (2026-03-01T00:00:00).
+   *     Required.
+   * @param end End of the range: date and time in UTC, without offset (2026-03-31T23:59:59).
+   *     Required.
+   */
   @GetMapping
   public List<EventResponse> findAll(
       @AuthenticationPrincipal Jwt jwt,
@@ -94,6 +105,12 @@ public class EventController {
         .toList();
   }
 
+  /**
+   * Gets one event or course. Returns its name, time, place, description, speakers, recurrence and
+   * the node it belongs to; 404 when it does not exist, 403 when the caller cannot view it.
+   *
+   * @param id Id of the event or course.
+   */
   @GetMapping("{id}")
   public ResponseEntity<EventResponse> findById(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -104,6 +121,10 @@ public class EventController {
             .map(EventResponse::from));
   }
 
+  /**
+   * Creates an event or course in a node and returns its id. Needs {@code events.write} on the
+   * node; a sub-event also needs edit rights on its mega event.
+   */
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
   public UUID create(
@@ -142,7 +163,12 @@ public class EventController {
         .value();
   }
 
-  /** What the organizers and the system have told about the event, the newest first. */
+  /**
+   * Lists the announcements of an event, the newest first. They are what the organizers and the
+   * system have told whoever follows the event.
+   *
+   * @param id Id of the event or course.
+   */
   @GetMapping("{id}/notices")
   public List<EventNoticeResponse> notices(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -152,7 +178,12 @@ public class EventController {
         .toList();
   }
 
-  /** An announcement on the page of the event, for whoever follows it with or without account. */
+  /**
+   * Posts an announcement on the page of an event. Whoever follows the event sees it, with or
+   * without an account. Needs edit rights on the event.
+   *
+   * @param id Id of the event or course.
+   */
   @PostMapping("{id}/notices")
   @ResponseStatus(code = HttpStatus.CREATED)
   public void postNotice(
@@ -164,6 +195,13 @@ public class EventController {
         new PostEventNoticeCommand(new EventId(id), request.message()));
   }
 
+  /**
+   * Deletes an event or course; it cannot be undone. For a recurring event the body says whether
+   * only this occurrence, this and the following ones or all of them go. Needs manager rights on
+   * the event.
+   *
+   * @param id Id of the event or course.
+   */
   @DeleteMapping("{id}")
   public void delete(
       @AuthenticationPrincipal Jwt jwt,
@@ -173,6 +211,14 @@ public class EventController {
     deleteEventCommandHandler.handle(new DeleteEventCommand(new EventId(id), request.option()));
   }
 
+  /**
+   * Changes an event or course. Send the whole event, not only what changes: a field left out is
+   * cleared. For a recurring event {@code option} says which occurrences change. Answers how many
+   * occurrences were kept untouched and how many people were told by email. Needs edit rights on
+   * the event.
+   *
+   * @param id Id of the event or course.
+   */
   @PutMapping("{id}")
   public EditEventResponse edit(
       @AuthenticationPrincipal Jwt jwt,

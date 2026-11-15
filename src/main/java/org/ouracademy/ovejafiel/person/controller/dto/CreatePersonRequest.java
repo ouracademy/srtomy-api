@@ -17,17 +17,26 @@ import org.ouracademy.ovejafiel.person.domain.MemberState;
 @Setter
 public class CreatePersonRequest {
 
+  /** First names. */
   @NotBlank String firstName;
+
+  /** Last names. */
   @NotBlank String lastName;
 
+  /** Phone number, with country code (+51987654321). Optional. */
   // TODO: validate
   String phoneNumber;
 
+  /** Email. Optional. */
   @Email String email;
 
+  /** Age in years, when the birthdate is not known. Optional. */
   @PositiveOrZero Integer age;
+
+  /** Date of birth, as an ISO date (1990-05-17). Optional. */
   @PastOrPresent LocalDate birthdate;
 
+  /** Whether the person has been baptized. Optional. */
   Boolean hasBeenBaptized;
 
   /**
@@ -44,5 +53,6 @@ public class CreatePersonRequest {
   /** Ids of positions (cargos) of the church; others are ignored. */
   Set<UUID> positionIds = new HashSet<>();
 
+  /** Id of the node (church, location, group or ministry) the person is registered in. */
   @NotNull UUID organizationId;
 }

@@ -11,6 +11,7 @@ import org.ouracademy.ovejafiel.organization.domain.Organization;
 @Getter
 public class UpdateLocationChildRequest extends OrganizationRequest {
 
+  /** GROUP or MINISTRY. */
   @NotNull Organization.Type type;
 
   @Schema(hidden = true)

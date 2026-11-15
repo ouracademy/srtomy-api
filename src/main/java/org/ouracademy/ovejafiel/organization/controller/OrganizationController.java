@@ -91,6 +91,12 @@ public class OrganizationController {
   FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
+  /**
+   * Lists the nodes directly under a node: the locations of a church, or the groups and ministries
+   * of a location, group or ministry. Needs {@code org.read}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @GetMapping("{id}/childs")
   public List<OrganizationResponse> findAll(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -102,6 +108,12 @@ public class OrganizationController {
         .toList();
   }
 
+  /**
+   * Gets a node (church, location, group or ministry). Returns its name, type, description,
+   * address, phone, links and schedule. Needs {@code org.read}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @GetMapping("{id}")
   public ResponseEntity<OrganizationResponse> findById(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -112,7 +124,10 @@ public class OrganizationController {
             .map(OrganizationResponse::from));
   }
 
-  /** Any signed-in user may create a church; they become its Owner. */
+  /**
+   * Creates a church with its first location and its initial positions. Any signed-in user may;
+   * they become its Owner.
+   */
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
   public OrganizationResponse create(
@@ -153,6 +168,7 @@ public class OrganizationController {
     return OrganizationResponse.from(result.organization());
   }
 
+  /** Creates a location (sede) under a church. Needs {@code org.create_child} on the church. */
   @PostMapping("/locations")
   @ResponseStatus(code = HttpStatus.CREATED)
   public OrganizationResponse createLocation(
@@ -164,6 +180,12 @@ public class OrganizationController {
     return OrganizationResponse.from(result.organization());
   }
 
+  /**
+   * Changes a location. Send the whole node, not only what changes: a text field left out is
+   * cleared. Needs {@code org.update} on it.
+   *
+   * @param id Id of the location.
+   */
   @PutMapping("/locations/{id}")
   public ResponseEntity<OrganizationResponse> updateLocation(
       @AuthenticationPrincipal Jwt jwt,
@@ -176,7 +198,10 @@ public class OrganizationController {
             .map(result -> OrganizationResponse.from(result.organization())));
   }
 
-  /** A group or ministry under a location, group or ministry. */
+  /**
+   * Creates a group or ministry under a location, group or ministry. It may start with some people
+   * as members. Needs {@code org.create_child} on the parent.
+   */
   @PostMapping("/locations/childs")
   @ResponseStatus(code = HttpStatus.CREATED)
   public OrganizationResponse createLocationChild(
@@ -192,6 +217,12 @@ public class OrganizationController {
     return OrganizationResponse.from(result.organization());
   }
 
+  /**
+   * Changes a group or ministry. Send the whole node, not only what changes: a text field left out
+   * is cleared. Needs {@code org.update} on it.
+   *
+   * @param id Id of the group or ministry.
+   */
   @PutMapping("/locations/childs/{id}")
   public ResponseEntity<OrganizationResponse> updateLocationChild(
       @AuthenticationPrincipal Jwt jwt,
@@ -205,6 +236,12 @@ public class OrganizationController {
             .map(result -> OrganizationResponse.from(result.organization())));
   }
 
+  /**
+   * Changes a church. Send the whole node, not only what changes: a text field left out is cleared.
+   * Needs {@code org.update} on it.
+   *
+   * @param id Id of the church.
+   */
   @PutMapping("{id}")
   public ResponseEntity<OrganizationResponse> edit(
       @AuthenticationPrincipal Jwt jwt,
@@ -218,9 +255,12 @@ public class OrganizationController {
   }
 
   /**
-   * How the people of the node (and of everything below it) are doing: how many are visitors,
-   * attendees or members now, and per month how many joined, progressed or left, for the last
-   * {@code months} (1 to 36, 12 by default).
+   * How the people of a node and of everything below it are doing over the last months. Says how
+   * many are visitors, in progress or members now and, month by month, how many joined, progressed
+   * or left. Needs {@code members.read}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   * @param months How many months back, from 1 to 36. 12 when omitted.
    */
   @GetMapping("{id}/growth")
   public MemberGrowthResponse growth(
@@ -237,9 +277,13 @@ public class OrganizationController {
   }
 
   /**
-   * Same idea as {@link #growth}, but over an explicit {@code [startDate, endDate]} range instead
-   * of the last N calendar months. The bucket is chosen from the length of the range: a day for up
-   * to a month, a week for up to about four months, a month beyond that.
+   * How the people of a node and of everything below it changed over a range of dates. Like the
+   * growth by months, but grouped by day (ranges up to a month), week (up to about four months) or
+   * month. Needs {@code members.read}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   * @param startDate First day of the range, as an ISO date (2026-01-01).
+   * @param endDate Last day of the range, as an ISO date (2026-03-31).
    */
   @GetMapping("{id}/growth-range")
   public MemberGrowthRangeResponse growthRange(
@@ -258,6 +302,12 @@ public class OrganizationController {
                 subtree.ids(), range.start(), range.end(), range.bucket())));
   }
 
+  /**
+   * Deletes a node; it cannot be undone. 400 when the node cannot be deleted. Needs {@code
+   * org.delete} on it.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @DeleteMapping("{id}")
   public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     authorize(jwt, id, Permission.ORG_DELETE);

@@ -16,6 +16,7 @@
 	<description>Demo project for Spring Boot</description>
 	<properties>
 		<java.version>25</java.version>
+		<therapi-javadoc.version>0.16.0</therapi-javadoc.version>
 		<spring-cloud-gcp.version>8.3.1</spring-cloud-gcp.version>
 		<spring-cloud.version>2025.1.3</spring-cloud.version>
 		<!-- SonarCloud; adjust org/projectKey if they differ in your SonarCloud
@@ -113,6 +114,17 @@
 		</dependency>
 
 		<dependency>
+			<!-- Lets springdoc read the Javadoc of controllers and DTOs at runtime, so
+			the summaries and descriptions of the OpenAPI come from the comments
+			in the code (the AI agent reads them to choose its tools). The
+			comments are kept by the annotation processor named in
+			maven-compiler-plugin below. -->
+			<groupId>com.github.therapi</groupId>
+			<artifactId>therapi-runtime-javadoc</artifactId>
+			<version>${therapi-javadoc.version}</version>
+		</dependency>
+
+		<dependency>
 			<!-- Spring Boot 4 split FlywayAutoConfiguration out of the monolithic
 			spring-boot-autoconfigure into its own module; plain flyway-core on
 			the classpath is no longer enough to get Flyway to auto-run on
@@ -171,6 +183,11 @@
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
+						</path>
+						<path>
+							<groupId>com.github.therapi</groupId>
+							<artifactId>therapi-runtime-javadoc-scribe</artifactId>
+							<version>${therapi-javadoc.version}</version>
 						</path>
 					</annotationProcessorPaths>
 				</configuration>

@@ -8,14 +8,19 @@ import org.ouracademy.ovejafiel.organization.domain.MemberVisibility;
 
 @Data
 public class OrganizationRequest {
+  /** Name of the node. */
   @NotBlank String name;
 
+  /** What the node is about. Optional. */
   String description;
 
+  /** Street address where it meets. Optional. */
   String address;
 
+  /** Contact phone number. Optional. */
   String phoneNumber;
 
+  /** Its website and social networks. Optional. */
   @Valid SocialLinksRequest socialLinks;
 
   /** When the node meets (free text). */
@@ -27,5 +32,9 @@ public class OrganizationRequest {
   /** Whether the public page shows the org chart; omitted keeps the current value. */
   Boolean showOrgChart;
 
+  /**
+   * Id of the node it hangs from: the church of a location, or the location, group or ministry of a
+   * group or ministry.
+   */
   UUID parentId;
 }

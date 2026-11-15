@@ -72,6 +72,30 @@ handler lanza `AccessDeniedException` y la respuesta es 403. Los roles se
 heredan hacia abajo por `organization.parent_id`, como en IAM de GCP. Ver
 `specs/003-identity-iam/`.
 
+## Documentación de la API (OpenAPI)
+
+El documento OpenAPI (`/v3/api-docs`) no se escribe aparte: sale del **Javadoc** de los
+controladores y de sus peticiones (springdoc lo lee con `therapi-runtime-javadoc`). Lo leen el
+agente de IA (cada operación es una herramienta, y su descripción es lo único que el modelo sabe
+de ella) y el cliente generado de srtomy-ui.
+
+- **Cada método de un controlador lleva Javadoc.** La primera frase es el resumen: empieza con un
+  verbo y dice qué hace («Lists the events…», «Creates…»). Después, lo que quien llama necesita
+  saber: qué devuelve, qué permiso pide (`events.write`), qué pasa en los casos límite (404, 409) y
+  si reemplaza todo o solo una parte. Sin detalles de implementación.
+- **Cada parámetro lleva su `@param`** (los de ruta y de consulta): de qué es el id y de dónde se
+  saca, el formato de una fecha con un ejemplo, y si es opcional.
+- **Cada campo de una petición lleva Javadoc**: en una clase, sobre el campo; en un `record`, con
+  `@param` en el Javadoc del record.
+- Un método de validación (`isValidTimeZone`) que no es un dato se oculta con
+  `@Schema(hidden = true)`.
+- `OpenApiTextCustomizer` deja el texto en una línea y sin HTML; no hace falta cuidar los saltos.
+- `OpenApiDocumentationTests` falla si se publica una operación, un parámetro o un campo de
+  petición sin descripción (quedan fuera `/v1/internal/**` y `/v1/webhooks/**`, que no son para
+  personas). La misma prueba deja el documento en `target/openapi/srtomy-api.json`, para copiarlo
+  a srtomy-ui y srtomy-agent sin levantar la aplicación:
+  `./mvnw test -Dtest=OpenApiDocumentationTests`.
+
 ## Trabajo programado y sistemas externos
 
 **Dentro de la base de datos**, un comando es una transacción (`@Transactional` en el handler): todo o nada.

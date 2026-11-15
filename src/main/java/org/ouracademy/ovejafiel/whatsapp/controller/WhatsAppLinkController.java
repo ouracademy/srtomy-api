@@ -37,7 +37,10 @@ public class WhatsAppLinkController {
   GetLinkQueryHandler getLinkQueryHandler;
 
   /**
-   * The code to send from the WhatsApp to link, valid for ten minutes. Asking again replaces it.
+   * Creates the code the signed-in user sends from their WhatsApp to link it to their account. It
+   * is valid for ten minutes; asking again replaces it.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
    */
   @PostMapping("organizations/{id}/whatsapp/link-code")
   @ResponseStatus(HttpStatus.CREATED)
@@ -48,12 +51,23 @@ public class WhatsAppLinkController {
     return new LinkCodeResponse(result.code(), result.expiresAt(), result.displayNumber());
   }
 
+  /**
+   * Says whether the signed-in user linked their WhatsApp to their account in this church, with the
+   * number masked.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @GetMapping("organizations/{id}/whatsapp/link")
   public WhatsAppLinkResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var result = getLinkQueryHandler.handle(new GetLinkQuery(jwt.getSubject(), new PartyId(id)));
     return new WhatsAppLinkResponse(result.linked(), result.maskedPhone(), result.verifiedAt());
   }
 
+  /**
+   * Unlinks the WhatsApp of the signed-in user from their account in this church.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @DeleteMapping("organizations/{id}/whatsapp/link")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void unlink(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {

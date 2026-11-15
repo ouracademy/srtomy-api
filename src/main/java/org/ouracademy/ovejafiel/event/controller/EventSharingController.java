@@ -107,6 +107,12 @@ public class EventSharingController {
   ListMyEventsQueryHandler listMyEventsQueryHandler;
   FindOutboxStatusesQueryHandler findOutboxStatusesQueryHandler;
 
+  /**
+   * Gets how an event is shared. Returns who can open it through its link, the people it is shared
+   * with and how many sign-ups it has. Needs manager rights on the event.
+   *
+   * @param id Id of the event or course.
+   */
   @GetMapping("events/{id}/sharing")
   public EventSharingResponse sharing(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     manage(jwt, id);
@@ -116,6 +122,12 @@ public class EventSharingController {
         .orElseThrow(() -> new NoSuchElementException("Event not found"));
   }
 
+  /**
+   * Changes who can open an event through its link: only invited people, anyone in the church or
+   * anyone with the link. Needs manager rights on the event.
+   *
+   * @param id Id of the event or course.
+   */
   @PutMapping("events/{id}/sharing")
   public EventSharingResponse setSharing(
       @AuthenticationPrincipal Jwt jwt,
@@ -130,7 +142,12 @@ public class EventSharingController {
     return sharing(jwt, id);
   }
 
-  /** Revokes the current link and makes a new one. */
+  /**
+   * Replaces the shared link of an event with a new one. The old link stops working, so everyone
+   * who had it needs the new one. Needs manager rights on the event.
+   *
+   * @param id Id of the event or course.
+   */
   @PostMapping("events/{id}/sharing/link/renew")
   public EventLinkResponse renewLink(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     manage(jwt, id);
@@ -138,7 +155,12 @@ public class EventSharingController {
         renewEventLinkCommandHandler.handle(new RenewEventLinkCommand(new EventId(id))).slug());
   }
 
-  /** Shares the event with someone by email (and tells them); again changes the role. */
+  /**
+   * Shares an event with one person by email, as viewer or editor, and emails them. Sharing again
+   * with the same email changes the role. Needs manager rights on the event.
+   *
+   * @param id Id of the event or course.
+   */
   @PostMapping("events/{id}/shares")
   @ResponseStatus(HttpStatus.CREATED)
   public ShareEventResponse share(
@@ -161,6 +183,12 @@ public class EventSharingController {
         emailStatus == null ? null : emailStatus.name());
   }
 
+  /**
+   * Stops sharing an event with one person. Needs manager rights on the event.
+   *
+   * @param id Id of the event or course.
+   * @param shareId Id of the share, from the sharing of the event.
+   */
   @DeleteMapping("events/{id}/shares/{shareId}")
   public ResponseEntity<Void> unshare(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @PathVariable UUID shareId) {
@@ -170,7 +198,12 @@ public class EventSharingController {
     return ResponseEntity.noContent().build();
   }
 
-  /** How the event takes sign-ups: tickets and seats. */
+  /**
+   * Gets how an event takes sign-ups: its tickets with their seats and prices, whether an account
+   * is required and whether it is open. Needs {@code registrations.read}.
+   *
+   * @param id Id of the event or course.
+   */
   @GetMapping("events/{id}/registration")
   public EventRegistrationSetupResponse registration(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -186,6 +219,12 @@ public class EventSharingController {
         .orElseThrow(() -> new NoSuchElementException("Event not found"));
   }
 
+  /**
+   * Turns on or changes the sign-ups of an event: its tickets, seats and whether an account is
+   * required. The list of tickets replaces the current one. Needs {@code registrations.configure}.
+   *
+   * @param id Id of the event or course.
+   */
   @PutMapping("events/{id}/registration")
   public EventRegistrationSetupResponse setRegistration(
       @AuthenticationPrincipal Jwt jwt,
@@ -214,7 +253,12 @@ public class EventSharingController {
     return currentRegistration(id);
   }
 
-  /** Closes the registration (nobody else can sign up) or opens it again. */
+  /**
+   * Closes the sign-ups of an event so nobody else can sign up, or opens them again. Existing
+   * sign-ups are kept. Needs {@code registrations.close}.
+   *
+   * @param id Id of the event or course.
+   */
   @PutMapping("events/{id}/registration/open")
   public EventRegistrationSetupResponse setRegistrationOpen(
       @AuthenticationPrincipal Jwt jwt,
@@ -226,6 +270,12 @@ public class EventSharingController {
     return currentRegistration(id);
   }
 
+  /**
+   * Turns off the sign-ups of an event altogether, removing its tickets. Needs {@code
+   * registrations.configure}.
+   *
+   * @param id Id of the event or course.
+   */
   @DeleteMapping("events/{id}/registration")
   public ResponseEntity<Void> removeRegistration(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -235,6 +285,12 @@ public class EventSharingController {
     return ResponseEntity.noContent().build();
   }
 
+  /**
+   * Lists the people signed up for an event or course, with their ticket and whether they checked
+   * in. Needs {@code registrations.read}.
+   *
+   * @param id Id of the event or course.
+   */
   @GetMapping("events/{id}/registrations")
   public List<EventRegistrationResponse> registrations(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -246,6 +302,12 @@ public class EventSharingController {
         .toList();
   }
 
+  /**
+   * Cancels the sign-up of one person, freeing their seat. Needs {@code registrations.remove}.
+   *
+   * @param id Id of the event or course.
+   * @param registrationId Id of the sign-up, from the list of registrations of the event.
+   */
   @DeleteMapping("events/{id}/registrations/{registrationId}")
   public ResponseEntity<Void> cancelRegistration(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @PathVariable UUID registrationId) {
@@ -257,7 +319,8 @@ public class EventSharingController {
   }
 
   /**
-   * The events and courses where the signed-in user has a place or was present, most recent first.
+   * Lists the events and courses of the signed-in user: those where they have a place or were
+   * present, most recent first.
    */
   @GetMapping("me/events")
   public List<MyEventResponse> myEvents(@AuthenticationPrincipal Jwt jwt) {
@@ -266,7 +329,7 @@ public class EventSharingController {
         .toList();
   }
 
-  /** The events other people shared with the signed-in user. */
+  /** Lists the events that other people shared with the signed-in user. */
   @GetMapping("me/shared-events")
   public List<SharedWithMeResponse> sharedWithMe(@AuthenticationPrincipal Jwt jwt) {
     return listEventsSharedWithQueryHandler
@@ -276,7 +339,13 @@ public class EventSharingController {
         .toList();
   }
 
-  /** The shared page of an event; 404 when the visitor cannot open it. */
+  /**
+   * Gets the shared page of an event or course by its slug: what, when, where, its program and its
+   * tickets. 404 when the visitor cannot open it. No sign-in needed for events open to anyone with
+   * the link.
+   *
+   * @param slug The slug of the event: the last part of its shared link ({@code /e/{slug}}).
+   */
   @GetMapping("public/events/{slug}")
   public SharedEventResponse sharedEvent(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String slug) {
@@ -286,7 +355,12 @@ public class EventSharingController {
         .orElseThrow(() -> new NoSuchElementException("Event not found"));
   }
 
-  /** Signs up for an event or course with a ticket; anyone who can open its page can. */
+  /**
+   * Signs someone up for an event or course with one of its tickets. Anyone who can open the page
+   * of the event can; the answer carries the ticket and the code to cancel.
+   *
+   * @param slug The slug of the event: the last part of its shared link ({@code /e/{slug}}).
+   */
   @PostMapping("public/events/{slug}/registrations")
   @ResponseStatus(HttpStatus.CREATED)
   public RegistrationOutcomeResponse register(
@@ -306,7 +380,11 @@ public class EventSharingController {
     return RegistrationOutcomeResponse.from(result);
   }
 
-  /** Cancels a sign-up with the code its owner kept; no account needed. */
+  /**
+   * Cancels a sign-up with the code its owner received when signing up. No account needed.
+   *
+   * @param cancelCode The cancel code given when the person signed up.
+   */
   @DeleteMapping("public/registrations/{cancelCode}")
   public ResponseEntity<Void> cancelWithCode(@PathVariable String cancelCode) {
     cancelRegistrationByCodeCommandHandler.handle(new CancelRegistrationByCodeCommand(cancelCode));

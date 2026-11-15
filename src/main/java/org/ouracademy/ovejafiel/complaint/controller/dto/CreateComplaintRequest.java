@@ -4,7 +4,16 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-/** Body of the public complaint form; same fields and constraints as the {@code Complaint}. */
+/**
+ * Body of the public complaint form; same fields and constraints as the {@code Complaint}.
+ *
+ * @param firstName First names of who complains.
+ * @param lastName Last names of who complains.
+ * @param dni National identity document: 8 digits. Optional.
+ * @param address Home address. Optional.
+ * @param email Email where the answer is sent.
+ * @param comment The complaint itself.
+ */
 public record CreateComplaintRequest(
     @NotBlank String firstName,
     @NotBlank String lastName,

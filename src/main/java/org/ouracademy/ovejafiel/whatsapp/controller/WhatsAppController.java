@@ -52,6 +52,12 @@ public class WhatsAppController {
   ProvisionTemplatesCommandHandler provisionTemplatesCommandHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
+  /**
+   * Creates the link the pastor opens to connect the WhatsApp number of the church. The link
+   * expires. Needs {@code org.update} on the node.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @PostMapping("organizations/{id}/whatsapp/setup-link")
   @ResponseStatus(HttpStatus.CREATED)
   public SetupLinkResponse requestSetupLink(
@@ -65,7 +71,12 @@ public class WhatsAppController {
     return new SetupLinkResponse(result.url(), result.expiresAt());
   }
 
-  /** Submits the message templates to Meta for review. Harmless to repeat. */
+  /**
+   * Submits the message templates of the church to Meta for review. Harmless to repeat. Needs
+   * {@code org.update}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @PostMapping("organizations/{id}/whatsapp/templates")
   public ProvisionTemplatesResponse provisionTemplates(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -75,6 +86,12 @@ public class WhatsAppController {
         provisionTemplatesCommandHandler.handle(new ProvisionTemplatesCommand(node)));
   }
 
+  /**
+   * Gets the state of the WhatsApp connection of a church: whether a number is connected and which
+   * one. Needs {@code org.update}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @GetMapping("organizations/{id}/whatsapp")
   public WhatsAppConnectionResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var node = new PartyId(id);
@@ -83,6 +100,12 @@ public class WhatsAppController {
         getConnectionQueryHandler.handle(new GetConnectionQuery(node)));
   }
 
+  /**
+   * Disconnects the WhatsApp number of a church: no more messages are sent or answered. Needs
+   * {@code org.update}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @DeleteMapping("organizations/{id}/whatsapp")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void disconnect(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {

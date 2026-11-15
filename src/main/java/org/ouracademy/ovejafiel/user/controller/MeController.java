@@ -33,7 +33,10 @@ public class MeController {
   FindAccessibleOrganizationsQueryHandler findAccessibleOrganizationsQueryHandler;
   GetEffectivePermissionsQueryHandler getEffectivePermissionsQueryHandler;
 
-  /** Registers the user on first sign-in and refreshes their email afterwards. */
+  /**
+   * Gets the signed-in user. Registers them on their first sign-in and refreshes their email
+   * afterwards.
+   */
   @GetMapping
   public MeResponse me(@AuthenticationPrincipal Jwt jwt) {
     var result =
@@ -43,6 +46,10 @@ public class MeController {
     return MeResponse.from(result.user());
   }
 
+  /**
+   * Lists the churches, locations, groups and ministries the signed-in user can reach, with the
+   * parent of each one and the roles the user has there. Start here to find the ids of the nodes.
+   */
   @GetMapping("organizations")
   public List<MyOrganizationResponse> organizations(@AuthenticationPrincipal Jwt jwt) {
     return findAccessibleOrganizationsQueryHandler
@@ -52,7 +59,12 @@ public class MeController {
         .toList();
   }
 
-  /** Permission values (e.g. {@code members.read}) the user holds on the node, inherited too. */
+  /**
+   * Lists the permissions the signed-in user holds on a node, inherited ones included. They are
+   * values such as {@code members.read} or {@code events.write}.
+   *
+   * @param organizationId Id of the node: a church, location, group or ministry.
+   */
   @GetMapping("permissions")
   public List<String> permissions(
       @AuthenticationPrincipal Jwt jwt, @RequestParam UUID organizationId) {

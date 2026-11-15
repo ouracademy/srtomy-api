@@ -38,7 +38,15 @@ public class AttendanceStatsController {
   FindOrganizationSubtreeQueryHandler findOrganizationSubtreeQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
-  /** Same bucket choice as {@code OrganizationController.growthRange}: day, week or month. */
+  /**
+   * Attendance statistics of a node and everything below it over a range of dates. Says how many
+   * events happened and how attendance moved, grouped by day (ranges up to a month), week (up to
+   * about four months) or month. Needs {@code events.read}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   * @param startDate First day of the range, as an ISO date (2026-01-01).
+   * @param endDate Last day of the range, as an ISO date (2026-03-31).
+   */
   @GetMapping("{id}/attendance-stats")
   public AttendanceStatsResponse attendanceStats(
       @AuthenticationPrincipal Jwt jwt,

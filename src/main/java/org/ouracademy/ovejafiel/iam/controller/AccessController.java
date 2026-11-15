@@ -79,7 +79,12 @@ public class AccessController {
   FindChurchOfOrganizationQueryHandler findChurchOfOrganizationQueryHandler;
   AuthorizeQueryHandler authorizeQueryHandler;
 
-  /** The accesses on the node plus the ones inherited from its ancestors. */
+  /**
+   * Lists who has access to a node and where it comes from: a position, leading a group or being an
+   * Owner. Includes the access inherited from the nodes above. Needs {@code iam.read}.
+   *
+   * @param id Id of the node: a church, location, group or ministry.
+   */
   @GetMapping("organizations/{id}/access")
   public List<AccessEntryResponse> access(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var organizationId = new PartyId(id);
@@ -89,7 +94,12 @@ public class AccessController {
         .toList();
   }
 
-  /** Makes someone an Owner of the church of {@code id}. Only an Owner can. */
+  /**
+   * Makes someone an Owner of a church, by email. Owners can do everything in it; only an Owner can
+   * add another.
+   *
+   * @param id Id of any node of the church.
+   */
   @PostMapping("organizations/{id}/owners")
   @ResponseStatus(HttpStatus.CREATED)
   public void addOwner(
@@ -102,6 +112,12 @@ public class AccessController {
         new AddOwnerCommand(jwt.getSubject(), request.email(), organizationId));
   }
 
+  /**
+   * Takes away the Owner access of someone. Only an Owner can.
+   *
+   * @param id Id of any node of the church.
+   * @param bindingId Id of the access entry of that Owner, from the access list of the node.
+   */
   @DeleteMapping("organizations/{id}/owners/{bindingId}")
   public ResponseEntity<Void> removeOwner(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @PathVariable UUID bindingId) {
@@ -113,8 +129,8 @@ public class AccessController {
   }
 
   /**
-   * The predefined access levels, for forms that run before the church exists (the sign-up). Any
-   * signed-in user can read them.
+   * Lists the predefined access levels, the same for every church. Any signed-in user can read
+   * them; forms use them before a church exists.
    */
   @GetMapping("iam/levels")
   public List<RoleResponse> levels() {
@@ -124,7 +140,12 @@ public class AccessController {
         .toList();
   }
 
-  /** The access levels of the church of {@code id}: predefined plus its own. */
+  /**
+   * Lists the access levels of a church: the predefined ones plus its own, each with its
+   * permissions. Needs {@code iam.read}.
+   *
+   * @param id Id of any node of the church.
+   */
   @GetMapping("organizations/{id}/roles")
   public List<RoleResponse> roles(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
     var organizationId = new PartyId(id);
@@ -134,6 +155,12 @@ public class AccessController {
         .toList();
   }
 
+  /**
+   * Creates an access level of its own for a church: a named set of permissions to give to
+   * positions. Needs {@code iam.manage}.
+   *
+   * @param id Id of any node of the church.
+   */
   @PostMapping("organizations/{id}/roles")
   @ResponseStatus(HttpStatus.CREATED)
   public RoleResponse createRole(
@@ -154,6 +181,12 @@ public class AccessController {
             .role());
   }
 
+  /**
+   * Changes the name, description or permissions of an access level of a church. Everyone who has
+   * it through a position is affected. Needs {@code iam.manage} on its church.
+   *
+   * @param roleId Id of the access level.
+   */
   @PutMapping("roles/{roleId}")
   public RoleResponse updateRole(
       @AuthenticationPrincipal Jwt jwt,
@@ -173,6 +206,11 @@ public class AccessController {
             .role());
   }
 
+  /**
+   * Deletes an access level of a church. Needs {@code iam.manage} on its church.
+   *
+   * @param roleId Id of the access level.
+   */
   @DeleteMapping("roles/{roleId}")
   public ResponseEntity<Void> deleteRole(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID roleId) {
@@ -182,7 +220,10 @@ public class AccessController {
     return ResponseEntity.noContent().build();
   }
 
-  /** Every permission a role may include, grouped by resource, to build the selection list. */
+  /**
+   * Lists every permission an access level may include, grouped by what it is about (people,
+   * events, attendance...).
+   */
   @GetMapping("iam/permissions")
   public List<PermissionGroupResponse> permissions() {
     return getPermissionCatalogQueryHandler

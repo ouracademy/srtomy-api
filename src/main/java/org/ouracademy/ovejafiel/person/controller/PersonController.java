@@ -88,6 +88,15 @@ public class PersonController {
   SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
   GetPersonMembershipsQueryHandler getPersonMembershipsQueryHandler;
 
+  /**
+   * Searches the people of a node, one page at a time. Filters by part of the name and by how
+   * involved they are. Needs {@code members.read} on the node.
+   *
+   * @param organizationId Id of the node (church, location, group or ministry) whose people are
+   *     listed.
+   * @param searchText Part of a first or last name; upper and lower case are the same. Optional.
+   * @param memberState Only the people in this state in the node. Optional.
+   */
   @GetMapping
   public Page<PersonResponse> findAll(
       @AuthenticationPrincipal Jwt jwt,
@@ -105,8 +114,10 @@ public class PersonController {
   }
 
   /**
-   * The nodes the person belongs to, with their state, leadership and positions in each. Only those
-   * nodes the caller can read the people of.
+   * Lists the nodes a person belongs to, with their state, leadership and positions in each. Only
+   * the nodes whose people the caller can read are included.
+   *
+   * @param id Id of the person.
    */
   @GetMapping("{id}/memberships")
   public List<MembershipResponse> memberships(
@@ -122,9 +133,12 @@ public class PersonController {
   }
 
   /**
-   * Puts an existing person in a node (a location, group or ministry) with the state they have
-   * there, or changes it: attendee of the youth group while a member of the church. They must
-   * already belong to the same church, and the church (and any node in between) knows them too.
+   * Puts an existing person in a node (a location, group or ministry) with a state, or changes the
+   * state they have there. The person must already belong to the same church; the church and the
+   * nodes in between get to know them too. Needs {@code members.write} on the node.
+   *
+   * @param id Id of the person.
+   * @param organizationId Id of the node the person is put in.
    */
   @PutMapping("{id}/memberships/{organizationId}")
   @ResponseStatus(code = HttpStatus.NO_CONTENT)
@@ -163,6 +177,12 @@ public class PersonController {
             request.getMemberState().typeId()));
   }
 
+  /**
+   * Gets the record of one person: name, phone, email, birthdate and the rest of their details.
+   * Needs {@code members.read} on any node the person belongs to.
+   *
+   * @param id Id of the person.
+   */
   @GetMapping("{id}")
   public ResponseEntity<PersonResponse> findById(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
@@ -175,6 +195,11 @@ public class PersonController {
             .map(PersonResponse::from));
   }
 
+  /**
+   * Registers a new person in a node and returns their id. Look for people who look alike first
+   * ({@code GET /v1/people/matches}) so nobody is registered twice. Needs {@code members.write} on
+   * the node.
+   */
   @PostMapping
   @ResponseStatus(code = HttpStatus.CREATED)
   public UUID create(
@@ -193,6 +218,13 @@ public class PersonController {
         .value();
   }
 
+  /**
+   * Changes the record of a person. Send the whole record, not only what changes: a field left out
+   * is cleared. {@code organizationId} must be a node the person belongs to. Needs {@code
+   * members.write} on that node.
+   *
+   * @param id Id of the person.
+   */
   @PutMapping("{id}")
   public ResponseEntity<UUID> edit(
       @AuthenticationPrincipal Jwt jwt,
@@ -218,8 +250,13 @@ public class PersonController {
   }
 
   /**
-   * People of the church that look like the one being registered (by name or email), removed ones
-   * included, so the form can say "is it this person?" instead of creating a duplicate.
+   * Finds people of the church who look like the one about to be registered, by name or email.
+   * Removed people are included, so they can be restored instead of creating a duplicate. Needs
+   * {@code members.write} on the node.
+   *
+   * @param organizationId Id of the node where the person would be registered.
+   * @param searchText The name of the person being registered. Optional.
+   * @param email The email of the person being registered. Optional.
    */
   @GetMapping("matches")
   public List<PersonMatchResponse> findMatches(
@@ -238,9 +275,15 @@ public class PersonController {
   }
 
   /**
-   * Removes the person from the node (and what hangs from it). From the church itself it removes
-   * them from the church altogether; if a user represents them, that answers 409 {@code
-   * PERSON_HAS_ACCOUNT} until {@code confirmUnlinkUser} is sent.
+   * Removes a person from a node and from what hangs from it. From the church itself it removes
+   * them from the church altogether; if the person has an account it answers 409 {@code
+   * PERSON_HAS_ACCOUNT} until {@code confirmUnlinkUser} is sent. Needs {@code members.delete} on
+   * the node.
+   *
+   * @param id Id of the person.
+   * @param organizationId Id of the node the person is removed from.
+   * @param confirmUnlinkUser true to remove a person who has an account; the account loses its
+   *     access to the church.
    */
   @DeleteMapping("{id}")
   @ResponseStatus(code = HttpStatus.NO_CONTENT)
@@ -272,7 +315,13 @@ public class PersonController {
     }
   }
 
-  /** Brings back a removed person as a visitor of the node; a new membership, history is kept. */
+  /**
+   * Brings back a removed person as a visitor of a node. It is a new membership; their history is
+   * kept. Needs {@code members.write} on the node.
+   *
+   * @param id Id of the person.
+   * @param organizationId Id of the node the person comes back to.
+   */
   @PostMapping("{id}/restore")
   public UUID restore(
       @AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @RequestParam UUID organizationId) {

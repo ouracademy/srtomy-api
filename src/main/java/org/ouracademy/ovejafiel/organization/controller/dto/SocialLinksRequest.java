@@ -3,7 +3,15 @@ package org.ouracademy.ovejafiel.organization.controller.dto;
 import jakarta.validation.constraints.Pattern;
 import org.ouracademy.ovejafiel.organization.domain.SocialLinks;
 
-/** Optional links; each one, when present, must be an http(s) URL. */
+/**
+ * Optional links; each one, when present, must be an http(s) URL.
+ *
+ * @param website Address of the website.
+ * @param facebookUrl Address of the Facebook page.
+ * @param instagramUrl Address of the Instagram profile.
+ * @param youtubeUrl Address of the YouTube channel.
+ * @param tiktokUrl Address of the TikTok profile.
+ */
 public record SocialLinksRequest(
     @Pattern(regexp = URL, message = MESSAGE) String website,
     @Pattern(regexp = URL, message = MESSAGE) String facebookUrl,
