@@ -44,6 +44,11 @@ variable "jobs" {
       schedule    = "0 14 * * *"
       path        = "/v1/internal/events/whatsapp-reminders"
     }
+    "billing-renewal-reminders" = {
+      description = "Daily: emails whoever manages the plan of a church whose paid period ends in 7 days or tomorrow, or ended yesterday (8:15 in Lima)."
+      schedule    = "15 13 * * *"
+      path        = "/v1/internal/billing/remind"
+    }
     "extend-event-series" = {
       description = "Adds upcoming occurrences to the event series that never end (or end far away)."
       schedule    = "30 3 * * *"

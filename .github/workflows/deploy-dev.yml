@@ -90,6 +90,7 @@ jobs:
           # it down just enough to miss the startup probe's timeout.
           # Origin of the web app: the links in the invitation and sharing
           # emails point to it (app.url in application.yml). Public, not a secret.
+          # dLocal Go: the sandbox in dev; it notifies the payments to our webhook.
           env_vars: |
             APP_URL=https://srtommy-ui-test.vercel.app
             INTERNAL_SCHEDULER_EMAIL=api-scheduler@sr-tommy-dev.iam.gserviceaccount.com
@@ -99,4 +100,6 @@ jobs:
             TASKS_PROJECT=sr-tommy-dev
             TASKS_LOCATION=southamerica-east1
             TASKS_TARGET_URL=${{ vars.DEV_API_URL }}
+            DLOCALGO_URL=https://api-sbx.dlocalgo.com
+            DLOCALGO_NOTIFICATION_URL=${{ vars.DEV_API_URL }}/v1/webhooks/billing
           flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost

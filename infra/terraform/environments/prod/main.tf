@@ -43,6 +43,18 @@ variable "kapso_webhook_secret" {
   sensitive = true
 }
 
+# dLocal Go, which charges the paid plan (spec 018). In dev, the sandbox keys. Export each as
+# TF_VAR_<name> (never commit them).
+variable "dlocalgo_api_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "dlocalgo_secret_key" {
+  type      = string
+  sensitive = true
+}
+
 # The WhatsApp agent (repo srtomy-agent).
 variable "agent_kapso_webhook_secret" {
   type      = string
@@ -85,6 +97,8 @@ module "db_secrets" {
   resend_api_key       = var.resend_api_key
   kapso_api_key        = var.kapso_api_key
   kapso_webhook_secret = var.kapso_webhook_secret
+  dlocalgo_api_key     = var.dlocalgo_api_key
+  dlocalgo_secret_key  = var.dlocalgo_secret_key
   existing_secret_ids  = ["auth0-client-id", "auth0-client-secret"]
 }
 

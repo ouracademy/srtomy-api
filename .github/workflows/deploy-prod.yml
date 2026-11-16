@@ -90,4 +90,6 @@ jobs:
             TASKS_PROJECT=sr-tommy-prod
             TASKS_LOCATION=southamerica-east1
             TASKS_TARGET_URL=${{ vars.PROD_API_URL }}
+            DLOCALGO_URL=https://api.dlocalgo.com
+            DLOCALGO_NOTIFICATION_URL=${{ vars.PROD_API_URL }}/v1/webhooks/billing
           flags: --allow-unauthenticated --memory=1Gi --cpu=1 --cpu-boost

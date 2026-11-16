@@ -17,8 +17,8 @@ terraform {
 
 # Names must match exactly what application-prod.yml references via
 # ${sm@db-url}, ${sm@db-user}, ${sm@db-password}, ${sm@resend-api-key},
-# ${sm@attendance-qr-secret}, ${sm@kapso-api-key}, ${sm@kapso-webhook-secret} and
-# ${sm@whatsapp-delegation-key}.
+# ${sm@attendance-qr-secret}, ${sm@kapso-api-key}, ${sm@kapso-webhook-secret},
+# ${sm@whatsapp-delegation-key}, ${sm@dlocalgo-api-key} and ${sm@dlocalgo-secret-key}.
 
 # Signs the code in the attendance QR of an event. Generated here and kept in the state, so nobody
 # has to invent or pass it around; replacing the resource changes it (open QR codes stop working).
@@ -48,6 +48,10 @@ locals {
     "kapso-api-key"           = var.kapso_api_key
     "kapso-webhook-secret"    = var.kapso_webhook_secret
     "whatsapp-delegation-key" = tls_private_key.whatsapp_delegation.private_key_pem_pkcs8
+
+    # dLocal Go charges the paid plan (spec 018). In dev, the keys of its sandbox.
+    "dlocalgo-api-key"    = var.dlocalgo_api_key
+    "dlocalgo-secret-key" = var.dlocalgo_secret_key
   }
 }
 

@@ -35,6 +35,18 @@ variable "kapso_webhook_secret" {
   sensitive   = true
 }
 
+variable "dlocalgo_api_key" {
+  description = "API key of dLocal Go (dashboard: Integrations > API keys; the sandbox one in dev). It creates and reads the payments of the paid plan. Pass it with TF_VAR_dlocalgo_api_key; never commit it."
+  type        = string
+  sensitive   = true
+}
+
+variable "dlocalgo_secret_key" {
+  description = "Secret key of dLocal Go, next to the API key. It authenticates the calls and checks the signature of its payment notifications. Pass it with TF_VAR_dlocalgo_secret_key; never commit it."
+  type        = string
+  sensitive   = true
+}
+
 variable "existing_secret_ids" {
   description = "Secret Manager secrets that already exist outside this module (e.g. auth0-client-id/secret) which the Cloud Run runtime service account still needs read access to."
   type        = list(string)
