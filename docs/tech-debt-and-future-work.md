@@ -66,3 +66,13 @@ La entrega de mensajes ya está resuelta para correo (módulo `outbox`, ver «Tr
 - **Canal WhatsApp** (`WhatsAppOutboxHandler`, cola `outbox-whatsapp` con su propio límite de velocidad por los límites de Meta): plantillas aprobadas para escribir primero, ventana de 24 horas para responder libremente y **consentimiento previo** del destinatario (un dato nuevo en la persona o el usuario). El estado de la fila ganaría `DELIVERED` y `READ`, y `provider_message_id` casa los avisos del proveedor.
 - **Mensajes entrantes (agentes)**: cada webhook se guarda primero en un **inbox** (tabla con el id del mensaje del proveedor como clave única, para que un reintento del webhook no ejecute dos veces la misma acción) y se procesa con una tarea de Cloud Tasks. El agente ejecuta los mismos comandos del API con la identidad del usuario vinculado a ese número, y responde por el outbox.
 - **Si crece el volumen o aparecen otros servicios** (un MCP en Python, por ejemplo): leer la tabla con Debezium o Datastream y publicar en Pub/Sub, sin tocar a quien encola.
+
+## Trabajo futuro: planes, pagos y límites de uso
+
+El módulo `billing` (spec `specs/018-plans-billing/`) ya cobra con dLocal Go y hace cumplir los límites del plan gratis. Queda, según su `plan.md`:
+
+- **Cuota y tope de gasto del asistente de IA** (fase 2): contar mensajes y tokens por iglesia y mes, y que el agente pregunte antes de llamar al modelo.
+- **Ritmo compartido del agente** entre instancias (hoy es en memoria) y **ritmo por IP** en los endpoints públicos de la API.
+- **Secretos de dLocal Go en Terraform** y recordatorios de vencimiento por el outbox.
+- **Comprobantes electrónicos** (SUNAT y DIAN): sin decidir quién los emite.
+- **Precios y cuotas sin validar** con el dueño del producto (decisiones abiertas de la spec).
