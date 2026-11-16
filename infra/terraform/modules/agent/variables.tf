@@ -71,5 +71,5 @@ variable "auth0_audience" {
 variable "cors_origins" {
   description = "Origins of the portal allowed to call the agent's POST /chat from a browser."
   type        = list(string)
-  default     = ["https://srtommy-ui-test.vercel.app", "https://ovejafiel.com"]
+  default     = ["https://srtommy-ui-test.vercel.app", "https://ovejafiel.com", "https://www.ovejafiel.com"]
 }
