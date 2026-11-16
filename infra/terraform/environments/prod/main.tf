@@ -121,6 +121,18 @@ module "agent" {
   depends_on = [module.db_secrets]
 }
 
+output "agent_auth0_domain" {
+  value = module.agent.auth0_domain
+}
+
+output "agent_auth0_audience" {
+  value = module.agent.auth0_audience
+}
+
+output "agent_cors_origins" {
+  value = module.agent.cors_origins
+}
+
 output "workload_identity_provider" {
   value = module.cicd.workload_identity_provider
 }

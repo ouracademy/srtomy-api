@@ -19,7 +19,7 @@ image tag is more trouble than it's worth for a service this size.
   daily. Add a job in `var.jobs` for any new calendar work.
 - `modules/tasks/` — the Cloud Tasks queues of the outbox (`outbox-email`, ...), the retry policy, and the
   permissions the API needs to create tasks.
-- `modules/agent/` — the WhatsApp agent's service account and its own secrets (Anthropic, LangSmith, and the secret of the webhook Kapso sends it).
+- `modules/agent/` — the agent's service account and its own secrets (Anthropic, LangSmith, the secret of the webhook Kapso sends it, and the generated secret that signs the approvals of the portal chat), plus the Auth0 tenant, audience and portal origins its `POST /chat` accepts (outputs for the agent's repository variables).
 - `modules/db-secrets/` — wires the Neon module's outputs straight into Secret Manager,
   so the actual DB password never has to pass through a person's hands or a chat.
 - `environments/dev/` — `sr-tommy-dev`.

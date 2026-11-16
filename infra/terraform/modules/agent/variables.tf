@@ -55,3 +55,21 @@ variable "deploy_branch" {
   type        = string
   default     = "main"
 }
+
+variable "auth0_domain" {
+  description = "Auth0 tenant whose access tokens the portal chat of the agent accepts. The same the API checks (auth0.url of the API, without https://)."
+  type        = string
+  default     = "srtommy.us.auth0.com"
+}
+
+variable "auth0_audience" {
+  description = "Audience of those tokens: the API's (SecurityConfig.AUDIENCE). The agent forwards the same token to the API, so it must be one the API accepts."
+  type        = string
+  default     = "https://api.srtommy.com"
+}
+
+variable "cors_origins" {
+  description = "Origins of the portal allowed to call the agent's POST /chat from a browser."
+  type        = list(string)
+  default     = ["https://srtommy-ui-test.vercel.app", "https://ovejafiel.com", "https://www.ovejafiel.com"]
+}
