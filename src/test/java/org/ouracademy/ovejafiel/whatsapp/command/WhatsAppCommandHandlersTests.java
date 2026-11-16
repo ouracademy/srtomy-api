@@ -53,6 +53,13 @@ class WhatsAppCommandHandlersTests {
   private final FindOrganizationByIdQueryHandler findOrganization =
       mock(FindOrganizationByIdQueryHandler.class);
 
+  private final org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial
+          .StartWhatsappTrialCommandHandler
+      startWhatsappTrial =
+          mock(
+              org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial
+                  .StartWhatsappTrialCommandHandler.class);
+
   private WhatsAppConnection existing(ConnectionMode mode) {
     var connection = new WhatsAppConnection(church, "cus-1", mode);
     when(connections.findById(church)).thenReturn(Optional.of(connection));
@@ -74,6 +81,7 @@ class WhatsAppCommandHandlersTests {
         gateway,
         findChurch,
         findOrganization,
+        startWhatsappTrial,
         "https://app.example/");
   }
 
@@ -88,6 +96,25 @@ class WhatsAppCommandHandlersTests {
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  @Test
+  void aChurchWhoseFreeTrialEndedGetsNoLink() {
+    churchOf(branch);
+    when(startWhatsappTrial.handle(
+            new org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial
+                .StartWhatsappTrialCommand(church)))
+        .thenThrow(
+            new org.ouracademy.ovejafiel.shared.domain.PlanLimitException(
+                "feature.whatsapp", "terminó"));
+
+    assertThatThrownBy(
+            () ->
+                requestHandler()
+                    .handle(new RequestSetupLinkCommand(branch, ConnectionMode.COEXISTENCE)))
+        .isInstanceOf(org.ouracademy.ovejafiel.shared.domain.PlanLimitException.class);
+
+    org.mockito.Mockito.verifyNoInteractions(gateway, connections);
   }
 
   @Test

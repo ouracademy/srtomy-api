@@ -12,6 +12,8 @@ public interface OrganizationRepository extends JpaRepository<Organization, Part
 
   List<Organization> findByParentIdOrderByName(PartyId parentId);
 
+  long countByParentIdAndType(PartyId parentId, Organization.Type type);
+
   /** The root (church) of the tree {@code id} belongs to; empty if {@code id} does not exist. */
   @Query(
       value =

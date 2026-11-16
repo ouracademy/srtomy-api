@@ -211,4 +211,20 @@ public interface PersonRepository extends JpaRepository<Person, PartyId> {
 
     LocalDateTime getRemovedTime();
   }
+
+  /**
+   * People of the church that were not removed. The church holds the progress state (visitor, in
+   * progress, member) of everyone in its tree, so those rows count each person once.
+   */
+  @Query(
+      """
+            select count(distinct p.id)
+            from Person p
+            where p.deletedTime is null
+            and p.id in (
+                select a.child.id from Accountability a
+                where a.type.id in :stateTypeIds and a.parent.id = :churchId
+            )
+            """)
+  long countActiveOfChurch(PartyId churchId, List<AccountabilityTypeId> stateTypeIds);
 }

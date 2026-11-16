@@ -20,12 +20,15 @@ import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNo
 import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.OrganizationsOfMemberResult;
+import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQuery;
+import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsResult;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
 import org.ouracademy.ovejafiel.shared.domain.ConflictException;
+import org.ouracademy.ovejafiel.shared.domain.PlanLimitException;
 
 @ExtendWith(MockitoExtension.class)
 class RestorePersonCommandHandlerImplTests {
@@ -36,6 +39,8 @@ class RestorePersonCommandHandlerImplTests {
   @Mock FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
 
   RestorePersonCommandHandlerImpl handler;
+
+  @Mock CheckCapacityQueryHandler checkCapacityQueryHandler;
 
   PartyId personId = PartyId.generate();
   PartyId nodeId = PartyId.generate();
@@ -48,7 +53,8 @@ class RestorePersonCommandHandlerImplTests {
             personRepository,
             findOrganizationsOfMemberQueryHandler,
             setNodeMembershipCommandHandler,
-            findOrganizationAncestorsQueryHandler);
+            findOrganizationAncestorsQueryHandler,
+            checkCapacityQueryHandler);
   }
 
   @Test
@@ -91,5 +97,24 @@ class RestorePersonCommandHandlerImplTests {
 
     assertThatThrownBy(() -> handler.handle(new RestorePersonCommand(personId, nodeId)))
         .isInstanceOf(NoSuchElementException.class);
+  }
+
+  @Test
+  void handleOnAFullFreePlanIsRefusedAndThePersonStaysRemoved() {
+    var ana = person(personId, "Ana", "Diaz");
+    ana.delete();
+    when(personRepository.findById(personId)).thenReturn(Optional.of(ana));
+    when(findOrganizationsOfMemberQueryHandler.handle(any()))
+        .thenReturn(new OrganizationsOfMemberResult(List.of()));
+    when(checkCapacityQueryHandler.handle(
+            new CheckCapacityQuery(nodeId, CheckCapacityQuery.Resource.PEOPLE)))
+        .thenThrow(new PlanLimitException("limit.people", "lleno"));
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> handler.handle(new RestorePersonCommand(personId, nodeId)))
+        .isInstanceOf(PlanLimitException.class);
+
+    assertThat(ana.getDeletedTime()).isNotNull();
+    org.mockito.Mockito.verifyNoInteractions(setNodeMembershipCommandHandler);
   }
 }

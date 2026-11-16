@@ -26,6 +26,8 @@ import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNo
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommand;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommandHandler;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQuery;
+import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationResult;
@@ -36,6 +38,7 @@ import org.ouracademy.ovejafiel.person.command.PersonInfo;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
 import org.ouracademy.ovejafiel.person.domain.Person;
 import org.ouracademy.ovejafiel.person.repository.PersonRepository;
+import org.ouracademy.ovejafiel.shared.domain.PlanLimitException;
 
 @ExtendWith(MockitoExtension.class)
 class CreatePersonCommandHandlerImplTests {
@@ -48,6 +51,8 @@ class CreatePersonCommandHandlerImplTests {
   @Mock SyncPersonPositionsCommandHandler syncPersonPositionsCommandHandler;
   @Mock SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
   @Mock FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
+
+  @Mock CheckCapacityQueryHandler checkCapacityQueryHandler;
 
   CreatePersonCommandHandlerImpl handler;
 
@@ -62,7 +67,8 @@ class CreatePersonCommandHandlerImplTests {
             findChurchOfOrganizationQueryHandler,
             syncPersonPositionsCommandHandler,
             setNodeMembershipCommandHandler,
-            findOrganizationAncestorsQueryHandler);
+            findOrganizationAncestorsQueryHandler,
+            checkCapacityQueryHandler);
   }
 
   @Test
@@ -180,5 +186,25 @@ class CreatePersonCommandHandlerImplTests {
     verify(setNodeMembershipCommandHandler)
         .handle(
             new SetNodeMembershipCommand(result.id(), organizationId, List.of(churchId), VISITOR));
+  }
+
+  @Test
+  void handleOnAFullFreePlanIsRefusedAndNobodyIsSaved() {
+    var organizationId = PartyId.generate();
+    var churchId = PartyId.generate();
+    when(findChurchOfOrganizationQueryHandler.handle(
+            new FindChurchOfOrganizationQuery(organizationId)))
+        .thenReturn(Optional.of(new FindChurchOfOrganizationResult(churchId)));
+    when(checkCapacityQueryHandler.handle(
+            new CheckCapacityQuery(churchId, CheckCapacityQuery.Resource.PEOPLE)))
+        .thenThrow(new PlanLimitException("limit.people", "lleno"));
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () ->
+                handler.handle(
+                    new CreatePersonCommand("auth0|ana", INFO, organizationId, java.util.Set.of())))
+        .isInstanceOf(PlanLimitException.class);
+
+    org.mockito.Mockito.verifyNoInteractions(personRepository);
   }
 }

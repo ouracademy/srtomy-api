@@ -3,6 +3,7 @@ package org.ouracademy.ovejafiel.shared;
 import java.util.NoSuchElementException;
 import org.ouracademy.ovejafiel.shared.domain.ConflictException;
 import org.ouracademy.ovejafiel.shared.domain.DomainValidationException;
+import org.ouracademy.ovejafiel.shared.domain.PlanLimitException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -62,6 +63,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     problemDetail.setProperty("code", ex.getCode());
     return handleExceptionInternal(
         ex, problemDetail, new HttpHeaders(), HttpStatus.CONFLICT, request);
+  }
+
+  /** The plan of the church does not include it; {@code code} says which limit was reached. */
+  @ExceptionHandler(PlanLimitException.class)
+  public ResponseEntity<Object> handlePlanLimit(PlanLimitException ex, WebRequest request) {
+    var problemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.PAYMENT_REQUIRED, ex.getMessage());
+    problemDetail.setTitle("Payment Required");
+    problemDetail.setProperty("code", ex.getCode());
+    return handleExceptionInternal(
+        ex, problemDetail, new HttpHeaders(), HttpStatus.PAYMENT_REQUIRED, request);
   }
 
   @ExceptionHandler(Exception.class)

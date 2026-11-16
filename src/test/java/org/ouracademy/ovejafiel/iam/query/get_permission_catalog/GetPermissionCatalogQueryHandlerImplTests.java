@@ -23,7 +23,8 @@ class GetPermissionCatalogQueryHandlerImplTests {
             "registrations",
             "positions",
             "iam",
-            "invitations");
+            "invitations",
+            "billing");
     assertThat(groups.stream().flatMap(g -> g.permissions().stream()))
         .containsExactlyInAnyOrderElementsOf(
             Arrays.stream(Permission.values()).map(Permission::value).toList());

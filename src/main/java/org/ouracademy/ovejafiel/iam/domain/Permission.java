@@ -25,7 +25,8 @@ public enum Permission {
   POSITIONS_MANAGE("positions.manage"),
   IAM_READ("iam.read"),
   IAM_MANAGE("iam.manage"),
-  INVITATIONS_SEND("invitations.send");
+  INVITATIONS_SEND("invitations.send"),
+  BILLING_MANAGE("billing.manage");
 
   private final String value;
 

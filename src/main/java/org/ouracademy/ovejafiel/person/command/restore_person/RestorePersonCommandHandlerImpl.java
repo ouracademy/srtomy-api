@@ -6,6 +6,8 @@ import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNo
 import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQuery;
 import org.ouracademy.ovejafiel.accountability.query.find_organizations_of_member.FindOrganizationsOfMemberQueryHandler;
+import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQuery;
+import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQuery;
 import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQueryHandler;
 import org.ouracademy.ovejafiel.person.domain.MemberState;
@@ -22,6 +24,7 @@ class RestorePersonCommandHandlerImpl implements RestorePersonCommandHandler {
   private final FindOrganizationsOfMemberQueryHandler findOrganizationsOfMemberQueryHandler;
   private final SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
   private final FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
+  private final CheckCapacityQueryHandler checkCapacityQueryHandler;
 
   @Override
   @Transactional
@@ -41,6 +44,9 @@ class RestorePersonCommandHandlerImpl implements RestorePersonCommandHandler {
       throw new ConflictException("PERSON_ALREADY_ACTIVE", "La persona ya pertenece a este grupo");
     }
 
+    // Bringing someone back counts as one more person for the free plan.
+    checkCapacityQueryHandler.handle(
+        new CheckCapacityQuery(command.organizationId(), CheckCapacityQuery.Resource.PEOPLE));
     person.restore();
     setNodeMembershipCommandHandler.handle(
         new SetNodeMembershipCommand(

@@ -66,3 +66,14 @@ internal:
   # The service account of srtomy-agent, the only one that may call /v1/internal/whatsapp/**.
   agent-email: ${INTERNAL_AGENT_EMAIL:}
   scheduler-email: ${INTERNAL_SCHEDULER_EMAIL:}
+
+# dLocal Go (https://dlocalgo.com) charges the paid plan in soles and Colombian pesos. Without the
+# keys nobody is charged: the sandbox gateway counts every payment as paid (local runs only).
+dlocalgo:
+  api-key: ${sm@dlocalgo-api-key:}
+  secret-key: ${sm@dlocalgo-secret-key:}
+  # https://api-sbx.dlocalgo.com is the sandbox of dLocal Go.
+  url: ${DLOCALGO_URL:https://api.dlocalgo.com}
+  # Public address of POST /v1/webhooks/billing; without it dLocal Go sends no notification and a
+  # payment is only seen when the church comes back from the checkout.
+  notification-url: ${DLOCALGO_NOTIFICATION_URL:}

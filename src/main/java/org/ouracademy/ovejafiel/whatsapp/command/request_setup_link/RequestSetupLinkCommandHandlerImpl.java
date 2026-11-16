@@ -2,6 +2,8 @@ package org.ouracademy.ovejafiel.whatsapp.command.request_setup_link;
 
 import java.util.NoSuchElementException;
 import lombok.extern.slf4j.Slf4j;
+import org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial.StartWhatsappTrialCommand;
+import org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial.StartWhatsappTrialCommandHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
@@ -22,6 +24,7 @@ class RequestSetupLinkCommandHandlerImpl implements RequestSetupLinkCommandHandl
   private final WhatsAppGateway gateway;
   private final FindChurchOfOrganizationQueryHandler findChurch;
   private final FindOrganizationByIdQueryHandler findOrganization;
+  private final StartWhatsappTrialCommandHandler startWhatsappTrial;
   private final String appUrl;
 
   RequestSetupLinkCommandHandlerImpl(
@@ -29,11 +32,13 @@ class RequestSetupLinkCommandHandlerImpl implements RequestSetupLinkCommandHandl
       WhatsAppGateway gateway,
       FindChurchOfOrganizationQueryHandler findChurch,
       FindOrganizationByIdQueryHandler findOrganization,
+      StartWhatsappTrialCommandHandler startWhatsappTrial,
       @Value("${app.url:http://localhost:3000}") String appUrl) {
     this.connections = connections;
     this.gateway = gateway;
     this.findChurch = findChurch;
     this.findOrganization = findOrganization;
+    this.startWhatsappTrial = startWhatsappTrial;
     this.appUrl = appUrl;
   }
 
@@ -49,6 +54,9 @@ class RequestSetupLinkCommandHandlerImpl implements RequestSetupLinkCommandHandl
             .handle(new FindChurchOfOrganizationQuery(command.organizationId()))
             .orElseThrow(() -> new NoSuchElementException("Organization not found"))
             .churchId();
+    // On the free plan WhatsApp is a trial of a few days: this starts it, or refuses (402) once it
+    // ended.
+    startWhatsappTrial.handle(new StartWhatsappTrialCommand(churchId));
     var connection =
         connections.findById(churchId).orElseGet(() -> newConnection(churchId, command));
     connection.startSetup(command.mode());

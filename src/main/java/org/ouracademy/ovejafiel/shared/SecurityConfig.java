@@ -56,6 +56,8 @@ public class SecurityConfig {
               authorize.requestMatchers(HttpMethod.POST, "/v1/public/attendance/*").permitAll();
               // Kapso calls this one; the controller refuses anything without a valid signature.
               authorize.requestMatchers(HttpMethod.POST, "/v1/webhooks/whatsapp").permitAll();
+              // The payment gateway calls this one; the same rule: no valid signature, no entry.
+              authorize.requestMatchers(HttpMethod.POST, "/v1/webhooks/billing").permitAll();
               // Swagger UI is only ever exposed locally — Cloud Run (dev and prod)
               // always runs with the "prod" profile, so this never opens it up there.
               if (local) {

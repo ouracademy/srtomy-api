@@ -6,6 +6,8 @@ import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNo
 import org.ouracademy.ovejafiel.accountability.command.set_node_membership.SetNodeMembershipCommandHandler;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommand;
 import org.ouracademy.ovejafiel.accountability.command.sync_person_positions.SyncPersonPositionsCommandHandler;
+import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQuery;
+import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_ancestors.FindOrganizationAncestorsQuery;
@@ -25,6 +27,7 @@ class CreatePersonCommandHandlerImpl implements CreatePersonCommandHandler {
   private final SyncPersonPositionsCommandHandler syncPersonPositionsCommandHandler;
   private final SetNodeMembershipCommandHandler setNodeMembershipCommandHandler;
   private final FindOrganizationAncestorsQueryHandler findOrganizationAncestorsQueryHandler;
+  private final CheckCapacityQueryHandler checkCapacityQueryHandler;
 
   @Override
   @Transactional
@@ -37,6 +40,9 @@ class CreatePersonCommandHandlerImpl implements CreatePersonCommandHandler {
                 () ->
                     new NoSuchElementException("Organization not found: " + organizationId.value()))
             .churchId();
+    // The free plan has a maximum of people (402 when it is full).
+    checkCapacityQueryHandler.handle(
+        new CheckCapacityQuery(churchId, CheckCapacityQuery.Resource.PEOPLE));
 
     var person = new Person();
     command.info().applyTo(person);
