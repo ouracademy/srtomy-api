@@ -19,6 +19,7 @@
 		<therapi-javadoc.version>0.16.0</therapi-javadoc.version>
 		<spring-cloud-gcp.version>8.3.1</spring-cloud-gcp.version>
 		<spring-cloud.version>2025.1.3</spring-cloud.version>
+		<bucket4j.version>8.22.0</bucket4j.version>
 		<!-- SonarCloud; adjust org/projectKey if they differ in your SonarCloud
 		account -->
 		<sonar.organization>ouracademy</sonar.organization>
@@ -71,6 +72,12 @@
 			<artifactId>spring-boot-devtools</artifactId>
 			<scope>runtime</scope>
 			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<!-- rate of the public endpoints per IP, shared by every instance (PublicRateLimitFilter) -->
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j_jdk17-postgresql</artifactId>
+			<version>${bucket4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.postgresql</groupId>

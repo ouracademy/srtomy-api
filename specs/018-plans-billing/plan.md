@@ -8,9 +8,9 @@
 | Fase | Qué | Estado |
 | --- | --- | --- |
 | 1 | Módulo `billing` en la API: planes, límites, dLocal Go, prueba de WhatsApp | **Hecho** en la rama `claude/church-features-pricing-plan-masj76` de srtomy-api, sin PR |
-| 2 | Cuota y tope de gasto del asistente (API + agente) y ritmo compartido | Por hacer |
+| 2 | Cuota y tope de gasto del asistente (API + agente) y ritmo compartido | **API hecha** (2a); agente (2b, 2c) por hacer |
 | 3 | Portal: pantalla «Plan y pagos», avisos de límite, landing, quitar Culqi | Por hacer |
-| 4 | Infra y avisos: secretos de dLocal Go, recordatorios de vencimiento, ritmo por IP en la API | Por hacer |
+| 4 | Infra y avisos: secretos de dLocal Go, recordatorios de vencimiento, ritmo por IP en la API | **Hecho** en la API (falta aplicar Terraform y probar en el sandbox); el aviso por WhatsApp queda pendiente |
 
 ## Arquitectura
 
@@ -54,7 +54,8 @@ Pruebas: dominio (precios, periodos, gracia, prueba), pasarela contra un servido
 - `POST /v1/internal/billing/ai-usage/record` `{nodeId, inputTokens, outputTokens, cacheReadTokens, model}` → suma tokens y el costo estimado con una tabla de precios en configuración (`billing.ai.prices.<modelo>`).
 - `reserve` niega con `reason`: `quota` (mensajes del mes), `spend` (tope en dólares: `billing.ai.max-cost-usd.free` = 1, `.paid` = 40 % del precio del plan) o `plan` (WhatsApp sin plan ni prueba).
 - Solo la cuenta de servicio del agente (`InternalSecurityConfig`, ruta `/v1/internal/billing/ai-usage/**` con `callerIs(agentEmail)`).
-- `GET /billing` suma `ai: {used, limit, costUsd}` para que el portal lo muestre.
+- `GET /billing` suma `ai: {month, used, limit, costUsd, maxCostUsd}` para que el portal lo muestre.
+- **Hecho así**: `billing/command/reserve_ai_message`, `record_ai_usage`, `query/AiAllowance`, `domain/AiPolicy` (`billing.ai.*`, con precios por modelo en `billing.ai.prices.<modelo>`), `controller/AiUsageController`, `V1.33.0__billing_ai_usage.sql`. La negación es un 200 con `allowed: false`, `reason` y `message` en español; un error (404, 5xx) también significa no llamar al modelo. El mes sigue la hora de Lima (`billing.ai.zone`). Si el modelo no tiene precio, se cobra como `billing.ai.default-model`.
 
 ### 2b. El agente respeta la cuota
 
@@ -81,8 +82,8 @@ Pruebas: dominio (precios, periodos, gracia, prueba), pasarela contra un servido
 ## Fase 4: infraestructura y avisos
 
 - Terraform (`infra/terraform/modules/db-secrets`): secretos `dlocalgo-api-key` y `dlocalgo-secret-key`; variables `DLOCALGO_URL` y `DLOCALGO_NOTIFICATION_URL` en los workflows de despliegue. En dev, sandbox.
-- Recordatorio de vencimiento: un job de Cloud Scheduler diario (`POST /v1/internal/billing/remind`) que encola por el outbox un correo 7 días y 1 día antes de `paidUntil` y al entrar en gracia. Nunca `@Scheduled`.
-- Ritmo por IP en los endpoints públicos de la API: Bucket4j con su almacén de Postgres, por IP (`X-Forwarded-For` de Cloud Run), 30 por minuto en inscripción pública, QR y libro de reclamaciones. Se descarta Cloud Armor por ahora: exige un balanceador (unos US$ 18 al mes).
+- Recordatorio de vencimiento: un job de Cloud Scheduler diario (`POST /v1/internal/billing/remind`, job `billing-renewal-reminders`) que encola por el outbox un correo 7 días y 1 día antes de `paidUntil` y al entrar en gracia, a quien tiene `billing.manage`. Nunca `@Scheduled`. **Hecho**: `command/remind_renewals`, `command/RenewalReminderSender` (una transacción por iglesia) y `billing_reminder` (`V1.34.0`) para no repetir un aviso.
+- Ritmo por IP en los endpoints públicos de la API: Bucket4j con su almacén de Postgres, por IP (`X-Forwarded-For` de Cloud Run), 30 por minuto en inscripción pública, QR y libro de reclamaciones. Se descarta Cloud Armor por ahora: exige un balanceador (unos US$ 18 al mes). **Hecho**: `shared/PublicRateLimitFilter` y `RateLimitConfig` (`rate-limit.*`), tabla `rate_limit_bucket` (`V1.35.0`). Se toma la **última** dirección de `X-Forwarded-For`, la que agrega Google; las anteriores las elige quien llama.
 - Probar en el sandbox de dLocal Go un pago de Perú (tarjeta y Yape) y uno de Colombia (PSE).
 
 ## Riesgos

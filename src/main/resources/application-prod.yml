@@ -63,7 +63,8 @@ outbox:
 # Cloud Scheduler and Cloud Tasks call /v1/internal/** with a Google ID token of this service account (Terraform:
 # modules/scheduler). With no account set, every call is refused.
 internal:
-  # The service account of srtomy-agent, the only one that may call /v1/internal/whatsapp/**.
+  # The service account of srtomy-agent, the only one that may call /v1/internal/whatsapp/** and
+  # /v1/internal/billing/ai-usage/**.
   agent-email: ${INTERNAL_AGENT_EMAIL:}
   scheduler-email: ${INTERNAL_SCHEDULER_EMAIL:}
 

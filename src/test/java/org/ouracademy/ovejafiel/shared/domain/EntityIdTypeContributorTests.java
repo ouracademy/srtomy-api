@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityId;
 import org.ouracademy.ovejafiel.accountability.domain.AccountabilityTypeId;
+import org.ouracademy.ovejafiel.billing.domain.AiUsageId;
 import org.ouracademy.ovejafiel.billing.domain.InvoiceId;
 import org.ouracademy.ovejafiel.complaint.domain.ComplaintId;
 import org.ouracademy.ovejafiel.event.domain.EventId;
@@ -45,7 +46,7 @@ class EntityIdTypeContributorTests {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<JavaType<?>> captor = ArgumentCaptor.forClass(JavaType.class);
-    verify(javaTypeRegistry, times(17)).addDescriptor(captor.capture());
+    verify(javaTypeRegistry, times(18)).addDescriptor(captor.capture());
 
     assertThat(captor.getAllValues())
         .<Class<?>>extracting(JavaType::getJavaTypeClass)
@@ -66,6 +67,7 @@ class EntityIdTypeContributorTests {
             IamRoleId.class,
             RoleBindingId.class,
             OutboxMessageId.class,
-            InvoiceId.class);
+            InvoiceId.class,
+            AiUsageId.class);
   }
 }

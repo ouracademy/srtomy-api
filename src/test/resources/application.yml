@@ -43,3 +43,8 @@ attendance:
 internal:
   scheduler-email: api-scheduler@sr-tommy-test.iam.gserviceaccount.com
   agent-email: srtomy-agent@sr-tommy-test.iam.gserviceaccount.com
+
+# The rate per IP of the public endpoints is off: every test calls from 127.0.0.1 and the buckets
+# outlive the run in the database. PublicRateLimitIntegrationTests turns it on.
+rate-limit:
+  enabled: false

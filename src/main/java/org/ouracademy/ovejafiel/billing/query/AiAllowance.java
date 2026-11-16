@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * What the AI assistant may still answer this month for a church: the caps of its plan and what it
- * used. Months follow the time of Lima and Bogotá ({@code billing.ai.zone}), where the churches
+ * used. Months follow the time of Lima and Bogota ({@code billing.ai.zone}), where the churches
  * are.
  */
 @Component

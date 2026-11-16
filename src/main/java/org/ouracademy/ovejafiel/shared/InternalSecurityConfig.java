@@ -24,7 +24,8 @@ import org.springframework.security.web.access.intercept.RequestAuthorizationCon
  * {@code /v1/internal/**} is for Cloud Scheduler, not for the web app: it is reached with a Google
  * ID token (OIDC) of the scheduler's service account, never with an Auth0 token. The token must
  * name that account ({@code internal.scheduler-email}) and the audience {@code internal.audience};
- * with no account configured nothing gets in.
+ * with no account configured nothing gets in. srtomy-agent ({@code internal.agent-email}) may call
+ * only its own paths: WhatsApp and the AI quota.
  */
 @Configuration
 public class InternalSecurityConfig {
