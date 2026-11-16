@@ -6,7 +6,9 @@ import org.ouracademy.ovejafiel.billing.domain.BillingCountry;
 import org.ouracademy.ovejafiel.billing.domain.BillingPolicy;
 import org.ouracademy.ovejafiel.billing.domain.Feature;
 import org.ouracademy.ovejafiel.billing.domain.Plan;
+import org.ouracademy.ovejafiel.billing.query.AiAllowance;
 import org.ouracademy.ovejafiel.billing.query.Entitlements;
+import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult.AiResult;
 import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult.FeatureState;
 import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult.PriceResult;
 import org.ouracademy.ovejafiel.organization.query.count_locations.CountLocationsQuery;
@@ -24,6 +26,7 @@ class GetBillingQueryHandlerImpl implements GetBillingQueryHandler {
   private final BillingPolicy policy;
   private final CountPeopleQueryHandler countPeople;
   private final CountLocationsQueryHandler countLocations;
+  private final AiAllowance aiAllowance;
 
   @Override
   @Transactional(readOnly = true)
@@ -32,6 +35,7 @@ class GetBillingQueryHandlerImpl implements GetBillingQueryHandler {
     var subscription = state.subscription();
     var people = countPeople.handle(new CountPeopleQuery(state.churchId())).count();
     var paid = state.isPaid();
+    var ai = aiAllowance.of(state, people);
     return new GetBillingResult(
         state.churchId(),
         paid ? Plan.CHURCH : Plan.FREE,
@@ -59,6 +63,7 @@ class GetBillingQueryHandlerImpl implements GetBillingQueryHandler {
                         policy.quote(country, people, 1).total(),
                         policy.quote(country, people, 12).total(),
                         policy.prices().get(country).extraBlock()))
-            .toList());
+            .toList(),
+        new AiResult(ai.month(), ai.used(), ai.limit(), ai.costUsd(), ai.maxCostUsd()));
   }
 }

@@ -14,6 +14,7 @@ import org.ouracademy.ovejafiel.party.domain.PartyId;
  * @param maxPeople null when the plan has no maximum (and so for {@code maxLocations})
  * @param country where the church paid from last time; null if it never paid
  * @param prices what the paid plan costs today for the people the church has, per country
+ * @param ai what the AI assistant used this month against the caps of the plan
  */
 public record GetBillingResult(
     PartyId churchId,
@@ -30,7 +31,17 @@ public record GetBillingResult(
     int whatsappTrialDays,
     int includedPeople,
     int blockSize,
-    List<PriceResult> prices) {
+    List<PriceResult> prices,
+    AiResult ai) {
+
+  /**
+   * @param used messages the assistant answered this month
+   * @param limit messages the plan allows a month
+   * @param costUsd estimated cost of the month, in dollars
+   * @param maxCostUsd estimated cost at which the assistant stops for the month
+   */
+  public record AiResult(
+      LocalDate month, int used, int limit, BigDecimal costUsd, BigDecimal maxCostUsd) {}
 
   public record FeatureState(Feature feature, String label, boolean enabled) {}
 

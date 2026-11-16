@@ -13,6 +13,8 @@ import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult;
 
 /**
  * @param maxPeople null when the plan has no maximum (and so for {@code maxLocations})
+ * @param ai what the AI assistant used this month: messages against the limit of the plan, and the
+ *     estimated cost in dollars against the cap at which it stops
  */
 public record BillingResponse(
     UUID churchId,
@@ -29,7 +31,11 @@ public record BillingResponse(
     int whatsappTrialDays,
     int includedPeople,
     int blockSize,
-    List<PriceResponse> prices) {
+    List<PriceResponse> prices,
+    AiResponse ai) {
+
+  public record AiResponse(
+      LocalDate month, int used, int limit, BigDecimal costUsd, BigDecimal maxCostUsd) {}
 
   public record FeatureResponse(Feature feature, String label, boolean enabled) {}
 
@@ -63,6 +69,12 @@ public record BillingResponse(
                 p ->
                     new PriceResponse(
                         p.country(), p.currency(), p.monthly(), p.yearly(), p.extraBlock()))
-            .toList());
+            .toList(),
+        new AiResponse(
+            result.ai().month(),
+            result.ai().used(),
+            result.ai().limit(),
+            result.ai().costUsd(),
+            result.ai().maxCostUsd()));
   }
 }

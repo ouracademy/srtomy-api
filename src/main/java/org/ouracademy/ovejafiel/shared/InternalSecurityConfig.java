@@ -59,8 +59,9 @@ public class InternalSecurityConfig {
         .authorizeHttpRequests(
             authorize ->
                 authorize
-                    // Only the WhatsApp agent calls these, and it calls nothing else.
-                    .requestMatchers("/v1/internal/whatsapp/**")
+                    // Only the agent calls these (its WhatsApp and its AI quota), and it calls
+                    // nothing else.
+                    .requestMatchers("/v1/internal/whatsapp/**", "/v1/internal/billing/ai-usage/**")
                     .access(callerIs(agentEmail))
                     .anyRequest()
                     .access(callerIs(schedulerEmail)))
