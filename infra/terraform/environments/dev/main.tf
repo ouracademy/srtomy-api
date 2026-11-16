@@ -115,10 +115,25 @@ module "agent" {
   langsmith_api_key    = var.agent_langsmith_api_key
   database_url         = module.neon.agent_database_url
 
+  # The portal that may call the agent's chat from a browser (the same origin as APP_URL of the API).
+  cors_origins = ["https://srtommy-ui-test.vercel.app"]
+
   workload_identity_pool_id   = module.cicd.workload_identity_pool_id
   workload_identity_pool_name = module.cicd.workload_identity_pool_name
 
   depends_on = [module.db_secrets]
+}
+
+output "agent_auth0_domain" {
+  value = module.agent.auth0_domain
+}
+
+output "agent_auth0_audience" {
+  value = module.agent.auth0_audience
+}
+
+output "agent_cors_origins" {
+  value = module.agent.cors_origins
 }
 
 output "workload_identity_provider" {

@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -12,7 +16,12 @@ terraform {
 # with a Google ID token of this account (InternalSecurityConfig). It is not the account of the
 # API, of the scheduler or of CI, so none of them can pose as the agent.
 #
-# Like the API, the Cloud Run service itself is not created here: the deploy workflow does it.
+# Like the API, the Cloud Run service itself is not created here: the deploy workflow does it, with
+# its environment (the Auth0 tenant and audience and the origins of the portal come from the outputs
+# of this module, as repository variables of srtomy-agent) and with public access
+# (--allow-unauthenticated). That access is on purpose: Kapso calls the webhook and the portal calls
+# POST /chat from the browser, and the agent authenticates both itself (the webhook signature, the
+# Auth0 token of the user). It never acts with more than the caller: it forwards the user's token.
 
 resource "google_service_account" "agent" {
   project      = var.project_id
@@ -37,6 +46,15 @@ resource "google_project_iam_member" "agent_vertex_user" {
   depends_on = [google_project_service.aiplatform]
 }
 
+# Signs the approvals of the portal chat (POST /chat of the agent): the browser sends the history
+# back, so a confirmation the agent did not issue, or one changed afterwards, must not run. Generated
+# here and kept in the state, so nobody has to invent or pass it around; every instance of the agent
+# reads the same one. Replacing it only invalidates the confirmations on screen at that moment.
+resource "random_password" "tool_approval_secret" {
+  length  = 48
+  special = false
+}
+
 # What only the agent reads. Names must match what the agent's deploy sets as environment secrets.
 locals {
   secrets = {
@@ -46,6 +64,8 @@ locals {
     "agent-langsmith-api-key"    = var.langsmith_api_key
     # Where it keeps the conversations and the messages it already handled.
     "agent-database-url" = var.database_url
+    # TOOL_APPROVAL_SECRET of the agent (see above).
+    "agent-tool-approval-secret" = random_password.tool_approval_secret.result
   }
 }
 
