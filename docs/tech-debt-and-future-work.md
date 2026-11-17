@@ -72,8 +72,7 @@ La entrega de mensajes ya está resuelta para correo (módulo `outbox`, ver «Tr
 El módulo `billing` (spec `specs/018-plans-billing/`) ya cobra con dLocal Go y hace cumplir los límites del plan gratis. Queda, según su `plan.md`:
 
 - **Hecho en la API** (fases 2a y 4): cuota y tope de gasto del asistente (`billing_ai_usage`, `/v1/internal/billing/ai-usage/{reserve,record}`), recordatorios de vencimiento por correo (`/v1/internal/billing/remind`), secretos de dLocal Go en Terraform y ritmo por IP en los endpoints públicos.
-- **El agente** (fase 2b y 2c, repo srtomy-agent): llamar a `reserve` antes del modelo y a `record` al terminar, y el `PostgresRateLimiter` compartido. Sin eso la cuota existe pero nadie la consulta.
-- **El portal** (fase 3, repo srtomy-ui): pantalla «Plan y pagos», avisos de 402, landing con los dos planes y quitar Culqi.
+- **Hecho también** en srtomy-agent (cuota con `reserve` y `record`, ritmo compartido en Postgres) y en srtomy-ui (pantalla «Plan y pagos», avisos de 402, landing con los dos planes, Culqi quitado).
 - **Recordatorio por WhatsApp**: la spec pide avisar también por WhatsApp a la iglesia que lo tiene; hoy solo va el correo, porque el outbox aún no tiene canal WhatsApp (ver arriba).
 - **Aplicar Terraform** con `TF_VAR_dlocalgo_api_key` y `TF_VAR_dlocalgo_secret_key` en dev (sandbox) y prod, y redesplegar: hasta entonces la API usa la pasarela de prueba, que acredita todo.
 - **Comprobantes electrónicos** (SUNAT y DIAN): sin decidir quién los emite.

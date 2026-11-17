@@ -74,6 +74,7 @@ curl -X POST -H "Authorization: Bearer $AGENT" -H 'Content-Type: application/jso
 
 - `reason` es `quota` (mensajes del mes), `spend` (costo estimado del mes) o `plan` (WhatsApp sin plan ni prueba). Con `allowed: false` el agente contesta `message` (o su propio texto) y **no** llama al modelo. Cualquier otra respuesta (404 de un nodo que no existe, 5xx, sin conexión) también es «no».
 - Los comandos (STOP, BAJA, ALTA, VINCULAR) no llaman a `reserve`: nunca se limitan.
+- srtomy-agent ya lo hace así (`src/quota.ts`, `src/chat/route.ts`, `src/whatsapp/service.ts`): en el portal, `POST /chat` responde **402** con `{error, code: "ai.quota" | "ai.spend" | "ai.plan"}` (503 si la API no responde) y por WhatsApp contesta el `message`. El ritmo (`user:<sub>` 20/min, `church:<id>` 60/min, `phone:<hash>` de desconocidos 10/h y 30/día) está en la tabla `rate_limit` de su Postgres.
 - `GET /billing` trae `ai: {month, used, limit, costUsd, maxCostUsd}` para el portal.
 - En local la API rechaza estas llamadas (no hay cuenta de Google); se prueban con `./mvnw test -Dtest=AiUsageIntegrationTests`.
 
@@ -111,6 +112,13 @@ Inscribirse con el enlace, cancelar la inscripción, marcar asistencia con el QR
 
 - Secret Manager: `dlocalgo-api-key` y `dlocalgo-secret-key` (`infra/terraform/modules/db-secrets`). Aplica con `TF_VAR_dlocalgo_api_key` y `TF_VAR_dlocalgo_secret_key` (en dev, las del sandbox) y redespliega.
 - Los workflows de despliegue fijan `DLOCALGO_URL` (sandbox en dev, producción en prod) y `DLOCALGO_NOTIFICATION_URL=<DEV_API_URL o PROD_API_URL>/v1/webhooks/billing`.
+
+## En el portal (srtomy-ui)
+
+- **«Plan y pagos»** (`/portal/<nodo>/billing`, en el menú para quien tiene `billing.manage`): plan, uso (personas, sedes, mensajes de IA), funciones, precio para sus personas en Perú y Colombia, «Pagar 1 mes» y «Pagar 1 año» (`POST /billing/checkout` y va al checkout), y el historial. Al volver del checkout con `?pago=completado` llama a `POST /billing/sync` una vez.
+- **Avisos**: cualquier 402 de la API se muestra con su texto y un botón «Ver planes» (`PlanLimitNotice`); el asistente muestra su propio aviso con el código `ai.*`; «Personas» avisa al 80 % del máximo y «WhatsApp» los días que quedan de prueba (`PlanUsageNotice`).
+- **Landing**: los dos planes y una calculadora de precio por personas y país (`app/landing/content.ts`; los números se copian a mano de la API, ver la fila 27 de la deuda técnica del portal).
+- Culqi ya no existe en el portal.
 
 ## Para quien escribe un módulo nuevo
 

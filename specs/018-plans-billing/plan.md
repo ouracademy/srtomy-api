@@ -8,9 +8,9 @@
 | Fase | Qué | Estado |
 | --- | --- | --- |
 | 1 | Módulo `billing` en la API: planes, límites, dLocal Go, prueba de WhatsApp | **Hecho** en la rama `claude/church-features-pricing-plan-masj76` de srtomy-api, sin PR |
-| 2 | Cuota y tope de gasto del asistente (API + agente) y ritmo compartido | **API hecha** (2a); agente (2b, 2c) por hacer |
-| 3 | Portal: pantalla «Plan y pagos», avisos de límite, landing, quitar Culqi | Por hacer |
-| 4 | Infra y avisos: secretos de dLocal Go, recordatorios de vencimiento, ritmo por IP en la API | **Hecho** en la API (falta aplicar Terraform y probar en el sandbox); el aviso por WhatsApp queda pendiente |
+| 2 | Cuota y tope de gasto del asistente (API + agente) y ritmo compartido | **Hecho**: API (2a) y agente (2b, 2c: `src/quota.ts`, `PostgresRateLimiter`) |
+| 3 | Portal: pantalla «Plan y pagos», avisos de límite, landing, quitar Culqi | **Hecho** en srtomy-ui (`app/portal/[nodeId]/billing/`, `PlanLimitNotice`, `PlanUsageNotice`, landing con calculadora) |
+| 4 | Infra y avisos: secretos de dLocal Go, recordatorios de vencimiento, ritmo por IP en la API | **Hecho** en la API (falta aplicar Terraform y probar en el sandbox de dLocal Go); el aviso por WhatsApp queda pendiente |
 
 ## Arquitectura
 
