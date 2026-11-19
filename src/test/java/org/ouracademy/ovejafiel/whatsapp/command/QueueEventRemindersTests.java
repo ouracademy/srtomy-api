@@ -17,6 +17,9 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.ouracademy.ovejafiel.billing.command.reserve_whatsapp_reminder.ReserveWhatsappReminderCommand;
+import org.ouracademy.ovejafiel.billing.command.reserve_whatsapp_reminder.ReserveWhatsappReminderCommandHandler;
+import org.ouracademy.ovejafiel.billing.command.reserve_whatsapp_reminder.ReserveWhatsappReminderResult;
 import org.ouracademy.ovejafiel.event.query.find_registrations_to_remind.FindRegistrationsToRemindQueryHandler;
 import org.ouracademy.ovejafiel.event.query.find_registrations_to_remind.FindRegistrationsToRemindResult;
 import org.ouracademy.ovejafiel.event.query.find_registrations_to_remind.FindRegistrationsToRemindResult.Item;
@@ -50,6 +53,13 @@ class QueueEventRemindersTests {
   WhatsAppConnectionRepository connections = mock(WhatsAppConnectionRepository.class);
   WhatsAppReminderRepository reminders = mock(WhatsAppReminderRepository.class);
   EnqueueMessageCommandHandler enqueue = mock(EnqueueMessageCommandHandler.class);
+  ReserveWhatsappReminderCommandHandler reserveReminder =
+      mock(ReserveWhatsappReminderCommandHandler.class);
+
+  {
+    // The plan has reminders left, unless a test says otherwise.
+    when(reserveReminder.handle(any())).thenReturn(new ReserveWhatsappReminderResult(true, 1, 50));
+  }
 
   QueueEventRemindersCommandHandler handler() throws Exception {
     var constructor =
@@ -60,7 +70,13 @@ class QueueEventRemindersTests {
     constructor.setAccessible(true);
     return (QueueEventRemindersCommandHandler)
         constructor.newInstance(
-            findRegistrations, findChurch, findPeople, connections, reminders, enqueue);
+            findRegistrations,
+            findChurch,
+            findPeople,
+            connections,
+            reminders,
+            enqueue,
+            reserveReminder);
   }
 
   QueueEventRemindersCommand window() {
@@ -113,6 +129,33 @@ class QueueEventRemindersTests {
     assertThat(sent.getValue().payload())
         .contains(church.value().toString(), "EVENT_REMINDER")
         .contains("Ana", "Culto de jóvenes", "sábado 7 de noviembre, 19:30", "Av. Perú 123");
+  }
+
+  @Test
+  void aChurchWhosePlanHasNoMoreRemindersThisMonthGetsNoneAndTheRegistrationIsNotMarked()
+      throws Exception {
+    scenario(item("Av. Perú 123"), true, true, true);
+    when(reserveReminder.handle(any()))
+        .thenReturn(new ReserveWhatsappReminderResult(false, 50, 50));
+
+    var result = handler().handle(window());
+
+    assertThat(result.queued()).isZero();
+    assertThat(result.skipped()).isEqualTo(1);
+    verifyNoInteractions(enqueue);
+    // Not marked, so a later window (or the next month) can still remind them.
+    verify(reminders, never()).markQueued(any(), any());
+  }
+
+  @Test
+  void theReminderIsCountedAgainstTheChurchOfTheEvent() throws Exception {
+    scenario(item("Av. Perú 123"), true, true, true);
+
+    handler().handle(window());
+
+    var counted = ArgumentCaptor.forClass(ReserveWhatsappReminderCommand.class);
+    verify(reserveReminder).handle(counted.capture());
+    assertThat(counted.getValue().organizationId()).isEqualTo(church);
   }
 
   @Test

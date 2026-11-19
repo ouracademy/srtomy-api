@@ -76,4 +76,8 @@ El módulo `billing` (spec `specs/018-plans-billing/`) ya cobra con dLocal Go y 
 - **Recordatorio por WhatsApp**: la spec pide avisar también por WhatsApp a la iglesia que lo tiene; hoy solo va el correo, porque el outbox aún no tiene canal WhatsApp (ver arriba).
 - **Aplicar Terraform** con `TF_VAR_dlocalgo_api_key` y `TF_VAR_dlocalgo_secret_key` en dev (sandbox) y prod, y redesplegar: hasta entonces la API usa la pasarela de prueba, que acredita todo.
 - **Comprobantes electrónicos** (SUNAT y DIAN): sin decidir quién los emite.
-- **Precios y cuotas sin validar** con el dueño del producto (decisiones abiertas de la spec). Falta medir el costo real por mensaje con las trazas de LangSmith antes de fijar `billing.ai.*`; los precios por token son los de la lista de Anthropic, y el agente usa Claude en Vertex AI, cuyo precio puede ser otro.
+- **Cuatro planes** (spec 018, fase 5): el dueño eligió Gratis, Básico, Iglesia y Red con sus precios (IGV e IVA incluidos). Falta medir el costo real por mensaje con las trazas de LangSmith y probar un pago real de cada plan en el sandbox de dLocal Go.
+- **Modelo del agente**: Haiku 5.5 por defecto está decidido, pero antes hay que correr las evaluaciones del agente (`pnpm eval` con LangSmith) y comparar con Sonnet 5.5; si Haiku falla, Haiku para lecturas y Sonnet para escrituras. Hoy el agente sigue con Sonnet 5.5.
+- **Ruteo del número global de WhatsApp**: saber de qué iglesia es quien escribe al número de Sr. Tommy. Lo lleva el dueño aparte; hasta entonces los recordatorios de evento solo salen para las iglesias con conexión propia.
+- **Hosting del portal**: las cuentas de los planes suponen el portal en Cloud Run, no en Vercel Pro (Vercel Hobby no permite uso comercial).
+- **Funciones con plan sin pantalla todavía**: exportar a Excel, correos a grupos, ofrendas, turnos y voluntarios tienen su `Feature` y su 402, pero cada módulo debe llamarlo cuando se construya.

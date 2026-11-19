@@ -8,6 +8,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.ouracademy.ovejafiel.billing.command.reserve_whatsapp_reminder.ReserveWhatsappReminderCommand;
+import org.ouracademy.ovejafiel.billing.command.reserve_whatsapp_reminder.ReserveWhatsappReminderCommandHandler;
 import org.ouracademy.ovejafiel.event.query.find_registrations_to_remind.FindRegistrationsToRemindQuery;
 import org.ouracademy.ovejafiel.event.query.find_registrations_to_remind.FindRegistrationsToRemindQueryHandler;
 import org.ouracademy.ovejafiel.event.query.find_registrations_to_remind.FindRegistrationsToRemindResult.Item;
@@ -42,6 +44,7 @@ class QueueEventRemindersCommandHandlerImpl implements QueueEventRemindersComman
   private final WhatsAppConnectionRepository connections;
   private final WhatsAppReminderRepository reminders;
   private final EnqueueMessageCommandHandler enqueueMessage;
+  private final ReserveWhatsappReminderCommandHandler reserveReminder;
 
   @Override
   @Transactional
@@ -73,6 +76,12 @@ class QueueEventRemindersCommandHandlerImpl implements QueueEventRemindersComman
       return false;
     }
     if (churchId == null || !hasWhatsApp(churchId) || askedToStop(item.phone(), churchId)) {
+      return false;
+    }
+    // The plan gives a number of reminders a month: one is counted for each one queued. A church
+    // out of them is left for the next month's plan quota; its registrations are not marked, so
+    // they are not lost for good.
+    if (!reserveReminder.handle(new ReserveWhatsappReminderCommand(churchId)).allowed()) {
       return false;
     }
     // Last, so only a reminder that will really be queued is marked.

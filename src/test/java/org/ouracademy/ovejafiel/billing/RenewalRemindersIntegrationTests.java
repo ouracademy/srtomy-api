@@ -40,7 +40,7 @@ class RenewalRemindersIntegrationTests extends ChurchApiTests {
 
   void paidUntil(LocalDate day) {
     jdbc.update(
-        "insert into billing_subscription (organization_id, country, paid_until) values (?, 'PE', ?)"
+        "insert into billing_subscription (organization_id, country, paid_until, plan) values (?, 'PE', ?, 'CHURCH')"
             + " on conflict (organization_id) do update set paid_until = excluded.paid_until",
         UUID.fromString(church),
         day);

@@ -53,12 +53,9 @@ class WhatsAppCommandHandlersTests {
   private final FindOrganizationByIdQueryHandler findOrganization =
       mock(FindOrganizationByIdQueryHandler.class);
 
-  private final org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial
-          .StartWhatsappTrialCommandHandler
-      startWhatsappTrial =
-          mock(
-              org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial
-                  .StartWhatsappTrialCommandHandler.class);
+  private final org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQueryHandler
+      checkFeature =
+          mock(org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQueryHandler.class);
 
   private WhatsAppConnection existing(ConnectionMode mode) {
     var connection = new WhatsAppConnection(church, "cus-1", mode);
@@ -81,7 +78,7 @@ class WhatsAppCommandHandlersTests {
         gateway,
         findChurch,
         findOrganization,
-        startWhatsappTrial,
+        checkFeature,
         "https://app.example/");
   }
 
@@ -99,20 +96,22 @@ class WhatsAppCommandHandlersTests {
   }
 
   @Test
-  void aChurchWhoseFreeTrialEndedGetsNoLink() {
+  void aChurchWithoutTheOwnNumberGetsNoLink() {
     churchOf(branch);
-    when(startWhatsappTrial.handle(
-            new org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial
-                .StartWhatsappTrialCommand(church)))
+    when(checkFeature.handle(
+            new org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQuery(
+                church, org.ouracademy.ovejafiel.billing.domain.Feature.OWN_NUMBER)))
         .thenThrow(
             new org.ouracademy.ovejafiel.shared.domain.PlanLimitException(
-                "feature.whatsapp", "terminó"));
+                "feature.own_number", "Es parte del plan Red"));
 
     assertThatThrownBy(
             () ->
                 requestHandler()
                     .handle(new RequestSetupLinkCommand(branch, ConnectionMode.COEXISTENCE)))
-        .isInstanceOf(org.ouracademy.ovejafiel.shared.domain.PlanLimitException.class);
+        .isInstanceOf(org.ouracademy.ovejafiel.shared.domain.PlanLimitException.class)
+        .extracting("code")
+        .isEqualTo("feature.own_number");
 
     org.mockito.Mockito.verifyNoInteractions(gateway, connections);
   }

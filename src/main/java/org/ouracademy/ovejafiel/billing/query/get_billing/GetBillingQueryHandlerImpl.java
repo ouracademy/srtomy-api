@@ -1,6 +1,8 @@
 package org.ouracademy.ovejafiel.billing.query.get_billing;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.billing.domain.BillingCountry;
 import org.ouracademy.ovejafiel.billing.domain.BillingPolicy;
@@ -10,7 +12,9 @@ import org.ouracademy.ovejafiel.billing.query.AiAllowance;
 import org.ouracademy.ovejafiel.billing.query.Entitlements;
 import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult.AiResult;
 import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult.FeatureState;
+import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult.PlanResult;
 import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult.PriceResult;
+import org.ouracademy.ovejafiel.billing.query.get_billing.GetBillingResult.RemindersResult;
 import org.ouracademy.ovejafiel.organization.query.count_locations.CountLocationsQuery;
 import org.ouracademy.ovejafiel.organization.query.count_locations.CountLocationsQueryHandler;
 import org.ouracademy.ovejafiel.person.query.count_people.CountPeopleQuery;
@@ -34,36 +38,61 @@ class GetBillingQueryHandlerImpl implements GetBillingQueryHandler {
     var state = entitlements.of(query.organizationId());
     var subscription = state.subscription();
     var people = countPeople.handle(new CountPeopleQuery(state.churchId())).count();
-    var paid = state.isPaid();
-    var ai = aiAllowance.of(state, people);
+    var locations = countLocations.handle(new CountLocationsQuery(state.churchId())).count();
+    var ai = aiAllowance.of(state);
+    var limits = state.limits();
     return new GetBillingResult(
         state.churchId(),
-        paid ? Plan.CHURCH : Plan.FREE,
+        state.plan(),
         state.status(),
         subscription == null ? null : subscription.getPaidUntil(),
         subscription == null ? null : subscription.getCountry(),
+        state.allows(Feature.OWN_NUMBER),
         people,
-        countLocations.handle(new CountLocationsQuery(state.churchId())).count(),
-        paid ? null : policy.freeMaxPeople(),
-        paid ? null : policy.freeMaxLocations(),
+        locations,
+        limits.maxPeople(),
+        limits.maxLocations(),
         Arrays.stream(Feature.values())
             .map(f -> new FeatureState(f, f.label(), state.allows(f)))
             .toList(),
-        state.whatsappTrialEndsAt(),
-        policy.whatsappTrialDays(),
-        policy.includedPeople(),
-        policy.blockSize(),
-        Arrays.stream(BillingCountry.values())
-            .filter(policy.prices()::containsKey)
-            .map(
-                country ->
-                    new PriceResult(
-                        country,
-                        country.currency(),
-                        policy.quote(country, people, 1).total(),
-                        policy.quote(country, people, 12).total(),
-                        policy.prices().get(country).extraBlock()))
-            .toList(),
-        new AiResult(ai.month(), ai.used(), ai.limit(), ai.costUsd(), ai.maxCostUsd()));
+        Arrays.stream(Plan.values()).map(plan -> planResult(plan, people, locations)).toList(),
+        new AiResult(ai.month(), ai.used(), ai.limit(), ai.costUsd(), ai.maxCostUsd()),
+        new RemindersResult(ai.remindersUsed(), ai.remindersLimit()));
+  }
+
+  private PlanResult planResult(Plan plan, long people, long locations) {
+    var l = policy.limits(plan);
+    return new PlanResult(
+        plan,
+        plan.label(),
+        l.maxPeople(),
+        l.maxLocations(),
+        l.aiMessages(),
+        l.whatsappReminders(),
+        l.ownNumberIncluded(),
+        l.ownNumberExtra(),
+        l.customRoles(),
+        l.excelExport(),
+        l.churchFeatures(),
+        l.allowsPeople(people) && l.allowsLocations(locations),
+        plan.isPaid() ? prices(plan) : List.of());
+  }
+
+  private List<PriceResult> prices(Plan plan) {
+    return Arrays.stream(BillingCountry.values())
+        .map(
+            country -> {
+              var monthly = policy.monthlyPrice(plan, country);
+              var own = policy.ownNumberMonthly(country);
+              var months = BigDecimal.valueOf(policy.yearlyMonthsCharged());
+              return new PriceResult(
+                  country,
+                  country.currency(),
+                  monthly,
+                  monthly.multiply(months),
+                  own,
+                  own.multiply(months));
+            })
+        .toList();
   }
 }

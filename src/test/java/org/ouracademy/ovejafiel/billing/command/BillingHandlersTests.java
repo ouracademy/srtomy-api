@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.ouracademy.ovejafiel.billing.query.EntitlementsTests.CLOCK;
-import static org.ouracademy.ovejafiel.billing.query.EntitlementsTests.NOW;
 import static org.ouracademy.ovejafiel.billing.query.EntitlementsTests.POLICY;
 import static org.ouracademy.ovejafiel.billing.query.EntitlementsTests.TODAY;
 
@@ -16,12 +15,11 @@ import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial.StartWhatsappTrialCommand;
-import org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial.StartWhatsappTrialCommandHandler;
 import org.ouracademy.ovejafiel.billing.domain.BillingCountry;
 import org.ouracademy.ovejafiel.billing.domain.Feature;
 import org.ouracademy.ovejafiel.billing.domain.Invoice;
 import org.ouracademy.ovejafiel.billing.domain.InvoiceStatus;
+import org.ouracademy.ovejafiel.billing.domain.Plan;
 import org.ouracademy.ovejafiel.billing.domain.Subscription;
 import org.ouracademy.ovejafiel.billing.gateway.PaymentGateway;
 import org.ouracademy.ovejafiel.billing.query.Entitlements;
@@ -79,104 +77,81 @@ class BillingHandlersTests {
     }
   }
 
-  // --- WhatsApp trial
-
-  StartWhatsappTrialCommandHandler trialHandler() {
-    return handler(
-        "org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial."
-            + "StartWhatsappTrialCommandHandlerImpl",
-        entitlements,
-        subscriptions,
-        POLICY,
-        CLOCK);
-  }
-
-  @Test
-  void theFirstConnectionOfAFreeChurchStartsTheTrial() {
-    var result = trialHandler().handle(new StartWhatsappTrialCommand(church));
-
-    assertThat(result.trialEndsAt()).isEqualTo(NOW.plusDays(15));
-    var saved = org.mockito.ArgumentCaptor.forClass(Subscription.class);
-    verify(subscriptions).save(saved.capture());
-    assertThat(saved.getValue().getWhatsappTrialStartedAt()).isEqualTo(NOW);
-  }
-
-  @Test
-  void connectingAgainDuringTheTrialKeepsItsEnd() {
-    subscription().startWhatsappTrial(NOW.minusDays(10));
-
-    var result = trialHandler().handle(new StartWhatsappTrialCommand(church));
-
-    assertThat(result.trialEndsAt()).isEqualTo(NOW.plusDays(5));
-  }
-
-  @Test
-  void onceTheTrialEndedAFreeChurchCannotConnect() {
-    subscription().startWhatsappTrial(NOW.minusDays(16));
-
-    assertThatThrownBy(() -> trialHandler().handle(new StartWhatsappTrialCommand(church)))
-        .isInstanceOf(PlanLimitException.class)
-        .extracting("code")
-        .isEqualTo("feature.whatsapp");
-    verify(subscriptions, never()).save(any());
-  }
-
-  @Test
-  void aPaidChurchConnectsWithoutAnyTrial() {
-    subscription().extendTo(TODAY.plusDays(20), BillingCountry.PE);
-
-    var result = trialHandler().handle(new StartWhatsappTrialCommand(church));
-
-    assertThat(result.trialEndsAt()).isNull();
-    verify(subscriptions, never()).save(any());
-  }
-
   // --- features and capacity
 
+  CheckFeatureQueryHandler featureCheck() {
+    return handler(
+        "org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQueryHandlerImpl",
+        entitlements);
+  }
+
+  CheckCapacityQueryHandler capacityCheck() {
+    return handler(
+        "org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQueryHandlerImpl",
+        entitlements,
+        countPeople,
+        countLocations);
+  }
+
   @Test
-  void aFeatureOfThePaidPlanIsRefusedToAFreeChurchAndAllowedToAPaidOne() {
-    CheckFeatureQueryHandler check =
-        handler(
-            "org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQueryHandlerImpl",
-            entitlements);
+  void aFeatureIsRefusedToAPlanThatDoesNotHaveItAndSaysWhichPlanHasIt() {
+    var check = featureCheck();
 
     assertThatThrownBy(() -> check.handle(new CheckFeatureQuery(church, Feature.FINANCES)))
         .isInstanceOf(PlanLimitException.class)
         .hasMessageContaining("plan Iglesia")
         .extracting("code")
         .isEqualTo("feature.finances");
+    assertThatThrownBy(() -> check.handle(new CheckFeatureQuery(church, Feature.EXCEL_EXPORT)))
+        .hasMessageContaining("plan Básico")
+        .extracting("code")
+        .isEqualTo("feature.excel_export");
 
-    subscription().extendTo(TODAY, BillingCountry.PE);
+    subscription().extendTo(TODAY, BillingCountry.PE, Plan.BASIC, false);
+    assertThat(check.handle(new CheckFeatureQuery(church, Feature.EXCEL_EXPORT)).feature())
+        .isEqualTo(Feature.EXCEL_EXPORT);
+    assertThat(check.handle(new CheckFeatureQuery(church, Feature.CUSTOM_ROLES)).feature())
+        .isEqualTo(Feature.CUSTOM_ROLES);
+    // Basic still has no finances.
+    assertThatThrownBy(() -> check.handle(new CheckFeatureQuery(church, Feature.FINANCES)))
+        .isInstanceOf(PlanLimitException.class);
+
+    subscription().extendTo(TODAY, BillingCountry.PE, Plan.CHURCH, false);
     assertThat(check.handle(new CheckFeatureQuery(church, Feature.FINANCES)).feature())
         .isEqualTo(Feature.FINANCES);
   }
 
   @Test
-  void anExpiredTrialRefusesWhatsappWithItsOwnMessage() {
-    CheckFeatureQueryHandler check =
-        handler(
-            "org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQueryHandlerImpl",
-            entitlements);
-    subscription().startWhatsappTrial(NOW.minusDays(30));
+  void theOwnNumberNeedsNetworkOrTheExtra() {
+    var check = featureCheck();
 
-    assertThatThrownBy(() -> check.handle(new CheckFeatureQuery(church, Feature.WHATSAPP)))
-        .isInstanceOf(PlanLimitException.class)
-        .hasMessageContaining("prueba gratuita");
+    // Free, Basic and Church without the extra are refused with their own code and message.
+    for (var plan : new Plan[] {Plan.BASIC, Plan.CHURCH}) {
+      subscription().extendTo(TODAY, BillingCountry.PE, plan, false);
+      assertThatThrownBy(() -> check.handle(new CheckFeatureQuery(church, Feature.OWN_NUMBER)))
+          .isInstanceOf(PlanLimitException.class)
+          .hasMessageContaining("número de Sr. Tommy")
+          .extracting("code")
+          .isEqualTo("feature.own_number");
+    }
+    assertThatThrownBy(() -> check.handle(new CheckFeatureQuery(church, Feature.OWN_NUMBER)))
+        .isInstanceOf(PlanLimitException.class);
+
+    subscription().extendTo(TODAY, BillingCountry.PE, Plan.CHURCH, true);
+    assertThat(check.handle(new CheckFeatureQuery(church, Feature.OWN_NUMBER)).feature())
+        .isEqualTo(Feature.OWN_NUMBER);
+
+    subscription().extendTo(TODAY, BillingCountry.PE, Plan.NETWORK, false);
+    assertThat(check.handle(new CheckFeatureQuery(church, Feature.OWN_NUMBER)).feature())
+        .isEqualTo(Feature.OWN_NUMBER);
   }
 
   @Test
-  void aPaidChurchHasNoMaximumEvenAboveTheFreeOne() {
-    CheckCapacityQueryHandler check =
-        handler(
-            "org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQueryHandlerImpl",
-            entitlements,
-            POLICY,
-            countPeople,
-            countLocations);
-    when(countPeople.handle(any())).thenReturn(new CountPeopleResult(900));
+  void aChurchCannotAddMoreThanItsPlanIncludesAndIsToldWhichPlanComesNext() {
+    var check = capacityCheck();
     when(countLocations.handle(any())).thenReturn(new CountLocationsResult(1));
 
-    // Free: 49 fit, 50 do not; one location is the maximum.
+    // Free: 49 fit, 50 do not.
     when(countPeople.handle(any())).thenReturn(new CountPeopleResult(49));
     assertThat(
             check.handle(new CheckCapacityQuery(church, CheckCapacityQuery.Resource.PEOPLE)).max())
@@ -185,24 +160,60 @@ class BillingHandlersTests {
     assertThatThrownBy(
             () -> check.handle(new CheckCapacityQuery(church, CheckCapacityQuery.Resource.PEOPLE)))
         .isInstanceOf(PlanLimitException.class)
-        .hasMessageContaining("50 personas");
+        .hasMessageContaining("plan Gratis incluye hasta 50 personas")
+        .hasMessageContaining("plan Básico")
+        .extracting("code")
+        .isEqualTo("limit.people");
     assertThatThrownBy(
             () ->
                 check.handle(new CheckCapacityQuery(church, CheckCapacityQuery.Resource.LOCATIONS)))
-        .isInstanceOf(PlanLimitException.class)
-        .hasMessageContaining("1 sede.");
+        .hasMessageContaining("1 sede.")
+        .extracting("code")
+        .isEqualTo("limit.locations");
+  }
 
-    subscription().extendTo(TODAY, BillingCountry.PE);
-    when(countPeople.handle(any())).thenReturn(new CountPeopleResult(900));
-    assertThat(
-            check.handle(new CheckCapacityQuery(church, CheckCapacityQuery.Resource.PEOPLE)).max())
-        .isNull();
+  @Test
+  void eachPlanHasItsOwnMaximumOfPeopleAndLocations() {
+    var check = capacityCheck();
+    var people = CheckCapacityQuery.Resource.PEOPLE;
+    var locations = CheckCapacityQuery.Resource.LOCATIONS;
+
+    subscription().extendTo(TODAY, BillingCountry.PE, Plan.BASIC, false);
+    when(countPeople.handle(any())).thenReturn(new CountPeopleResult(149));
+    assertThat(check.handle(new CheckCapacityQuery(church, people)).max()).isEqualTo(150);
+    when(countPeople.handle(any())).thenReturn(new CountPeopleResult(150));
+    assertThatThrownBy(() -> check.handle(new CheckCapacityQuery(church, people)))
+        .hasMessageContaining("plan Básico incluye hasta 150 personas")
+        .hasMessageContaining("plan Iglesia");
+    when(countLocations.handle(any())).thenReturn(new CountLocationsResult(1));
+    assertThatThrownBy(() -> check.handle(new CheckCapacityQuery(church, locations)))
+        .hasMessageContaining("plan Básico incluye 1 sede");
+
+    subscription().extendTo(TODAY, BillingCountry.PE, Plan.CHURCH, false);
+    when(countPeople.handle(any())).thenReturn(new CountPeopleResult(399));
+    assertThat(check.handle(new CheckCapacityQuery(church, people)).max()).isEqualTo(400);
+    when(countPeople.handle(any())).thenReturn(new CountPeopleResult(400));
+    assertThatThrownBy(() -> check.handle(new CheckCapacityQuery(church, people)))
+        .hasMessageContaining("plan Iglesia incluye hasta 400 personas")
+        .hasMessageContaining("plan Red");
+    when(countLocations.handle(any())).thenReturn(new CountLocationsResult(4));
+    assertThat(check.handle(new CheckCapacityQuery(church, locations)).max()).isEqualTo(5);
+    when(countLocations.handle(any())).thenReturn(new CountLocationsResult(5));
+    assertThatThrownBy(() -> check.handle(new CheckCapacityQuery(church, locations)))
+        .hasMessageContaining("plan Iglesia incluye 5 sedes");
+
+    subscription().extendTo(TODAY, BillingCountry.PE, Plan.NETWORK, false);
+    when(countPeople.handle(any())).thenReturn(new CountPeopleResult(100_000));
+    when(countLocations.handle(any())).thenReturn(new CountLocationsResult(300));
+    assertThat(check.handle(new CheckCapacityQuery(church, people)).max()).isNull();
+    assertThat(check.handle(new CheckCapacityQuery(church, locations)).max()).isNull();
   }
 
   // --- settling a payment
 
   Invoice pendingInvoice() {
-    var invoice = new Invoice(church, BillingCountry.PE, new BigDecimal("75"), 20, 1);
+    var invoice =
+        new Invoice(church, Plan.CHURCH, false, BillingCountry.PE, new BigDecimal("75"), 20, 1);
     invoice.sentToGateway("DP-1", "https://checkout/1");
     when(invoices.findForUpdate(invoice.getId())).thenReturn(Optional.of(invoice));
     return invoice;
@@ -248,11 +259,34 @@ class BillingHandlersTests {
     var saved = org.mockito.ArgumentCaptor.forClass(Subscription.class);
     verify(subscriptions).save(saved.capture());
     assertThat(saved.getValue().getPaidUntil()).isEqualTo(TODAY.plusMonths(1).minusDays(1));
+    assertThat(saved.getValue().getPlan()).isEqualTo(Plan.CHURCH);
+    assertThat(saved.getValue().isOwnNumber()).isFalse();
+  }
+
+  @Test
+  void aPaidInvoiceGivesThePlanAndTheExtraItWasBoughtWith() {
+    var invoice =
+        new Invoice(church, Plan.BASIC, true, BillingCountry.CO, new BigDecimal("98000"), 20, 1);
+    invoice.sentToGateway("DP-2", "https://checkout/2");
+    when(invoices.findForUpdate(invoice.getId())).thenReturn(Optional.of(invoice));
+    when(gateway.findPayment("DP-2"))
+        .thenReturn(
+            new PaymentGateway.PaymentState(
+                "DP-2", invoice.getId().value().toString(), InvoiceStatus.PAID));
+
+    assertThat(settler.settle(invoice)).isTrue();
+
+    var saved = org.mockito.ArgumentCaptor.forClass(Subscription.class);
+    verify(subscriptions).save(saved.capture());
+    assertThat(saved.getValue().getPlan()).isEqualTo(Plan.BASIC);
+    assertThat(saved.getValue().isOwnNumber()).isTrue();
+    assertThat(saved.getValue().getCountry()).isEqualTo(BillingCountry.CO);
   }
 
   @Test
   void anInvoiceAlreadySettledOrNeverSentIsNotAskedAbout() {
-    var invoice = new Invoice(church, BillingCountry.PE, new BigDecimal("75"), 20, 1);
+    var invoice =
+        new Invoice(church, Plan.CHURCH, false, BillingCountry.PE, new BigDecimal("75"), 20, 1);
     when(invoices.findForUpdate(invoice.getId())).thenReturn(Optional.of(invoice));
 
     assertThat(settler.settle(invoice)).isFalse();

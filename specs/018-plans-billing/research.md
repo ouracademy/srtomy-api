@@ -1,5 +1,7 @@
 # Research: pasarela de pagos para Perú y Colombia
 
+> **Decisión de precios.** Los cuatro planes (Gratis, Básico, Iglesia y Red), sus precios, topes y cuotas salieron de la **calculadora de precios del dueño del producto** (artefacto privado, solo de referencia: <https://claude.ai/artifact/Ci8SrRHJnRcMERpCyAFE1D>), que cruza el costo por iglesia (Cloud Run, Neon, Kapso, Meta y el modelo de IA) con el precio del mercado. El dueño eligió el escenario «Recomendado»: Haiku 5.5 y un número global de WhatsApp, con margen sobre el 20 % desde unas 6 a 9 iglesias de pago. Esta nota solo recuerda de dónde viene; los números vigentes están en [spec.md](./spec.md).
+
 Fecha: 2026-11-15. Las tarifas salen de listas de precios públicas y de blogs comparativos; **confírmalas con cada proveedor antes de firmar**.
 
 ## Qué necesitamos
@@ -47,7 +49,7 @@ Precios de la API de Anthropic (noviembre de 2026), por millón de tokens:
 | Claude Sonnet 5.5 (el del agente hoy) | US$ 2,00 | US$ 10,00 | US$ 0,10 |
 | Claude Haiku 5.5 | US$ 0,10 | US$ 0,50 | — |
 
-Estimación por mensaje respondido con Sonnet 5.5, de 2 a 3 pasos del modelo con unos 20.000 tokens de instrucciones y herramientas (casi todo en caché), 2.000 tokens nuevos y 800 de salida por paso: **entre US$ 0,02 y 0,05**. Es una estimación: el valor real sale de las trazas de LangSmith, que ya llevan la iglesia y los tokens.
+Con Haiku 5.5 el mismo mensaje cuesta unas 17 veces menos (con 2.000 tokens nuevos, 800 de salida y 20.000 de caché: US$ 0,0008 contra US$ 0,014 de Sonnet 5.5). Estimación por mensaje respondido con Sonnet 5.5, de 2 a 3 pasos del modelo con unos 20.000 tokens de instrucciones y herramientas (casi todo en caché), 2.000 tokens nuevos y 800 de salida por paso: **entre US$ 0,02 y 0,05**. Es una estimación: el valor real sale de las trazas de LangSmith, que ya llevan la iglesia y los tokens.
 
 ## Fuentes
 

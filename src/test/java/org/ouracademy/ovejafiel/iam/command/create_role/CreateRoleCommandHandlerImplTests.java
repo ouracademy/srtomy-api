@@ -1,24 +1,31 @@
 package org.ouracademy.ovejafiel.iam.command.create_role;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.ovejafiel.billing.domain.Feature;
+import org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQuery;
+import org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQueryHandler;
 import org.ouracademy.ovejafiel.iam.command.RoleRules;
 import org.ouracademy.ovejafiel.iam.domain.IamRole;
 import org.ouracademy.ovejafiel.iam.repository.IamRoleRepository;
 import org.ouracademy.ovejafiel.organization.domain.Organization;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
+import org.ouracademy.ovejafiel.shared.domain.PlanLimitException;
 
 class CreateRoleCommandHandlerImplTests {
 
   IamRoleRepository repository = mock(IamRoleRepository.class);
   RoleRules rules = mock(RoleRules.class);
   EntityManager entityManager = mock(EntityManager.class);
+  CheckFeatureQueryHandler checkFeature = mock(CheckFeatureQueryHandler.class);
   PartyId church = PartyId.generate();
 
   @Test
@@ -31,7 +38,7 @@ class CreateRoleCommandHandlerImplTests {
     when(repository.save(any(IamRole.class))).thenAnswer(call -> call.getArgument(0));
 
     var created =
-        new CreateRoleCommandHandlerImpl(repository, rules, entityManager)
+        new CreateRoleCommandHandlerImpl(repository, rules, entityManager, checkFeature)
             .handle(
                 new CreateRoleCommand(
                     "me", church, " Tesorero ", "d", List.of("org.read", "org.read")))
@@ -40,5 +47,20 @@ class CreateRoleCommandHandlerImplTests {
     assertThat(created.name()).isEqualTo("Tesorero");
     assertThat(created.permissions()).containsExactly("org.read");
     assertThat(created.predefined()).isFalse();
+  }
+
+  @Test
+  void aPlanWithoutCustomRolesCreatesNone() {
+    when(checkFeature.handle(new CheckFeatureQuery(church, Feature.CUSTOM_ROLES)))
+        .thenThrow(new PlanLimitException("feature.custom_roles", "Desde el plan Básico."));
+
+    assertThatThrownBy(
+            () ->
+                new CreateRoleCommandHandlerImpl(repository, rules, entityManager, checkFeature)
+                    .handle(new CreateRoleCommand("me", church, "Tesorero", "d", List.of())))
+        .isInstanceOf(PlanLimitException.class)
+        .extracting("code")
+        .isEqualTo("feature.custom_roles");
+    verifyNoInteractions(repository, rules);
   }
 }

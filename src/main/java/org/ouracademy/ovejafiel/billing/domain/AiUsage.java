@@ -39,6 +39,9 @@ public class AiUsage extends DomainObject {
 
   long cacheWriteTokens;
 
+  /** WhatsApp reminders (Meta templates) queued this month. */
+  int whatsappReminders;
+
   @Column(nullable = false)
   BigDecimal costUsd;
 

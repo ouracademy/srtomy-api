@@ -68,4 +68,25 @@ public interface AiUsageRepository extends JpaRepository<AiUsage, AiUsageId> {
       long cacheRead,
       long cacheWrite,
       BigDecimal cost);
+
+  /**
+   * Adds one WhatsApp reminder to the month of the church only while it is under {@code max};
+   * answers the new count, or nothing when the plan has no more. {@code id} is only used if the
+   * month has no row yet.
+   */
+  @Query(
+      nativeQuery = true,
+      value =
+          """
+          insert into billing_ai_usage
+            (id, organization_id, month, messages, whatsapp_reminders, cost_usd, create_date,
+             last_modified_date)
+          select :id, :organizationId, :month, 0, 1, 0, now(), now() where :max > 0
+          on conflict (organization_id, month) do update
+            set whatsapp_reminders = billing_ai_usage.whatsapp_reminders + 1,
+                last_modified_date = now()
+            where billing_ai_usage.whatsapp_reminders < :max
+          returning whatsapp_reminders
+          """)
+  List<Integer> reserveReminder(UUID id, UUID organizationId, LocalDate month, int max);
 }

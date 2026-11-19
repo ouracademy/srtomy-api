@@ -2,8 +2,9 @@ package org.ouracademy.ovejafiel.whatsapp.command.request_setup_link;
 
 import java.util.NoSuchElementException;
 import lombok.extern.slf4j.Slf4j;
-import org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial.StartWhatsappTrialCommand;
-import org.ouracademy.ovejafiel.billing.command.start_whatsapp_trial.StartWhatsappTrialCommandHandler;
+import org.ouracademy.ovejafiel.billing.domain.Feature;
+import org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQuery;
+import org.ouracademy.ovejafiel.billing.query.check_feature.CheckFeatureQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQuery;
 import org.ouracademy.ovejafiel.organization.query.find_church_of_organization.FindChurchOfOrganizationQueryHandler;
 import org.ouracademy.ovejafiel.organization.query.find_organization_by_id.FindOrganizationByIdQuery;
@@ -24,7 +25,7 @@ class RequestSetupLinkCommandHandlerImpl implements RequestSetupLinkCommandHandl
   private final WhatsAppGateway gateway;
   private final FindChurchOfOrganizationQueryHandler findChurch;
   private final FindOrganizationByIdQueryHandler findOrganization;
-  private final StartWhatsappTrialCommandHandler startWhatsappTrial;
+  private final CheckFeatureQueryHandler checkFeature;
   private final String appUrl;
 
   RequestSetupLinkCommandHandlerImpl(
@@ -32,13 +33,13 @@ class RequestSetupLinkCommandHandlerImpl implements RequestSetupLinkCommandHandl
       WhatsAppGateway gateway,
       FindChurchOfOrganizationQueryHandler findChurch,
       FindOrganizationByIdQueryHandler findOrganization,
-      StartWhatsappTrialCommandHandler startWhatsappTrial,
+      CheckFeatureQueryHandler checkFeature,
       @Value("${app.url:http://localhost:3000}") String appUrl) {
     this.connections = connections;
     this.gateway = gateway;
     this.findChurch = findChurch;
     this.findOrganization = findOrganization;
-    this.startWhatsappTrial = startWhatsappTrial;
+    this.checkFeature = checkFeature;
     this.appUrl = appUrl;
   }
 
@@ -54,9 +55,9 @@ class RequestSetupLinkCommandHandlerImpl implements RequestSetupLinkCommandHandl
             .handle(new FindChurchOfOrganizationQuery(command.organizationId()))
             .orElseThrow(() -> new NoSuchElementException("Organization not found"))
             .churchId();
-    // On the free plan WhatsApp is a trial of a few days: this starts it, or refuses (402) once it
-    // ended.
-    startWhatsappTrial.handle(new StartWhatsappTrialCommand(churchId));
+    // By default every church uses the number of Sr. Tommy. Connecting its own number is part of
+    // the NETWORK plan or an extra of BASIC and CHURCH: without it, 402 with feature.own_number.
+    checkFeature.handle(new CheckFeatureQuery(churchId, Feature.OWN_NUMBER));
     var connection =
         connections.findById(churchId).orElseGet(() -> newConnection(churchId, command));
     connection.startSetup(command.mode());

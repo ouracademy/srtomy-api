@@ -22,6 +22,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
@@ -30,6 +31,8 @@ import org.springframework.test.web.servlet.client.RestTestClient;
  */
 @SpringBootTest(classes = OvejafielApplication.class, webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import(TestSecurityConfig.class)
+// The free plan sends none; one reminder a month is enough to see the quota at work.
+@TestPropertySource(properties = "billing.free.whatsapp-reminders=1")
 class WhatsAppReminderIntegrationTests {
 
   static final ObjectMapper JSON = new ObjectMapper();
@@ -175,6 +178,24 @@ class WhatsAppReminderIntegrationTests {
                 String.class,
                 phone))
         .isEqualTo("WHATSAPP");
+  }
+
+  @Test
+  void aChurchQueuesNoMoreRemindersThanItsPlanIncludesThisMonth() {
+    connectWhatsApp();
+    eventIn(20);
+    eventIn(21);
+
+    remind(TestSecurityConfig.schedulerToken(jwtEncoder));
+
+    // The plan of the test has one reminder a month: the other registration waits.
+    assertThat(reminders()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select whatsapp_reminders from billing_ai_usage where organization_id = ?::uuid",
+                Integer.class,
+                churchId))
+        .isEqualTo(1);
   }
 
   @Test

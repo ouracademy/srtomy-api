@@ -77,9 +77,10 @@ public class BillingController {
   }
 
   /**
-   * Starts paying the CHURCH plan for one month or one year, priced for the people the church has
-   * today, and answers with the link of the checkout where the pastor pays. Nothing changes until
-   * the payment is confirmed. Needs {@code billing.manage}.
+   * Starts paying a plan (BASIC, CHURCH or NETWORK) for one month or one year, with the own
+   * WhatsApp number as an extra if asked, and answers with the link of the checkout where the
+   * pastor pays. Refuses a plan that does not include the people and locations the church has
+   * today. Nothing changes until the payment is confirmed. Needs {@code billing.manage}.
    *
    * @param id Id of the node: a church, location, group or ministry. The plan is the church's.
    */
@@ -93,7 +94,12 @@ public class BillingController {
     authorize(jwt, node, Permission.BILLING_MANAGE);
     var result =
         startCheckoutCommandHandler.handle(
-            new StartCheckoutCommand(node, request.country(), request.months()));
+            new StartCheckoutCommand(
+                node,
+                request.plan(),
+                request.country(),
+                request.months(),
+                Boolean.TRUE.equals(request.ownNumber())));
     return new CheckoutResponse(
         result.invoiceId().value(), result.checkoutUrl(), result.amount(), result.currency());
   }

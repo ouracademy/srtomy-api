@@ -11,6 +11,7 @@
 | 2 | Cuota y tope de gasto del asistente (API + agente) y ritmo compartido | **Hecho**: API (2a) y agente (2b, 2c: `src/quota.ts`, `PostgresRateLimiter`) |
 | 3 | Portal: pantalla «Plan y pagos», avisos de límite, landing, quitar Culqi | **Hecho** en srtomy-ui (`app/portal/[nodeId]/billing/`, `PlanLimitNotice`, `PlanUsageNotice`, landing con calculadora) |
 | 4 | Infra y avisos: secretos de dLocal Go, recordatorios de vencimiento, ritmo por IP en la API | **Hecho** en la API (falta aplicar Terraform y probar en el sandbox de dLocal Go); el aviso por WhatsApp queda pendiente |
+| 5 | **Cuatro planes** (Gratis, Básico, Iglesia, Red), número propio como extra, cuota de recordatorios, roles propios solo desde Básico | **Hecho en la API** (`V1.36.0__billing_plans.sql`); portal y agente en sus repos; pendientes abajo |
 
 ## Arquitectura
 
@@ -23,7 +24,7 @@ Portal ──GET /billing──▶ srtomy-api (billing) ◀──POST /webhooks/
 ```
 
 - **La API es la única que decide.** `billing.query.Entitlements` lee la suscripción de la iglesia (cualquier nodo da la misma) y responde qué permite el plan hoy. Los otros módulos llaman a `CheckCapacityQueryHandler` o `CheckFeatureQueryHandler`; nunca leen tablas de `billing`.
-- **402 Payment Required** con `ProblemDetail.code` es la respuesta uniforme a «tu plan no lo incluye» (`PlanLimitException` en `shared/domain`). El portal la reconoce y ofrece el plan Iglesia.
+- **402 Payment Required** con `ProblemDetail.code` es la respuesta uniforme a «tu plan no lo incluye» (`PlanLimitException` en `shared/domain`). El portal la reconoce y ofrece el plan siguiente (`Plan.next()`).
 - **Prepago**: cada `Invoice` pagada mueve `Subscription.paidUntil`. Sin trabajo programado para «cobrar»: solo un aviso de vencimiento (fase 4).
 
 ## Fase 1: hecha (srtomy-api)
@@ -86,8 +87,36 @@ Pruebas: dominio (precios, periodos, gracia, prueba), pasarela contra un servido
 - Ritmo por IP en los endpoints públicos de la API: Bucket4j con su almacén de Postgres, por IP (`X-Forwarded-For` de Cloud Run), 30 por minuto en inscripción pública, QR y libro de reclamaciones. Se descarta Cloud Armor por ahora: exige un balanceador (unos US$ 18 al mes). **Hecho**: `shared/PublicRateLimitFilter` y `RateLimitConfig` (`rate-limit.*`), tabla `rate_limit_bucket` (`V1.35.0`). Se toma la **última** dirección de `X-Forwarded-For`, la que agrega Google; las anteriores las elige quien llama.
 - Probar en el sandbox de dLocal Go un pago de Perú (tarjeta y Yape) y uno de Colombia (PSE).
 
+## Fase 5: cuatro planes (decisión del dueño, 2026-11-19)
+
+Reemplaza los dos planes (Gratis e Iglesia, con precio por bloque de personas) por cuatro: **Gratis, Básico, Iglesia y Red**. Ver [spec.md](./spec.md) para la tabla.
+
+**API (hecho)**
+
+| Pieza | Qué cambió |
+| --- | --- |
+| `billing/domain/Plan` | `FREE`, `BASIC`, `CHURCH`, `NETWORK`, con `label()` y `next()` (a qué plan pasar al llegar a un tope) |
+| `BillingPolicy`, `BillingProperties`, `BillingPolicyConfig` | Los topes, cuotas y precios de cada plan salen de `billing.<plan>.*` (`free`, `basic`, `church`, `network`) y el extra de `billing.own-number.*`; todo con los valores de la spec por defecto |
+| `Feature` | Sin `WHATSAPP`; suma `CUSTOM_ROLES` y `OWN_NUMBER`. Cada una dice su plan más barato (`cheapestPlan()`) para el mensaje del 402 |
+| `Entitlements.State` | Trae el plan vigente (`FREE` al vencer la gracia), el extra y sus `Limits` |
+| `CheckCapacityQueryHandler` | Usa el tope del plan y el mensaje sugiere el plan siguiente |
+| `StartCheckoutCommand` | Recibe `plan`, `country`, `months` y `ownNumber`; rechaza un plan que no le cabe a la iglesia (400) y el extra donde ya viene incluido |
+| `Subscription`, `Invoice` | Guardan el plan y el extra; el pago acreditado fija el plan (sin prorrateo) |
+| Cuota de IA | Mensajes y dólares salen del plan (`AiAllowance`); se quitó el motivo `plan` (WhatsApp sin plan) porque el número global lo usan todos |
+| Recordatorios por WhatsApp | `command/reserve_whatsapp_reminder`: cuenta un recordatorio por mes y por iglesia, en la misma transacción que `QueueEventRemindersCommandHandlerImpl` lo encola; sin cuota no se encola ni se marca la inscripción. Columna `whatsapp_reminders` de `billing_ai_usage` |
+| Número propio | `RequestSetupLinkCommandHandlerImpl` pide `Feature.OWN_NUMBER` (402 `feature.own_number`); se quitó la prueba de 15 días (`start_whatsapp_trial`) |
+| Roles propios | `CreateRoleCommandHandlerImpl` pide `Feature.CUSTOM_ROLES` |
+| Migración | `V1.36.0__billing_plans.sql` (nueva, no se tocó la 1.32.0): plan y extra en la suscripción y en la factura, y recordatorios en el uso |
+
+**Pendientes (dueño o sesiones aparte)**
+
+- **Ruteo del número global**: cómo saber de qué iglesia es quien escribe al número de Sr. Tommy. Lo lleva el dueño. Hasta entonces `QueueEventReminders` solo recuerda a quien tiene una conexión propia.
+- **Modelo del agente**: pasar a Haiku 5.5 por defecto **después** de correr las evaluaciones de LangSmith del agente (`pnpm eval`) y comparar con Sonnet 5.5; si Haiku falla, Haiku para lecturas y Sonnet solo para escrituras. Es configurable hoy con `ANTHROPIC_MODEL` o `VERTEX_MODEL`.
+- **Hosting del portal**: los números suponen el portal en **Cloud Run**, no en Vercel Pro (Vercel Hobby no permite uso comercial).
+- **Exportar a Excel, correos a grupos, finanzas y turnos**: `Feature` y su 402 ya existen; cada módulo debe llamar a `CheckFeatureQueryHandler` cuando se construya.
+
 ## Riesgos
 
-- **El precio y la cuota no están validados** (decisiones abiertas de la spec). Todo está en configuración para cambiarlo sin desplegar código.
+- **Los precios y cuotas los eligió el dueño con su calculadora, pero no están probados con cobros reales.** Todo está en configuración para cambiarlo sin desplegar código. Falta medir el costo real por mensaje con las trazas de LangSmith.
 - **Comprobantes electrónicos** (SUNAT y DIAN) no están resueltos: hay que decidirlos antes del primer cobro real.
 - Las tarifas de dLocal Go son de su lista de 2024; confirmarlas al abrir la cuenta.

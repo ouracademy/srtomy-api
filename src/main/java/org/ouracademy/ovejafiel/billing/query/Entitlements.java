@@ -2,11 +2,11 @@ package org.ouracademy.ovejafiel.billing.query;
 
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.ouracademy.ovejafiel.billing.domain.BillingPolicy;
 import org.ouracademy.ovejafiel.billing.domain.Feature;
+import org.ouracademy.ovejafiel.billing.domain.Plan;
 import org.ouracademy.ovejafiel.billing.domain.Subscription;
 import org.ouracademy.ovejafiel.billing.domain.SubscriptionStatus;
 import org.ouracademy.ovejafiel.billing.repository.SubscriptionRepository;
@@ -17,7 +17,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Reads what the plan of a church allows right now. The plan belongs to the church, so any node of
- * its tree gives the same answer.
+ * its tree gives the same answer. A church whose paid time ran out (and its grace days) is back on
+ * the free plan, with nothing deleted.
  */
 @Component
 @RequiredArgsConstructor
@@ -29,25 +30,26 @@ public class Entitlements {
   private final Clock clock;
 
   /**
-   * @param subscription null when the church never paid nor tried WhatsApp
+   * @param subscription null when the church never paid
+   * @param plan the plan in force today: the paid one while it lasts, {@code FREE} otherwise
+   * @param ownNumber the own WhatsApp number was bought as an extra and is still paid
+   * @param limits what that plan includes
    */
   public record State(
       PartyId churchId,
       Subscription subscription,
       SubscriptionStatus status,
-      LocalDateTime whatsappTrialEndsAt,
-      boolean whatsappTrialRunning) {
+      Plan plan,
+      boolean ownNumber,
+      BillingPolicy.Limits limits) {
 
     public boolean isPaid() {
-      return status.isPaid();
+      return plan.isPaid();
     }
 
-    /** WhatsApp is the one feature the free plan may use, while its trial lasts. */
+    /** The plan includes the feature; the own number can also be bought as an extra. */
     public boolean allows(Feature feature) {
-      if (isPaid()) {
-        return true;
-      }
-      return feature == Feature.WHATSAPP && (whatsappTrialEndsAt == null || whatsappTrialRunning);
+      return limits.includes(feature) || (feature == Feature.OWN_NUMBER && ownNumber);
     }
   }
 
@@ -62,14 +64,20 @@ public class Entitlements {
             .churchId();
     var subscription = subscriptions.findById(churchId).orElse(null);
     if (subscription == null) {
-      return new State(churchId, null, SubscriptionStatus.FREE, null, false);
+      return state(churchId, null, SubscriptionStatus.FREE, Plan.FREE, false);
     }
-    var trialEndsAt = subscription.whatsappTrialEndsAt(policy.whatsappTrialDays());
-    return new State(
-        churchId,
-        subscription,
-        subscription.status(LocalDate.now(clock), policy.graceDays()),
-        trialEndsAt,
-        trialEndsAt != null && LocalDateTime.now(clock).isBefore(trialEndsAt));
+    var status = subscription.status(LocalDate.now(clock), policy.graceDays());
+    var plan =
+        status.isPaid() && subscription.getPlan() != null ? subscription.getPlan() : Plan.FREE;
+    return state(churchId, subscription, status, plan, plan.isPaid() && subscription.isOwnNumber());
+  }
+
+  private State state(
+      PartyId churchId,
+      Subscription subscription,
+      SubscriptionStatus status,
+      Plan plan,
+      boolean ownNumber) {
+    return new State(churchId, subscription, status, plan, ownNumber, policy.limits(plan));
   }
 }

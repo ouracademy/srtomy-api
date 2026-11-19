@@ -34,6 +34,14 @@ public class Invoice extends DomainObject {
   @Column(nullable = false)
   BigDecimal amount;
 
+  /** The plan this payment buys. */
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  Plan plan;
+
+  /** The own WhatsApp number is bought with it as an extra. */
+  boolean ownNumber;
+
   /** People the church had when it was priced. */
   int people;
 
@@ -62,8 +70,16 @@ public class Invoice extends DomainObject {
   }
 
   public Invoice(
-      PartyId organizationId, BillingCountry country, BigDecimal amount, int people, int months) {
+      PartyId organizationId,
+      Plan plan,
+      boolean ownNumber,
+      BillingCountry country,
+      BigDecimal amount,
+      int people,
+      int months) {
     this.organizationId = organizationId;
+    this.plan = plan;
+    this.ownNumber = ownNumber;
     this.country = country;
     this.currency = country.currency();
     this.amount = amount;

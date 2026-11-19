@@ -6,14 +6,14 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import lombok.Getter;
 import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.domain.DomainObject;
 
 /**
- * What a church has paid for. A church with no row is on the free plan and has not tried WhatsApp.
- * The paid plan is prepaid: each paid invoice moves {@code paidUntil} forward.
+ * What a church has paid for. A church with no row is on the free plan. Paying is prepaid: each
+ * paid invoice moves {@code paidUntil} forward and says which plan (and extras) the church has from
+ * then on.
  */
 @Entity
 @Table(name = "billing_subscription")
@@ -29,8 +29,12 @@ public class Subscription extends DomainObject {
   /** Last day of the paid period; null while the church never paid. */
   LocalDate paidUntil;
 
-  /** When the free trial of WhatsApp started; null while it was never connected. */
-  LocalDateTime whatsappTrialStartedAt;
+  /** The plan of the last payment; null while the church never paid. */
+  @Enumerated(EnumType.STRING)
+  Plan plan;
+
+  /** The own WhatsApp number was bought as an extra with the last payment. */
+  boolean ownNumber;
 
   protected Subscription() {
     // jpa only
@@ -60,22 +64,16 @@ public class Subscription extends DomainObject {
     return paidUntil == null || paidUntil.isBefore(today) ? today : paidUntil.plusDays(1);
   }
 
-  public void extendTo(LocalDate periodEnd, BillingCountry country) {
+  /**
+   * The paid period now ends at {@code periodEnd}, and the church has the plan of the payment. A
+   * payment of another plan changes the plan at once: there is no proration.
+   */
+  public void extendTo(LocalDate periodEnd, BillingCountry country, Plan plan, boolean ownNumber) {
     if (paidUntil == null || periodEnd.isAfter(paidUntil)) {
       this.paidUntil = periodEnd;
     }
     this.country = country;
-  }
-
-  /** The trial starts once and never restarts. */
-  public void startWhatsappTrial(LocalDateTime now) {
-    if (whatsappTrialStartedAt == null) {
-      this.whatsappTrialStartedAt = now;
-    }
-  }
-
-  /** When the trial ends; null while it has not started. */
-  public LocalDateTime whatsappTrialEndsAt(int trialDays) {
-    return whatsappTrialStartedAt == null ? null : whatsappTrialStartedAt.plusDays(trialDays);
+    this.plan = plan;
+    this.ownNumber = ownNumber;
   }
 }

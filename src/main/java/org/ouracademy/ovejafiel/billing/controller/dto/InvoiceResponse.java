@@ -5,11 +5,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.ouracademy.ovejafiel.billing.domain.InvoiceStatus;
+import org.ouracademy.ovejafiel.billing.domain.Plan;
 import org.ouracademy.ovejafiel.billing.query.list_invoices.InvoiceResult;
 
 public record InvoiceResponse(
     UUID id,
     InvoiceStatus status,
+    Plan plan,
+    boolean ownNumber,
     BigDecimal amount,
     String currency,
     int months,
@@ -24,6 +27,8 @@ public record InvoiceResponse(
     return new InvoiceResponse(
         result.id().value(),
         result.status(),
+        result.plan(),
+        result.ownNumber(),
         result.amount(),
         result.currency(),
         result.months(),

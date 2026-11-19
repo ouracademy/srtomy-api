@@ -48,3 +48,9 @@ internal:
 # outlive the run in the database. PublicRateLimitIntegrationTests turns it on.
 rate-limit:
   enabled: false
+
+# Most tests create custom roles in a church that never paid: the plan limit on them is checked in
+# the billing tests, which switch it back on.
+billing:
+  free:
+    custom-roles: true

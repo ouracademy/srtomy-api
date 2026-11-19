@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import org.ouracademy.ovejafiel.billing.domain.Invoice;
 import org.ouracademy.ovejafiel.billing.domain.InvoiceId;
 import org.ouracademy.ovejafiel.billing.domain.InvoiceStatus;
+import org.ouracademy.ovejafiel.billing.domain.Plan;
 
 /**
  * @param checkoutUrl where to finish paying; null unless pending
@@ -13,6 +14,8 @@ import org.ouracademy.ovejafiel.billing.domain.InvoiceStatus;
 public record InvoiceResult(
     InvoiceId id,
     InvoiceStatus status,
+    Plan plan,
+    boolean ownNumber,
     BigDecimal amount,
     String currency,
     int months,
@@ -27,6 +30,8 @@ public record InvoiceResult(
     return new InvoiceResult(
         invoice.getId(),
         invoice.getStatus(),
+        invoice.getPlan(),
+        invoice.isOwnNumber(),
         invoice.getAmount(),
         invoice.getCurrency(),
         invoice.getMonths(),

@@ -1,7 +1,7 @@
 package org.ouracademy.ovejafiel.billing.query.check_capacity;
 
 import lombok.RequiredArgsConstructor;
-import org.ouracademy.ovejafiel.billing.domain.BillingPolicy;
+import org.ouracademy.ovejafiel.billing.domain.Plan;
 import org.ouracademy.ovejafiel.billing.query.Entitlements;
 import org.ouracademy.ovejafiel.billing.query.check_capacity.CheckCapacityQuery.Resource;
 import org.ouracademy.ovejafiel.organization.query.count_locations.CountLocationsQuery;
@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 class CheckCapacityQueryHandlerImpl implements CheckCapacityQueryHandler {
 
   private final Entitlements entitlements;
-  private final BillingPolicy policy;
   private final CountPeopleQueryHandler countPeople;
   private final CountLocationsQueryHandler countLocations;
 
@@ -30,22 +29,21 @@ class CheckCapacityQueryHandlerImpl implements CheckCapacityQueryHandler {
         people
             ? countPeople.handle(new CountPeopleQuery(state.churchId())).count()
             : countLocations.handle(new CountLocationsQuery(state.churchId())).count();
-    if (state.isPaid()) {
-      return new CheckCapacityResult(used, null);
-    }
-    var max = people ? policy.freeMaxPeople() : policy.freeMaxLocations();
-    if (used >= max) {
+    var max = people ? state.limits().maxPeople() : state.limits().maxLocations();
+    if (max != null && used >= max) {
       throw new PlanLimitException(
-          people ? "limit.people" : "limit.locations",
-          people
-              ? "El plan gratuito incluye hasta "
-                  + max
-                  + " personas. Pasa al plan Iglesia para registrar más."
-              : "El plan gratuito incluye "
-                  + max
-                  + (max == 1 ? " sede" : " sedes")
-                  + ". Pasa al plan Iglesia para abrir más.");
+          people ? "limit.people" : "limit.locations", message(state.plan(), people, max));
     }
     return new CheckCapacityResult(used, max);
+  }
+
+  /** What the plan includes, and which plan to move to (the next one), in Spanish. */
+  private static String message(Plan plan, boolean people, int max) {
+    var includes =
+        people
+            ? "hasta " + max + (max == 1 ? " persona" : " personas")
+            : max + (max == 1 ? " sede" : " sedes");
+    var next = plan.next().map(n -> " Pasa al plan " + n.label() + " para tener más.").orElse("");
+    return "El plan " + plan.label() + " incluye " + includes + "." + next;
   }
 }

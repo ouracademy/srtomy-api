@@ -6,19 +6,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.ouracademy.ovejafiel.billing.domain.BillingCountry;
 import org.ouracademy.ovejafiel.billing.domain.BillingPolicy;
+import org.ouracademy.ovejafiel.billing.domain.BillingPolicyTests;
 import org.ouracademy.ovejafiel.billing.domain.Feature;
+import org.ouracademy.ovejafiel.billing.domain.Plan;
 import org.ouracademy.ovejafiel.billing.domain.Subscription;
 import org.ouracademy.ovejafiel.billing.domain.SubscriptionStatus;
 import org.ouracademy.ovejafiel.billing.repository.SubscriptionRepository;
@@ -33,18 +33,7 @@ public class EntitlementsTests {
       Clock.fixed(Instant.parse("2026-11-15T10:00:00Z"), ZoneOffset.UTC);
   public static final LocalDate TODAY = LocalDate.now(CLOCK);
   public static final LocalDateTime NOW = LocalDateTime.now(CLOCK);
-  public static final BillingPolicy POLICY =
-      new BillingPolicy(
-          50,
-          1,
-          15,
-          150,
-          100,
-          10,
-          7,
-          Map.of(
-              BillingCountry.PE,
-              new BillingPolicy.Price(new BigDecimal("75"), new BigDecimal("35"))));
+  public static final BillingPolicy POLICY = BillingPolicyTests.POLICY;
 
   final PartyId church = PartyId.generate();
   final PartyId group = PartyId.generate();
@@ -62,7 +51,7 @@ public class EntitlementsTests {
   }
 
   @Test
-  void aChurchWithNoRowIsFreeAndMayStillTryWhatsapp() {
+  void aChurchWithNoRowIsFreeAndHasNoneOfTheFeatures() {
     when(findChurch.handle(any()))
         .thenReturn(Optional.of(new FindChurchOfOrganizationResult(church)));
     when(subscriptions.findById(church)).thenReturn(Optional.empty());
@@ -71,41 +60,68 @@ public class EntitlementsTests {
 
     assertThat(state.churchId()).isEqualTo(church);
     assertThat(state.status()).isEqualTo(SubscriptionStatus.FREE);
+    assertThat(state.plan()).isEqualTo(Plan.FREE);
     assertThat(state.isPaid()).isFalse();
-    assertThat(state.allows(Feature.WHATSAPP)).isTrue();
-    assertThat(state.allows(Feature.FINANCES)).isFalse();
-    assertThat(state.allows(Feature.MASS_EMAIL)).isFalse();
-    assertThat(state.allows(Feature.VOLUNTEERS)).isFalse();
-    assertThat(state.allows(Feature.EXCEL_EXPORT)).isFalse();
+    assertThat(state.limits().maxPeople()).isEqualTo(50);
+    for (var feature : Feature.values()) {
+      assertThat(state.allows(feature)).isFalse();
+    }
   }
 
   @Test
-  void duringTheTrialWhatsappWorksAndAfterItDoesNot() {
+  void eachPaidPlanAllowsItsOwnFeatures() {
     var subscription = subscription();
-    subscription.startWhatsappTrial(NOW.minusDays(14));
+    subscription.extendTo(TODAY.plusDays(10), BillingCountry.PE, Plan.BASIC, false);
+    var basic = entitlements.of(church);
+    assertThat(basic.plan()).isEqualTo(Plan.BASIC);
+    assertThat(basic.limits().maxPeople()).isEqualTo(150);
+    assertThat(basic.allows(Feature.CUSTOM_ROLES)).isTrue();
+    assertThat(basic.allows(Feature.EXCEL_EXPORT)).isTrue();
+    assertThat(basic.allows(Feature.FINANCES)).isFalse();
+    assertThat(basic.allows(Feature.OWN_NUMBER)).isFalse();
 
-    var running = entitlements.of(church);
-    assertThat(running.whatsappTrialRunning()).isTrue();
-    assertThat(running.allows(Feature.WHATSAPP)).isTrue();
-    assertThat(running.whatsappTrialEndsAt()).isEqualTo(NOW.plusDays(1));
+    subscription.extendTo(TODAY.plusDays(10), BillingCountry.PE, Plan.CHURCH, false);
+    var church = entitlements.of(this.church);
+    assertThat(church.allows(Feature.FINANCES)).isTrue();
+    assertThat(church.allows(Feature.MASS_EMAIL)).isTrue();
+    assertThat(church.allows(Feature.OWN_NUMBER)).isFalse();
 
+    subscription.extendTo(TODAY.plusDays(10), BillingCountry.PE, Plan.NETWORK, false);
+    var network = entitlements.of(this.church);
+    assertThat(network.limits().maxPeople()).isNull();
+    for (var feature : Feature.values()) {
+      assertThat(network.allows(feature)).isTrue();
+    }
+  }
+
+  @Test
+  void theOwnNumberBoughtAsAnExtraIsAllowedOnlyWhilePaid() {
+    var subscription = subscription();
+    subscription.extendTo(TODAY.plusDays(10), BillingCountry.PE, Plan.CHURCH, true);
+
+    var paid = entitlements.of(church);
+    assertThat(paid.ownNumber()).isTrue();
+    assertThat(paid.allows(Feature.OWN_NUMBER)).isTrue();
+
+    subscription.extendTo(TODAY.minusDays(8), BillingCountry.PE, Plan.CHURCH, true);
+    // The earlier, longer period is kept: use a new row that ended long ago.
     var ended = new Subscription(church);
-    ended.startWhatsappTrial(NOW.minusDays(15));
+    ended.extendTo(TODAY.minusDays(8), BillingCountry.PE, Plan.CHURCH, true);
     when(subscriptions.findById(church)).thenReturn(Optional.of(ended));
-    var over = entitlements.of(church);
-    assertThat(over.whatsappTrialRunning()).isFalse();
-    assertThat(over.allows(Feature.WHATSAPP)).isFalse();
+    var expired = entitlements.of(church);
+    assertThat(expired.allows(Feature.OWN_NUMBER)).isFalse();
+    assertThat(expired.ownNumber()).isFalse();
   }
 
   @Test
-  void thePaidPlanAllowsEverythingAlsoDuringTheGraceDays() {
+  void thePaidPlanKeepsEverythingDuringTheGraceDays() {
     var subscription = subscription();
-    subscription.startWhatsappTrial(NOW.minusDays(60));
-    subscription.extendTo(TODAY.minusDays(7), BillingCountry.PE);
+    subscription.extendTo(TODAY.minusDays(7), BillingCountry.PE, Plan.NETWORK, false);
 
     var state = entitlements.of(church);
 
     assertThat(state.status()).isEqualTo(SubscriptionStatus.GRACE);
+    assertThat(state.plan()).isEqualTo(Plan.NETWORK);
     for (var feature : Feature.values()) {
       assertThat(state.allows(feature)).isTrue();
     }
@@ -114,14 +130,14 @@ public class EntitlementsTests {
   @Test
   void anExpiredPlanGoesBackToTheFreeLimits() {
     var subscription = subscription();
-    subscription.startWhatsappTrial(NOW.minusDays(60));
-    subscription.extendTo(TODAY.minusDays(8), BillingCountry.PE);
+    subscription.extendTo(TODAY.minusDays(8), BillingCountry.PE, Plan.NETWORK, false);
 
     var state = entitlements.of(church);
 
     assertThat(state.status()).isEqualTo(SubscriptionStatus.EXPIRED);
+    assertThat(state.plan()).isEqualTo(Plan.FREE);
+    assertThat(state.limits().maxPeople()).isEqualTo(50);
     assertThat(state.allows(Feature.FINANCES)).isFalse();
-    assertThat(state.allows(Feature.WHATSAPP)).isFalse();
   }
 
   @Test

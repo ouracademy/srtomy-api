@@ -6,24 +6,44 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.Test;
+import org.ouracademy.ovejafiel.billing.command.reserve_whatsapp_reminder.ReserveWhatsappReminderCommand;
+import org.ouracademy.ovejafiel.billing.command.reserve_whatsapp_reminder.ReserveWhatsappReminderCommandHandler;
+import org.ouracademy.ovejafiel.party.domain.PartyId;
 import org.ouracademy.ovejafiel.shared.ChurchApiTests;
 import org.ouracademy.ovejafiel.shared.TestSecurityConfig;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 
 /**
- * The quota of the AI assistant from end to end, as the agent calls it: a free plan of two messages
- * and five cents a month, and a WhatsApp trial that ends as soon as it starts.
+ * The quota of the AI assistant and of the WhatsApp reminders from end to end, as the agent calls
+ * it: a free plan of two messages and five cents a month, and a Basic plan of one reminder.
  */
 @TestPropertySource(
     properties = {
-      "billing.ai.free.messages=2",
-      "billing.ai.free.max-cost-usd=0.05",
-      "billing.free.whatsapp-trial-days=0"
+      "billing.free.ai-messages=2",
+      "billing.free.ai-max-cost-usd=0.05",
+      "billing.basic.whatsapp-reminders=1"
     })
 class AiUsageIntegrationTests extends ChurchApiTests {
 
+  @Autowired ReserveWhatsappReminderCommandHandler reserveReminder;
+
   record Reply(int status, JsonNode body) {}
+
+  boolean reminderAllowed() {
+    return reserveReminder
+        .handle(
+            new ReserveWhatsappReminderCommand(new PartyId(java.util.UUID.fromString(location))))
+        .allowed();
+  }
+
+  void pay(String plan) {
+    post(
+        "/organizations/" + church + "/billing/checkout",
+        "{\"plan\":\"%s\",\"country\":\"PE\",\"months\":1}".formatted(plan));
+    post("/organizations/" + church + "/billing/sync", null);
+  }
 
   Reply internal(String path, String body, String token) {
     var result =
@@ -80,7 +100,9 @@ class AiUsageIntegrationTests extends ChurchApiTests {
 
     assertThat(third.get("allowed").asBoolean()).isFalse();
     assertThat(third.get("reason").asText()).isEqualTo("quota");
-    assertThat(third.get("message").asText()).contains("2 mensajes gratis");
+    assertThat(third.get("message").asText())
+        .contains("2 mensajes del asistente")
+        .contains("plan Gratis");
     var ai = get("/organizations/" + church + "/billing").get("ai");
     assertThat(ai.get("used").asInt()).isEqualTo(2);
     assertThat(ai.get("limit").asInt()).isEqualTo(2);
@@ -103,20 +125,41 @@ class AiUsageIntegrationTests extends ChurchApiTests {
   }
 
   @Test
-  void whatsappNeedsThePlanOrItsTrialButThePortalDoesNot() {
-    post("/organizations/" + church + "/whatsapp/setup-link", "{\"mode\":\"COEXISTENCE\"}");
-
-    var whatsapp = reserve(location, "WHATSAPP");
-    assertThat(whatsapp.get("allowed").asBoolean()).isFalse();
-    assertThat(whatsapp.get("reason").asText()).isEqualTo("plan");
+  void whatsappAndThePortalShareTheQuotaOfThePlan() {
+    assertThat(reserve(location, "WHATSAPP").get("allowed").asBoolean()).isTrue();
     assertThat(reserve(location, "PORTAL").get("allowed").asBoolean()).isTrue();
 
-    post("/organizations/" + church + "/billing/checkout", "{\"country\":\"PE\",\"months\":1}");
+    var third = reserve(location, "WHATSAPP");
+
+    assertThat(third.get("allowed").asBoolean()).isFalse();
+    assertThat(third.get("reason").asText()).isEqualTo("quota");
+  }
+
+  @Test
+  void payingAPlanGivesItsOwnQuotaAndNamesTheNextPlanWhenItRunsOut() {
+    reserve(location, "PORTAL");
+    reserve(location, "PORTAL");
+    assertThat(reserve(location, "PORTAL").get("message").asText())
+        .contains("plan Gratis")
+        .contains("plan Básico");
+
+    post(
+        "/organizations/" + church + "/billing/checkout",
+        "{\"plan\":\"BASIC\",\"country\":\"PE\",\"months\":1}");
     post("/organizations/" + church + "/billing/sync", null);
     var paid = reserve(location, "WHATSAPP");
+
     assertThat(paid.get("allowed").asBoolean()).isTrue();
-    // The paid plan has 300 messages; one was used from the portal.
-    assertThat(paid.get("remaining").asInt()).isEqualTo(298);
+    // The plan has 150 messages; two were used before paying.
+    assertThat(paid.get("limit").asInt()).isEqualTo(150);
+    assertThat(paid.get("remaining").asInt()).isEqualTo(147);
+  }
+
+  @Test
+  void theCostCapOfThePlanIsInDollars() {
+    var ai = get("/organizations/" + church + "/billing").get("ai");
+
+    assertThat(ai.get("maxCostUsd").decimalValue()).isEqualByComparingTo("0.05");
   }
 
   @Test
@@ -151,5 +194,53 @@ class AiUsageIntegrationTests extends ChurchApiTests {
             "{\"nodeId\":\"0195f0a0-0000-7000-8000-00000000dead\",\"channel\":\"PORTAL\"}",
             TestSecurityConfig.agentToken(jwtEncoder));
     assertThat(reply.status()).isEqualTo(404);
+  }
+
+  @Test
+  void theFreePlanHasNoWhatsappReminders() {
+    assertThat(reminderAllowed()).isFalse();
+    assertThat(get("/organizations/" + church + "/billing").get("reminders").get("used").asInt())
+        .isZero();
+  }
+
+  @Test
+  void aPlanSendsAsManyRemindersAsItIncludesAndThenNoMore() {
+    pay("BASIC");
+
+    assertThat(reminderAllowed()).isTrue();
+    assertThat(reminderAllowed()).isFalse();
+
+    var reminders = get("/organizations/" + church + "/billing").get("reminders");
+    assertThat(reminders.get("used").asInt()).isEqualTo(1);
+    assertThat(reminders.get("limit").asInt()).isEqualTo(1);
+  }
+
+  @Test
+  void manyRemindersAtTheSameTimeNeverGoPastThePlan() throws Exception {
+    pay("BASIC");
+    var pool = Executors.newFixedThreadPool(8);
+    try {
+      var allowed = 0;
+      for (var future :
+          pool.invokeAll(
+              java.util.Collections.<Callable<Boolean>>nCopies(8, this::reminderAllowed))) {
+        allowed += future.get() ? 1 : 0;
+      }
+      assertThat(allowed).isEqualTo(1);
+    } finally {
+      pool.shutdown();
+    }
+  }
+
+  @Test
+  void remindersAndAssistantMessagesAreCountedApart() {
+    pay("BASIC");
+
+    assertThat(reminderAllowed()).isTrue();
+
+    assertThat(reserve(location, "PORTAL").get("allowed").asBoolean()).isTrue();
+    var billing = get("/organizations/" + church + "/billing");
+    assertThat(billing.get("ai").get("used").asInt()).isEqualTo(1);
+    assertThat(billing.get("reminders").get("used").asInt()).isEqualTo(1);
   }
 }

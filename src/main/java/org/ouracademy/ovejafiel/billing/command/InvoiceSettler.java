@@ -57,12 +57,14 @@ public class InvoiceSettler {
             LocalDateTime.now(clock),
             subscription.nextPeriodStart(LocalDate.now(clock)));
     if (paid) {
-      subscription.extendTo(invoice.getPeriodEnd(), invoice.getCountry());
+      subscription.extendTo(
+          invoice.getPeriodEnd(), invoice.getCountry(), invoice.getPlan(), invoice.isOwnNumber());
       subscriptions.save(subscription);
       log.info(
-          "Invoice {} paid: church {} has the paid plan until {}",
+          "Invoice {} paid: church {} has the plan {} until {}",
           invoiceId.value(),
           invoice.getOrganizationId().value(),
+          invoice.getPlan(),
           subscription.getPaidUntil());
     }
     invoices.save(invoice);

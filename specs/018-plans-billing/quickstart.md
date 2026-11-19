@@ -12,9 +12,11 @@ CHURCH=...  # id de la iglesia (o de cualquier nodo suyo)
 # El plan de hoy: límites, uso, funciones y precios por país
 curl -H "Authorization: Bearer $TOKEN" localhost:8080/v1/organizations/$CHURCH/billing
 
-# Pagar un mes desde Perú (o "CO"; months: 1 o 12)
+# Pagar un mes del plan Básico desde Perú. plan: BASIC, CHURCH o NETWORK; country: PE o CO;
+# months: 1 o 12; ownNumber (opcional): el número de WhatsApp propio como extra (BASIC y CHURCH)
 curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"country":"PE","months":1}' localhost:8080/v1/organizations/$CHURCH/billing/checkout
+  -d '{"plan":"BASIC","country":"PE","months":1,"ownNumber":false}' \
+  localhost:8080/v1/organizations/$CHURCH/billing/checkout
 
 # Al volver del checkout: confirmar los pagos pendientes con la pasarela
 curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/v1/organizations/$CHURCH/billing/sync
@@ -34,19 +36,23 @@ En producción las llaves van en Secret Manager (`dlocalgo-api-key`, `dlocalgo-s
 
 ## Cambiar precios o límites
 
-Todo está en configuración, con estos valores por defecto:
+Todo está en configuración (`billing.<plan>.<propiedad>`, con `<plan>` = `free`, `basic`, `church` o `network`), con los valores de la spec por defecto. Cambiar una propiedad no toca las demás.
 
-| Propiedad | Por defecto | Qué es |
-| --- | --- | --- |
-| `billing.free.max-people` | 50 | Personas del plan gratis |
-| `billing.free.max-locations` | 1 | Sedes del plan gratis |
-| `billing.free.whatsapp-trial-days` | 15 | Días de prueba de WhatsApp |
-| `billing.paid.included-people` | 150 | Personas que cubre el precio base |
-| `billing.paid.block-size` | 100 | Tamaño de cada bloque extra |
-| `billing.paid.yearly-months-charged` | 10 | Meses que se cobran al pagar un año |
-| `billing.paid.grace-days` | 7 | Días de gracia tras vencer |
-| `billing.paid.prices.pe.base` / `.extra-block` | 75 / 35 | Soles al mes |
-| `billing.paid.prices.co.base` / `.extra-block` | 85000 / 40000 | Pesos colombianos al mes |
+| Propiedad | Gratis | Básico | Iglesia | Red | Qué es |
+| --- | --- | --- | --- | --- | --- |
+| `max-people` | 50 | 150 | 400 | sin límite | Personas del plan |
+| `max-locations` | 1 | 1 | 5 | sin límite | Sedes del plan |
+| `ai-messages` | 20 | 150 | 400 | 1200 | Mensajes del asistente de IA al mes (portal y WhatsApp) |
+| `ai-max-cost-usd` | 0.50 | 2 | 5 | 15 | Costo estimado del asistente, en dólares al mes, al que se corta |
+| `whatsapp-reminders` | 0 | 50 | 200 | 600 | Recordatorios por plantilla de WhatsApp al mes |
+| `own-number-extra` | no | sí | sí | no | El número propio se compra como extra |
+| `own-number-included` | no | no | no | sí | El número propio viene con el plan |
+| `custom-roles` | no | sí | sí | sí | Crear roles propios |
+| `excel-export` | no | sí | sí | sí | Exportar a Excel |
+| `church-features` | no | no | sí | sí | Correos a grupos, ofrendas, turnos y voluntarios |
+| `price-pe` / `price-co` | 0 | 45 / 49000 | 75 / 79000 | 149 / 159000 | Precio al mes en soles y en pesos, con IGV e IVA |
+
+Y estas, comunes: `billing.own-number.price-pe` / `.price-co` (49 / 49000, lo que suma el extra al mes), `billing.yearly-months-charged` (10, los meses que se cobran al pagar un año) y `billing.grace-days` (7, los días de gracia tras vencer).
 
 ## La cuota del asistente de IA (para srtomy-agent)
 
@@ -72,7 +78,7 @@ curl -X POST -H "Authorization: Bearer $AGENT" -H 'Content-Type: application/jso
 # {"costUsd":0.014000,"knownModel":true}
 ```
 
-- `reason` es `quota` (mensajes del mes), `spend` (costo estimado del mes) o `plan` (WhatsApp sin plan ni prueba). Con `allowed: false` el agente contesta `message` (o su propio texto) y **no** llama al modelo. Cualquier otra respuesta (404 de un nodo que no existe, 5xx, sin conexión) también es «no».
+- `reason` es `quota` (mensajes del mes del plan) o `spend` (costo estimado del mes). El número global de WhatsApp lo usan todas las iglesias, así que ya no hay un motivo `plan`. Con `allowed: false` el agente contesta `message` (o su propio texto) y **no** llama al modelo. Cualquier otra respuesta (404 de un nodo que no existe, 5xx, sin conexión) también es «no».
 - Los comandos (STOP, BAJA, ALTA, VINCULAR) no llaman a `reserve`: nunca se limitan.
 - srtomy-agent ya lo hace así (`src/quota.ts`, `src/chat/route.ts`, `src/whatsapp/service.ts`): en el portal, `POST /chat` responde **402** con `{error, code: "ai.quota" | "ai.spend" | "ai.plan"}` (503 si la API no responde) y por WhatsApp contesta el `message`. El ritmo (`user:<sub>` 20/min, `church:<id>` 60/min, `phone:<hash>` de desconocidos 10/h y 30/día) está en la tabla `rate_limit` de su Postgres.
 - `GET /billing` trae `ai: {month, used, limit, costUsd, maxCostUsd}` para el portal.
@@ -80,17 +86,16 @@ curl -X POST -H "Authorization: Bearer $AGENT" -H 'Content-Type: application/jso
 
 | Propiedad | Por defecto | Qué es |
 | --- | --- | --- |
-| `billing.ai.free.messages` | 30 | Mensajes al mes del plan gratis |
-| `billing.ai.paid.messages` | 300 | Mensajes al mes del plan Iglesia con 150 personas |
-| `billing.ai.paid.messages-per-extra-block` | 100 | Mensajes más por cada bloque de 100 personas sobre 150 |
-| `billing.ai.free.max-cost-usd` | 1 | Tope de gasto del mes en el plan gratis, en dólares |
-| `billing.ai.paid.max-cost-share` | 0.40 | Tope del plan Iglesia: parte de lo que paga al mes |
-| `billing.ai.usd-per-unit.pe` / `.co` | 0.27 / 0.00025 | Dólares por sol y por peso, para comparar el precio con el costo |
+| `billing.<plan>.ai-messages` y `.ai-max-cost-usd` | ver la tabla de arriba | Mensajes al mes y tope de gasto del plan |
 | `billing.ai.prices.<modelo>.input` / `output` / `cache-read` / `cache-write` | Lista de Anthropic: Sonnet 5.5 2 / 10 / 0,10 / 2,50; Haiku 5.5 0,10 / 0,50 / 0,01 / 0,125; Opus 5.5 4 / 20 / 0,20 / 5 | Dólares por millón de tokens |
 | `billing.ai.default-model` | `claude-sonnet-5-5` | Precio de un modelo sin precio propio |
 | `billing.ai.zone` | `America/Lima` | Hora con la que empieza cada mes |
 
-Son propuestas: hay que medir una semana con las trazas de LangSmith (tokens por iglesia) antes de fijarlas, y el precio de Claude en Vertex AI puede no ser el de la lista de Anthropic.
+Los topes los eligió el dueño; falta medir el costo real por mensaje con las trazas de LangSmith (tokens por iglesia), y el precio de Claude en Vertex AI puede no ser el de la lista de Anthropic. Con Haiku 5.5 un mensaje cuesta unas 17 veces menos que con Sonnet 5.5.
+
+## Cuota de recordatorios por WhatsApp
+
+Cada recordatorio por plantilla de Meta cuenta contra `whatsapp-reminders` del plan, por iglesia y mes. Quien lo encola llama a `ReserveWhatsappReminderCommandHandler` **en la misma transacción** (hoy, `QueueEventRemindersCommandHandlerImpl`): si el plan no tiene más, no se encola ni se marca la inscripción como avisada. El plan Gratis tiene 0. `GET /billing` trae `reminders: {used, limit}`. Cualquier otro envío masivo por plantilla debe hacer lo mismo.
 
 ## Recordatorios de vencimiento
 
@@ -122,21 +127,23 @@ Inscribirse con el enlace, cancelar la inscripción, marcar asistencia con el QR
 
 ## Para quien escribe un módulo nuevo
 
-Una función del plan Iglesia se protege así, en el handler, antes de cambiar nada:
+Una función de pago se protege así, en el handler, antes de cambiar nada:
 
 ```java
 checkFeatureQueryHandler.handle(new CheckFeatureQuery(organizationId, Feature.FINANCES));
 ```
 
-Sin el plan, la API responde **402** con `code: "feature.finances"` y un mensaje en español. Para un máximo de cantidad, `CheckCapacityQueryHandler` con `PEOPLE` o `LOCATIONS`. Si la función es nueva, agrégala a `billing.domain.Feature` con su nombre en español.
+Sin el plan, la API responde **402** con `code: "feature.finances"` y un mensaje en español que nombra el plan más barato que la incluye. Las funciones son `MASS_EMAIL`, `FINANCES`, `VOLUNTEERS`, `EXCEL_EXPORT`, `CUSTOM_ROLES` y `OWN_NUMBER`; si la tuya es nueva, agrégala a `billing.domain.Feature` con su nombre en español y su plan más barato, y a `BillingPolicy.Limits.includes`. Para un máximo de cantidad, `CheckCapacityQueryHandler` con `PEOPLE` o `LOCATIONS`; el mensaje sugiere el plan siguiente.
 
 ## Qué ve la iglesia
 
 | Respuesta | Cuándo | `code` |
 | --- | --- | --- |
-| 402 | Gratis con 50 personas y registra otra | `limit.people` |
-| 402 | Gratis con 1 sede y abre otra | `limit.locations` |
-| 402 | Terminó la prueba de WhatsApp y pide el enlace | `feature.whatsapp` |
-| 402 | Usa una función del plan Iglesia sin tenerlo | `feature.<nombre>` |
+| 402 | Llegó al tope de personas de su plan y registra otra | `limit.people` |
+| 402 | Llegó al tope de sedes de su plan y abre otra | `limit.locations` |
+| 402 | Pide conectar un número de WhatsApp propio sin Red ni el extra | `feature.own_number` |
+| 402 | Crea un rol propio en el plan Gratis | `feature.custom_roles` |
+| 402 | Usa una función de un plan superior | `feature.<nombre>` |
+| 400 | Pide un plan que no le cabe, o el extra donde ya viene incluido | — |
 | 429 | Demasiadas llamadas a un endpoint público desde la misma IP | `rate.limit` |
 | 401 | Una notificación de pago sin firma válida | — |

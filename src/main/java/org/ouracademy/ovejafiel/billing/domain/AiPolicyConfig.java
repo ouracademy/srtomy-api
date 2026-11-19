@@ -41,26 +41,11 @@ class AiPolicyConfig {
   @Bean
   AiPolicy aiPolicy(
       ModelPrices configured,
-      @Value("${billing.ai.free.messages:30}") int freeMessages,
-      @Value("${billing.ai.paid.messages:300}") int paidMessages,
-      @Value("${billing.ai.paid.messages-per-extra-block:100}") int perBlock,
-      @Value("${billing.ai.free.max-cost-usd:1}") BigDecimal freeMaxCost,
-      @Value("${billing.ai.paid.max-cost-share:0.40}") BigDecimal paidShare,
-      @Value("${billing.ai.usd-per-unit.pe:0.27}") BigDecimal usdPerSol,
-      @Value("${billing.ai.usd-per-unit.co:0.00025}") BigDecimal usdPerPeso,
       @Value("${billing.ai.default-model:claude-sonnet-5-5}") String defaultModel) {
     var prices = new HashMap<>(DEFAULT_PRICES);
     if (configured.prices() != null) {
       prices.putAll(configured.prices());
     }
-    return new AiPolicy(
-        freeMessages,
-        paidMessages,
-        perBlock,
-        freeMaxCost,
-        paidShare,
-        Map.of(BillingCountry.PE, usdPerSol, BillingCountry.CO, usdPerPeso),
-        Map.copyOf(prices),
-        defaultModel);
+    return new AiPolicy(Map.copyOf(prices), defaultModel);
   }
 }

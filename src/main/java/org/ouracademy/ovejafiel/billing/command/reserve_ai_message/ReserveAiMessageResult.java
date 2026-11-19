@@ -1,9 +1,8 @@
 package org.ouracademy.ovejafiel.billing.command.reserve_ai_message;
 
 /**
- * @param reason null when allowed; otherwise {@code quota} (the messages of the month), {@code
- *     spend} (the estimated cost of the month) or {@code plan} (WhatsApp without the plan nor its
- *     trial)
+ * @param reason null when allowed; otherwise {@code quota} (the messages of the month) or {@code
+ *     spend} (the estimated cost of the month)
  * @param message what to tell the person when it is not allowed, in Spanish
  * @param used messages of the month, this one included when allowed
  */
@@ -12,5 +11,4 @@ public record ReserveAiMessageResult(
 
   public static final String QUOTA = "quota";
   public static final String SPEND = "spend";
-  public static final String PLAN = "plan";
 }

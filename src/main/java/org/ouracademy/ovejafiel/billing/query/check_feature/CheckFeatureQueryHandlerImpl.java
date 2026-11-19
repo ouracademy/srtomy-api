@@ -18,12 +18,16 @@ class CheckFeatureQueryHandlerImpl implements CheckFeatureQueryHandler {
   public CheckFeatureResult handle(CheckFeatureQuery query) {
     var feature = query.feature();
     if (!entitlements.of(query.organizationId()).allows(feature)) {
-      throw new PlanLimitException(
-          "feature." + feature.name().toLowerCase(),
-          feature == Feature.WHATSAPP
-              ? "La prueba gratuita de WhatsApp terminó. Pasa al plan Iglesia para seguir usándolo."
-              : feature.label() + " es parte del plan Iglesia.");
+      throw new PlanLimitException("feature." + feature.name().toLowerCase(), message(feature));
     }
     return new CheckFeatureResult(feature);
+  }
+
+  private static String message(Feature feature) {
+    if (feature == Feature.OWN_NUMBER) {
+      return "Conectar un número de WhatsApp propio es parte del plan Red, o un extra de los planes"
+          + " Básico e Iglesia. Mientras tanto usas el número de Sr. Tommy.";
+    }
+    return feature.label() + " viene desde el plan " + feature.cheapestPlan().label() + ".";
   }
 }

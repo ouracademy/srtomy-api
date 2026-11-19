@@ -23,7 +23,7 @@ class SubscriptionTests {
 
   @Test
   void itIsActiveUntilTheLastPaidDayThenInGraceThenExpired() {
-    subscription.extendTo(TODAY, BillingCountry.PE);
+    subscription.extendTo(TODAY, BillingCountry.PE, Plan.CHURCH, false);
 
     assertThat(subscription.status(TODAY, 7)).isEqualTo(SubscriptionStatus.ACTIVE);
     assertThat(subscription.status(TODAY.plusDays(1), 7)).isEqualTo(SubscriptionStatus.GRACE);
@@ -35,40 +35,35 @@ class SubscriptionTests {
 
   @Test
   void renewingEarlyStartsWhereThePaidTimeEnds() {
-    subscription.extendTo(TODAY.plusDays(10), BillingCountry.PE);
+    subscription.extendTo(TODAY.plusDays(10), BillingCountry.PE, Plan.CHURCH, false);
 
     assertThat(subscription.nextPeriodStart(TODAY)).isEqualTo(TODAY.plusDays(11));
   }
 
   @Test
   void renewingLateStartsToday() {
-    subscription.extendTo(TODAY.minusDays(30), BillingCountry.PE);
+    subscription.extendTo(TODAY.minusDays(30), BillingCountry.PE, Plan.CHURCH, false);
 
     assertThat(subscription.nextPeriodStart(TODAY)).isEqualTo(TODAY);
   }
 
   @Test
   void aPaymentNeverShortensThePaidTime() {
-    subscription.extendTo(TODAY.plusDays(40), BillingCountry.PE);
-    subscription.extendTo(TODAY.plusDays(5), BillingCountry.CO);
+    subscription.extendTo(TODAY.plusDays(40), BillingCountry.PE, Plan.CHURCH, false);
+    subscription.extendTo(TODAY.plusDays(5), BillingCountry.CO, Plan.BASIC, true);
 
     assertThat(subscription.getPaidUntil()).isEqualTo(TODAY.plusDays(40));
     assertThat(subscription.getCountry()).isEqualTo(BillingCountry.CO);
-  }
-
-  @Test
-  void theWhatsappTrialStartsOnceAndNeverRestarts() {
-    assertThat(subscription.whatsappTrialEndsAt(15)).isNull();
-
-    subscription.startWhatsappTrial(NOW);
-    subscription.startWhatsappTrial(NOW.plusDays(100));
-
-    assertThat(subscription.whatsappTrialEndsAt(15)).isEqualTo(NOW.plusDays(15));
+    // The last payment decides the plan and the extras, with no proration.
+    assertThat(subscription.getPlan()).isEqualTo(Plan.BASIC);
+    assertThat(subscription.isOwnNumber()).isTrue();
   }
 
   @Test
   void aPaidInvoiceCoversWholeMonthsFromItsStart() {
-    var invoice = new Invoice(PartyId.generate(), BillingCountry.PE, new BigDecimal("75"), 20, 1);
+    var invoice =
+        new Invoice(
+            PartyId.generate(), Plan.CHURCH, false, BillingCountry.PE, new BigDecimal("75"), 20, 1);
 
     var paid = invoice.settle(InvoiceStatus.PAID, NOW, TODAY);
 
@@ -82,7 +77,15 @@ class SubscriptionTests {
 
   @Test
   void aPaidInvoiceIsNotPaidTwiceAndAStillPendingOneDoesNotChange() {
-    var invoice = new Invoice(PartyId.generate(), BillingCountry.PE, new BigDecimal("75"), 20, 12);
+    var invoice =
+        new Invoice(
+            PartyId.generate(),
+            Plan.CHURCH,
+            false,
+            BillingCountry.PE,
+            new BigDecimal("75"),
+            20,
+            12);
     invoice.sentToGateway("DP-1", "https://checkout/1");
 
     assertThat(invoice.settle(InvoiceStatus.PENDING, NOW, TODAY)).isFalse();
@@ -99,7 +102,14 @@ class SubscriptionTests {
   @Test
   void aRejectedPaymentClosesTheInvoiceWithoutAPeriod() {
     var invoice =
-        new Invoice(PartyId.generate(), BillingCountry.CO, new BigDecimal("85000"), 20, 1);
+        new Invoice(
+            PartyId.generate(),
+            Plan.BASIC,
+            true,
+            BillingCountry.CO,
+            new BigDecimal("98000"),
+            20,
+            1);
 
     assertThat(invoice.settle(InvoiceStatus.REJECTED, NOW, TODAY)).isFalse();
     assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.REJECTED);
