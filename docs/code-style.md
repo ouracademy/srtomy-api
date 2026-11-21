@@ -61,6 +61,29 @@ Para módulos que llaman servicios externos se usa `gateway/` en vez de
 `repository/`, con la misma idea: la llamada externa queda encapsulada y solo
 se usa dentro de su propio módulo.
 
+## Reglas que comprueba `ArchitectureTests`
+
+Además del aislamiento entre módulos y de los nombres (más abajo), la prueba revisa:
+
+| Regla | Qué impide |
+| --- | --- |
+| `domain_depends_on_no_other_layer` | Que `domain/` importe `command`, `query`, `repository`, `gateway` o `controller`. |
+| `handlers_do_not_know_http` | Que un handler de `command/` o `query/` use clases de un `controller` (peticiones, respuestas HTTP). |
+| `repositories_only_talk_to_the_database` | Que un `repository` dependa de handlers, controladores o gateways. |
+| `controllers_go_through_handlers` | Que un controlador use un `repository` o un `gateway`: siempre pasa por un handler. |
+| `shared_does_not_depend_on_modules` | Que `shared` importe un módulo. Única excepción: `EntityIdTypeContributor`, que registra los ids de todos. |
+| `http_clients_only_in_gateways` | Usar `RestClient`, `RestTemplate`, `WebClient` o `java.net.http.HttpClient` fuera de un `gateway/`. |
+| `controllers_live_in_controller_packages` | Un `@RestController` fuera de `controller/` o sin el sufijo `Controller`. |
+| `spring_data_repositories_live_in_repository_packages` | Un repositorio de Spring Data fuera de `repository/`. |
+| `entities_live_in_domain_packages` | Una `@Entity` fuera de `domain/`. |
+| `handler_implementations_are_package_private` | Un `*HandlerImpl` público. |
+| `commands_live_in_their_action_package` / `queries_...` | Un `Command`/`Query` fuera de su carpeta en snake_case (`WhatsApp` cuenta como una palabra: `link_whatsapp`). |
+| `entity_ids_are_typed` | Un `@Id` que no es un record `EntityId`. Las excepciones que ya existían están en `ENTITIES_WITH_RAW_IDS` (ítem 41 de la deuda técnica). |
+| `no_autowired_fields` | `@Autowired`/`@Inject` en un campo: las dependencias van por constructor. |
+| `no_standard_streams`, `no_java_util_logging` | `System.out`/`System.err` y `java.util.logging`: se usa el logger. |
+
+Las reglas nuevas solo miran el código de producción; las pruebas pueden usar `@Autowired` y controladores de prueba.
+
 ## Autorización
 
 Cada endpoint que toca datos de una iglesia llama primero a

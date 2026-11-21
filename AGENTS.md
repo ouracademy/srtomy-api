@@ -26,6 +26,8 @@ is documented in [docs/code-style.md](./docs/code-style.md) and enforced by
 `src/test/java/org/ouracademy/ovejafiel/ArchitectureTests.java` (ArchUnit), which runs
 as part of `./mvnw test`.
 
+A Claude Code Stop hook (`.claude/hooks/stop-check.sh`) runs `spotless:check` and `ArchitectureTests` when a turn ends with uncommitted Java or `pom.xml` changes, and keeps the agent working until they pass. Fix the code; never add entries to the exception lists of `ArchitectureTests` to make it pass.
+
 ## Scheduled work and external systems
 
 - **Never use `@Scheduled` or `@EnableScheduling`; use Cloud Scheduler (work on a calendar) or Cloud Tasks (work that must happen later or be retried).** Both call an internal endpoint under `/v1/internal/**`, which only the scheduler's service account may call (see `InternalSecurityConfig`). A calendar job is one `google_cloud_scheduler_job` in `infra/terraform/modules/scheduler`; a queue is in `infra/terraform/modules/tasks`. `ArchitectureTests` fails the build if `@Scheduled` appears.

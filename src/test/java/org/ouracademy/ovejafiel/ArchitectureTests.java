@@ -1,11 +1,14 @@
 package org.ouracademy.ovejafiel;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.domain.JavaParameterizedType;
@@ -17,12 +20,13 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import com.tngtech.archunit.library.GeneralCodingRules;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Executable source of truth for the package-by-module structure: module isolation and the
- * Command/Query handler naming conventions.
+ * Executable source of truth for docs/code-style.md: module isolation, the layers inside a module
+ * (domain, command/query, repository/gateway, controller) and the Command/Query naming conventions.
  *
  * <p>Every rule uses {@code allowEmptyShould(true)} because the migration to modules is
  * incremental: most module packages (and every handler) do not exist yet, and a rule must not fail
@@ -64,6 +68,33 @@ class ArchitectureTests {
    * now that every module has been migrated.
    */
   private static final Map<String, List<String>> PENDING_MIGRATION_EXCEPTIONS = Map.of();
+
+  /**
+   * Entities that still use a raw id instead of their own {@code EntityId} record
+   * (docs/code-style.md, "Entity ids"). Changing them touches their mapping and migrations; see
+   * item 41 of docs/tech-debt-and-future-work.md. Do not add new ones.
+   */
+  private static final List<String> ENTITIES_WITH_RAW_IDS =
+      List.of(
+          "org.ouracademy.ovejafiel.accountability.domain.MemberStateEvent",
+          "org.ouracademy.ovejafiel.event.domain.EventNotice",
+          "org.ouracademy.ovejafiel.event.domain.SubEventCheckIn");
+
+  /**
+   * The one class of {@code shared} allowed to know the modules: Hibernate needs every {@code
+   * EntityId} record registered in a single {@code TypeContributor}.
+   */
+  private static final String ENTITY_ID_REGISTRY =
+      BASE_PACKAGE + ".shared.domain.EntityIdTypeContributor";
+
+  private static final DescribedPredicate<JavaClass> PRODUCTION_CODE =
+      DescribedPredicate.describe(
+          "are production code",
+          javaClass ->
+              javaClass
+                  .getSource()
+                  .map(source -> !source.getUri().toString().contains("/test-classes/"))
+                  .orElse(true));
 
   private static final DescribedPredicate<JavaClass> HANDLER_INTERFACE =
       JavaClass.Predicates.simpleNameEndingWith("CommandHandler")
@@ -133,6 +164,212 @@ class ArchitectureTests {
           .should(returnATypeNamedResultThatIsNotAnEntity())
           .allowEmptyShould(true);
 
+  /*
+   * Layers inside a module (docs/code-style.md, "Estructura interna de un módulo"). The domain is
+   * the core and knows nothing else; command/query handlers do not know HTTP; repositories and
+   * gateways only talk to the database or the outside; controllers reach data only through
+   * handlers.
+   */
+  @ArchTest
+  static final ArchRule domain_depends_on_no_other_layer =
+      noClasses()
+          .that(PRODUCTION_CODE)
+          .and()
+          .resideInAPackage(BASE_PACKAGE + ".*.domain..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(
+              "..command..", "..query..", "..repository..", "..gateway..", "..controller..")
+          .because("the domain is the core of a module; the other layers depend on it");
+
+  @ArchTest
+  static final ArchRule handlers_do_not_know_http =
+      noClasses()
+          .that(PRODUCTION_CODE)
+          .and()
+          .resideInAnyPackage("..command..", "..query..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("..controller..")
+          .because(
+              "HTTP requests and responses stay in the controller; handlers take a Command/Query");
+
+  @ArchTest
+  static final ArchRule repositories_only_talk_to_the_database =
+      noClasses()
+          .that(PRODUCTION_CODE)
+          .and()
+          .resideInAPackage("..repository..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("..command..", "..query..", "..controller..", "..gateway..")
+          .because("handlers use repositories, never the other way round");
+
+  @ArchTest
+  static final ArchRule controllers_go_through_handlers =
+      noClasses()
+          .that(PRODUCTION_CODE)
+          .and()
+          .resideInAPackage("..controller..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("..repository..", "..gateway..")
+          .because("repositories and gateways are used by the handlers of their own module");
+
+  /*
+   * shared is the base every module imports (docs/code-style.md, "Lo compartido"), so it must not
+   * import them back. The only exception is the Hibernate registry of entity ids.
+   */
+  @ArchTest
+  static final ArchRule shared_does_not_depend_on_modules =
+      noClasses()
+          .that(PRODUCTION_CODE)
+          .and()
+          .resideInAPackage(BASE_PACKAGE + ".shared..")
+          .and()
+          .doNotHaveFullyQualifiedName(ENTITY_ID_REGISTRY)
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(
+              MODULES.stream().map(m -> BASE_PACKAGE + "." + m + "..").toArray(String[]::new))
+          .because("modules depend on shared, not the other way round");
+
+  /*
+   * Calls to other systems are encapsulated in a module's gateway/ (docs/code-style.md), and reach
+   * them through the outbox when they come from a command.
+   */
+  @ArchTest
+  static final ArchRule http_clients_only_in_gateways =
+      noClasses()
+          .that(PRODUCTION_CODE)
+          .and()
+          .resideOutsideOfPackage("..gateway..")
+          .should()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("org.springframework.web.client.RestClient")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("org.springframework.web.client.RestTemplate")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("org.springframework.web.reactive.function.client.WebClient")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("java.net.http.HttpClient")
+          .because("calls to external systems live in a module's gateway/");
+
+  /* Where each kind of class lives. */
+  @ArchTest
+  static final ArchRule controllers_live_in_controller_packages =
+      classes()
+          .that(PRODUCTION_CODE)
+          .and()
+          .areAnnotatedWith("org.springframework.web.bind.annotation.RestController")
+          .should()
+          .resideInAPackage("..controller..")
+          .andShould()
+          .haveSimpleNameEndingWith("Controller");
+
+  @ArchTest
+  static final ArchRule spring_data_repositories_live_in_repository_packages =
+      classes()
+          .that()
+          .areInterfaces()
+          .and()
+          .areAssignableTo("org.springframework.data.repository.Repository")
+          .should()
+          .resideInAPackage("..repository..");
+
+  @ArchTest
+  static final ArchRule entities_live_in_domain_packages =
+      classes()
+          .that()
+          .areAnnotatedWith("jakarta.persistence.Entity")
+          .should()
+          .resideInAPackage("..domain..");
+
+  /*
+   * "Los *HandlerImpl siguen siendo package-private": a module (or another action) depends on the
+   * handler interface, never on its implementation.
+   */
+  @ArchTest
+  static final ArchRule handler_implementations_are_package_private =
+      classes()
+          .that(PRODUCTION_CODE)
+          .and()
+          .haveSimpleNameEndingWith("HandlerImpl")
+          .should()
+          .notBePublic()
+          .allowEmptyShould(true);
+
+  /* One folder per action, named after the Command/Query in snake_case. */
+  @ArchTest
+  static final ArchRule commands_live_in_their_action_package =
+      classes()
+          .that(PRODUCTION_CODE)
+          .and()
+          .haveSimpleNameEndingWith("Command")
+          .and()
+          .resideInAPackage("..command..")
+          .and()
+          .areNotInterfaces()
+          .should(liveInTheirActionPackage("command"))
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule queries_live_in_their_action_package =
+      classes()
+          .that(PRODUCTION_CODE)
+          .and()
+          .haveSimpleNameEndingWith("Query")
+          .and()
+          .resideInAPackage("..query..")
+          .and()
+          .areNotInterfaces()
+          .should(liveInTheirActionPackage("query"))
+          .allowEmptyShould(true);
+
+  /* Every entity has its own typed id (docs/code-style.md, "Entity ids"). */
+  @ArchTest
+  static final ArchRule entity_ids_are_typed =
+      fields()
+          .that()
+          .areAnnotatedWith("jakarta.persistence.Id")
+          .and(
+              DescribedPredicate.describe(
+                  "are not in " + ENTITIES_WITH_RAW_IDS,
+                  (JavaField field) -> !ENTITIES_WITH_RAW_IDS.contains(field.getOwner().getName())))
+          .should()
+          .haveRawType(
+              DescribedPredicate.describe(
+                  "a record implementing EntityId",
+                  type -> type.isAssignableTo(BASE_PACKAGE + ".shared.domain.EntityId")))
+          .allowEmptyShould(true);
+
+  /* Spring beans get their collaborators through the constructor. */
+  @ArchTest
+  static final ArchRule no_autowired_fields =
+      noFields()
+          .that()
+          .areDeclaredInClassesThat(PRODUCTION_CODE)
+          .should()
+          .beAnnotatedWith("org.springframework.beans.factory.annotation.Autowired")
+          .orShould()
+          .beAnnotatedWith("jakarta.inject.Inject")
+          .because("dependencies are injected through the constructor")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule no_standard_streams =
+      noClasses()
+          .that(PRODUCTION_CODE)
+          .should(GeneralCodingRules.ACCESS_STANDARD_STREAMS)
+          .because("use the logger: Cloud Logging only structures what goes through it");
+
+  @ArchTest
+  static final ArchRule no_java_util_logging =
+      GeneralCodingRules.NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING;
+
   private static ArchRule moduleInternalsArePrivate(String module) {
     String modulePackage = BASE_PACKAGE + "." + module;
     String[] restrictedPackages =
@@ -156,6 +393,31 @@ class ArchitectureTests {
                 + module
                 + " module's command/query handlers, not its repository/gateway/controller")
         .allowEmptyShould(true);
+  }
+
+  /**
+   * {@code CreateChurchCommand} must live in {@code ..command.create_church}. Brand names written
+   * as one word in package names ({@code whatsapp}) are lowered before splitting the words.
+   */
+  private static ArchCondition<JavaClass> liveInTheirActionPackage(String kind) {
+    String suffix = kind.equals("command") ? "Command" : "Query";
+    return new ArchCondition<>("live in " + kind + "/<action in snake_case>/") {
+      @Override
+      public void check(JavaClass javaClass, ConditionEvents events) {
+        String action =
+            javaClass
+                .getSimpleName()
+                .substring(0, javaClass.getSimpleName().length() - suffix.length())
+                .replace("WhatsApp", "Whatsapp");
+        String expected =
+            "." + kind + "." + action.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase();
+        boolean satisfied = javaClass.getPackageName().endsWith(expected);
+        String message =
+            String.format(
+                "%s should live in a package ending with %s", javaClass.getName(), expected);
+        events.add(new SimpleConditionEvent(javaClass, satisfied, message));
+      }
+    };
   }
 
   private static ArchCondition<JavaClass> declareExactlyOnePublicMethodNamedHandle() {
