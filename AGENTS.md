@@ -28,6 +28,14 @@ as part of `./mvnw test`.
 
 A Claude Code Stop hook (`.claude/hooks/stop-check.sh`) runs `spotless:check` and `ArchitectureTests` when a turn ends with uncommitted Java or `pom.xml` changes, and keeps the agent working until they pass. Fix the code; never add entries to the exception lists of `ArchitectureTests` to make it pass.
 
+## Tests
+
+Choose the level of each test (unit, component, integration, smoke) and how to name its class with the `test-pyramid` skill (`.claude/skills/test-pyramid/SKILL.md`), which expands principle II of the constitution: the lowest level that can catch the failure.
+
+## Pull requests
+
+Keep each PR short enough to review in one sitting, and stack PRs when a change does not fit in one: see the `small-prs` skill (`.claude/skills/small-prs/SKILL.md`).
+
 ## Scheduled work and external systems
 
 - **Never use `@Scheduled` or `@EnableScheduling`; use Cloud Scheduler (work on a calendar) or Cloud Tasks (work that must happen later or be retried).** Both call an internal endpoint under `/v1/internal/**`, which only the scheduler's service account may call (see `InternalSecurityConfig`). A calendar job is one `google_cloud_scheduler_job` in `infra/terraform/modules/scheduler`; a queue is in `infra/terraform/modules/tasks`. `ArchitectureTests` fails the build if `@Scheduled` appears.
