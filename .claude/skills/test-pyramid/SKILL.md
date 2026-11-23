@@ -1,15 +1,15 @@
 ---
 name: test-pyramid
-description: Usar siempre que escribas, cambies, muevas o revises pruebas en srtomy-api (JUnit, Mockito, @WebMvcTest, @SpringBootTest), y al corregir un bug. Dice en qué nivel de la pirámide va cada prueba (unit, component, integration, smoke) y cómo se llama la clase para que el CI la corra en su etapa.
+description: El estándar de pruebas de srtomy-api. Usar siempre que escribas, cambies, muevas o revises pruebas (JUnit, Mockito, @WebMvcTest, @SpringBootTest) o un doble de prueba, y al corregir un bug. Dice en qué nivel de la pirámide va cada prueba (unit, component, integration, smoke), cómo se llama la clase para que el CI la corra en su etapa y qué tipo de doble usar (dummy, stub, spy, mock, fake) y cómo nombrarlo.
 ---
 
-# Pirámide de pruebas en srtomy-api (Java, Spring Boot)
+# Estándar de pruebas de srtomy-api (Java, Spring Boot)
 
-Desarrolla el principio II de la constitución (_Test at the Right Level_, `.specify/memory/constitution.md`). Si este skill y la constitución difieren, gana la constitución.
+Este skill es **el** estándar de pruebas del repo: la única fuente de los niveles, los nombres, los dobles y las herramientas. La constitución (`.specify/memory/constitution.md`, principio II) tiene la regla y su porqué; `AGENTS.md` y `docs/code-style.md` solo apuntan aquí.
 
-## Reglas comunes
+## Común a los tres repos
 
-Estas reglas son las mismas en srtomy-api, srtomy-ui y srtomy-agent. Lo que cambia entre repos son las herramientas y los nombres de archivo (más abajo).
+> Este bloque es **idéntico** en srtomy-api, srtomy-ui y srtomy-agent. Si lo cambias, cámbialo en los tres en el mismo momento. Lo propio de cada repo va en «En este repo», más abajo.
 
 ### Los niveles
 
@@ -18,27 +18,45 @@ De abajo hacia arriba: muchas pruebas abajo, pocas arriba. El CI los corre en es
 | Nivel              | Qué prueba                                                                                                                                    | Cuántas    |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | **unit**           | Lógica pura: una función, una regla de negocio, una validación. Sin framework, sin red, sin base de datos.                                    | La mayoría |
-| **component**      | Un módulo con sus bordes simulados: un controlador, una pantalla, una ruta HTTP con dobles.                                                   | Muchas     |
+| **component**      | Un módulo con sus bordes reemplazados por dobles: un controlador, una pantalla, una ruta HTTP.                                                | Muchas     |
 | **integration**    | Con infraestructura real: Postgres, el contexto completo, la cadena de seguridad, las migraciones.                                            | Pocas      |
 | **smoke**          | Que lo compilado arranca y responde lo básico. Menos de un minuto entre todas.                                                                | Un puñado  |
 | **e2e `@story`**   | Una historia de usuario: un criterio de aceptación de un spec (`specs/NNN-*`), en una pantalla, desde un estado preparado.                    | Pocas      |
 | **e2e `@journey`** | El recorrido de una persona por varias funciones, de principio a fin («la iglesia crea un evento, alguien se inscribe, se marca su ingreso»). | Muy pocas  |
 
-Las pruebas de **contrato** entre repos (que la copia del OpenAPI de la UI y del agente coincida con la API) son trabajo futuro: están en la lista de deuda técnica.
+Las pruebas de **contrato** entre repos son trabajo futuro (lista de deuda técnica de srtomy-ui).
 
 ### Cómo elegir el nivel
 
-1. **Pregúntate qué se rompería** y escribe la prueba en el nivel más bajo que lo detecta. Una regla de negocio se rompe en una función: unit. Un mapeo HTTP se rompe en el controlador: component. Una consulta SQL se rompe contra Postgres: integration.
-2. **Una validación, un mensaje de error o un permiso sobre un botón nunca son e2e.** Son unit o component.
-3. **No repitas arriba lo que ya prueba abajo.** El nivel de arriba prueba que las piezas se conectan (el camino feliz y uno de error), no cada caso de la regla.
-4. **Un e2e es `@story` o `@journey`**, y lo dice en su etiqueta. Una `@story` cita su spec. Antes de agregar un e2e, comprueba que no basta con uno de component.
-5. **Un bug se reproduce en el nivel más bajo posible**, con una prueba que falla sin la corrección.
-6. **Cada prueba dice su nivel** en el nombre del archivo o en su etiqueta (ver la tabla de este repo). Los hooks y el CI lo usan para correrla en su etapa.
-7. **Prueba comportamiento, no implementación**, y sin red: los servicios externos se reemplazan por dobles.
+1. **Todo cambio de lógica trae su prueba**, junto al archivo que prueba; el hook Stop de Claude Code la pide si falta.
+2. **Pregúntate qué se rompería** y escribe la prueba en el nivel más bajo que lo detecta. Una regla de negocio se rompe en una función: unit. Un mapeo HTTP se rompe en el controlador: component. Una consulta SQL se rompe contra Postgres: integration.
+3. **Una validación, un mensaje de error, un estado de carga o un permiso sobre un botón nunca son e2e.** Son unit o component.
+4. **No repitas arriba lo que ya prueba abajo.** El nivel de arriba prueba que las piezas se conectan (el camino feliz y un caso de error), no cada variante de la regla.
+5. **Un e2e es `@story` o `@journey`**, y lo dice en su etiqueta. Una `@story` cita su spec. Antes de agregar un e2e, comprueba que no basta con uno de component.
+6. **Un bug se reproduce en el nivel más bajo posible**, con una prueba que falla sin la corrección.
+7. **Cada prueba dice su nivel** en el nombre del archivo o en su etiqueta (ver «En este repo»). El CI y los hooks lo usan para correrla en su etapa, y lo comprueban.
+8. **Prueba comportamiento, no implementación**, y sin red: lo que está fuera del repo se reemplaza por un doble.
 
-### Al reescribir una prueba que está en un nivel demasiado alto
+### Dobles de prueba
 
-Muévela al nivel correcto en vez de borrarla: escribe la prueba nueva abajo, comprueba que falla si rompes lo que prueba, y recién entonces quita la de arriba. Si en el nivel de arriba quedaba algo que solo él probaba (la conexión entre piezas), deja un caso que lo cubra.
+Se usa el vocabulario de _xUnit Test Patterns_ (Gerard Meszaros, <http://xunitpatterns.com/Test%20Double%20Patterns.html>), el mismo que resume Martin Fowler en <https://martinfowler.com/bliki/TestDouble.html>. **Cada doble es de un solo tipo**, el que dice para qué lo usa la prueba:
+
+| Tipo      | Para qué lo usa la prueba                                                                                     | Cómo se verifica                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Dummy** | Llenar un parámetro que el código bajo prueba no usa.                                                         | No se verifica.                                                                      |
+| **Stub**  | Darle al código bajo prueba las respuestas que necesita (sus _entradas indirectas_): un valor fijo, un error. | Por el estado o el resultado del código bajo prueba; al stub no se le pregunta nada. |
+| **Spy**   | Anotar lo que el código bajo prueba le envía (sus _salidas indirectas_) para revisarlo después.               | La prueba, después de ejercitar, revisa lo que el spy anotó.                         |
+| **Mock**  | Comprobar que el código bajo prueba lo llama como se espera.                                                  | Las expectativas se fijan antes; el mock falla si la llamada no llega o no coincide. |
+| **Fake**  | Reemplazar una dependencia por una implementación de verdad, más simple (en memoria).                         | Por el estado, como con la dependencia real.                                         |
+
+- **El nombre dice el tipo**: `StubIdentity`, `SpyKapso`, `FakeSeen`, `DummyToken`; lo mismo para variables y funciones que los crean (`stubFetch`, `spyLog`). Un nombre como `TestX` o `FakeX` para algo que no es un fake no dice qué es.
+- **Si un doble cumple dos papeles, se parte en dos.** Un objeto que da respuestas y además anota llamadas son un stub y un spy separados, cada uno con su nombre.
+- **Prefiere verificar el estado** (stub, fake) antes que las llamadas (spy, mock). Verifica llamadas solo cuando la llamada es el comportamiento: un correo que se envía, un mensaje que sale, un pago que se cobra.
+- Las librerías (Mockito, `vi.fn`, `vi.mock`, `MockLanguageModelV4`) crean dobles de cualquier tipo, aunque se llamen _mock_. El tipo lo da el uso: `given(...).willReturn(...)` sin `verify` es un stub; `verify(...)` sobre algo que no devuelve nada es un mock.
+
+### Al bajar una prueba de nivel
+
+Muévela en vez de borrarla: escribe la prueba nueva abajo, comprueba que falla si rompes lo que prueba, y recién entonces quita la de arriba. Si arriba quedaba algo que solo ella probaba (la conexión entre piezas), deja un caso que lo cubra.
 
 ## En este repo
 
