@@ -113,11 +113,11 @@ de ella) y el cliente generado de srtomy-ui.
 - Un método de validación (`isValidTimeZone`) que no es un dato se oculta con
   `@Schema(hidden = true)`.
 - `OpenApiTextCustomizer` deja el texto en una línea y sin HTML; no hace falta cuidar los saltos.
-- `OpenApiDocumentationTests` falla si se publica una operación, un parámetro o un campo de
+- `OpenApiDocumentationIntegrationTests` falla si se publica una operación, un parámetro o un campo de
   petición sin descripción (quedan fuera `/v1/internal/**` y `/v1/webhooks/**`, que no son para
   personas). La misma prueba deja el documento en `target/openapi/srtomy-api.json`, para copiarlo
   a srtomy-ui y srtomy-agent sin levantar la aplicación:
-  `./mvnw test -Dtest=OpenApiDocumentationTests`.
+  `./mvnw test -Dtest=OpenApiDocumentationIntegrationTests`.
 
 ## Trabajo programado y sistemas externos
 

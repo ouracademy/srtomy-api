@@ -31,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import(TestSecurityConfig.class)
-class OpenApiDocumentationTests {
+class OpenApiDocumentationIntegrationTests {
 
   /** Called by Google and by providers, never by a person or the agent. */
   private static final List<String> NOT_FOR_PEOPLE = List.of("/v1/internal/", "/v1/webhooks/");

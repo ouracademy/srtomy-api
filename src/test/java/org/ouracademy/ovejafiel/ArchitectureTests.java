@@ -37,6 +37,9 @@ class ArchitectureTests {
 
   private static final String BASE_PACKAGE = "org.ouracademy.ovejafiel";
 
+  private static final String SPRING_BOOT_TEST =
+      "org.springframework.boot.test.context.SpringBootTest";
+
   /**
    * Feature modules whose internals ({@code repository}, {@code gateway}, {@code controller}) are
    * private to the module. Adding a module only requires adding its name here.
@@ -365,6 +368,35 @@ class ArchitectureTests {
           .that(PRODUCTION_CODE)
           .should(GeneralCodingRules.ACCESS_STANDARD_STREAMS)
           .because("use the logger: Cloud Logging only structures what goes through it");
+
+  /*
+   * The suffix of a test class is its level of the test pyramid (constitution, principle II), and
+   * CI picks the classes of each stage by it: *Tests first, then *IntegrationTests, then
+   * *SmokeTests. Only the last two may load the full context, and both must.
+   */
+  @ArchTest
+  static final ArchRule full_context_tests_say_so_in_their_name =
+      CompositeArchRule.of(
+              classes()
+                  .that()
+                  .areAnnotatedWith(SPRING_BOOT_TEST)
+                  .should()
+                  .haveSimpleNameEndingWith("IntegrationTests")
+                  .orShould()
+                  .haveSimpleNameEndingWith("SmokeTests")
+                  .allowEmptyShould(true))
+          .and(
+              classes()
+                  .that()
+                  .haveSimpleNameEndingWith("IntegrationTests")
+                  .or()
+                  .haveSimpleNameEndingWith("SmokeTests")
+                  .should()
+                  .beAnnotatedWith(SPRING_BOOT_TEST)
+                  .allowEmptyShould(true))
+          .because(
+              "CI runs each level of the test pyramid in its own stage, chosen by the suffix"
+                  + " (see the test-pyramid skill)");
 
   @ArchTest
   static final ArchRule no_java_util_logging =
