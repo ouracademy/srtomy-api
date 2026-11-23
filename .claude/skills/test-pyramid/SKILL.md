@@ -39,20 +39,21 @@ Las pruebas de **contrato** entre repos son trabajo futuro (lista de deuda técn
 
 ### Dobles de prueba
 
-Se usa el vocabulario de _xUnit Test Patterns_ (Gerard Meszaros, <http://xunitpatterns.com/Test%20Double%20Patterns.html>), el mismo que resume Martin Fowler en <https://martinfowler.com/bliki/TestDouble.html>. **Cada doble es de un solo tipo**, el que dice para qué lo usa la prueba:
+Se usa el vocabulario de _xUnit Test Patterns_ (Gerard Meszaros), en la versión web del libro: <http://xunitpatterns.com/Test%20Double%20Patterns.html>. Un **doble de prueba** reemplaza, solo en la prueba, algo de lo que depende el código bajo prueba. **Cada doble es de un solo tipo, y el tipo lo da para qué lo usa la prueba**, no cómo está hecho:
 
-| Tipo      | Para qué lo usa la prueba                                                                                     | Cómo se verifica                                                                     |
-| --------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| **Dummy** | Llenar un parámetro que el código bajo prueba no usa.                                                         | No se verifica.                                                                      |
-| **Stub**  | Darle al código bajo prueba las respuestas que necesita (sus _entradas indirectas_): un valor fijo, un error. | Por el estado o el resultado del código bajo prueba; al stub no se le pregunta nada. |
-| **Spy**   | Anotar lo que el código bajo prueba le envía (sus _salidas indirectas_) para revisarlo después.               | La prueba, después de ejercitar, revisa lo que el spy anotó.                         |
-| **Mock**  | Comprobar que el código bajo prueba lo llama como se espera.                                                  | Las expectativas se fijan antes; el mock falla si la llamada no llega o no coincide. |
-| **Fake**  | Reemplazar una dependencia por una implementación de verdad, más simple (en memoria).                         | Por el estado, como con la dependencia real.                                         |
+| Tipo             | Para qué lo usa la prueba                                                                                                                                   | Quién verifica y cuándo                                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Dummy Object** | Llenar un argumento que el código bajo prueba no usa. Si alguien lo llama, debería fallar.                                                                  | Nadie lo verifica: la prueba mira el resultado del código bajo prueba.                                               |
+| **Test Stub**    | Darle al código bajo prueba sus _entradas indirectas_: un valor fijo (_Responder_) o un error o valor inesperado (_Saboteur_), para llevarlo por un camino. | La prueba, después, por el resultado o el estado. Al stub no se le pregunta nada.                                    |
+| **Test Spy**     | Anotar las _salidas indirectas_ del código bajo prueba (lo que le envía) para revisarlas después. Puede además devolver valores: sigue siendo un spy.       | **La prueba**, **después** de ejercitar, con lo que el spy anotó.                                                    |
+| **Mock Object**  | Comprobar las salidas indirectas con expectativas fijadas **antes** de ejercitar.                                                                           | **El mock mismo**, **durante** la ejecución (falla en la primera llamada que no coincide), y una verificación final. |
+| **Fake Object**  | Reemplazar una dependencia por una implementación de verdad, más liviana (por ejemplo en memoria), sin usarla para controlar ni para observar.              | La prueba, después, por el estado, como con la dependencia real.                                                     |
 
-- **El nombre dice el tipo**: `StubIdentity`, `SpyKapso`, `FakeSeen`, `DummyToken`; lo mismo para variables y funciones que los crean (`stubFetch`, `spyLog`). Un nombre como `TestX` o `FakeX` para algo que no es un fake no dice qué es.
-- **Si un doble cumple dos papeles, se parte en dos.** Un objeto que da respuestas y además anota llamadas son un stub y un spy separados, cada uno con su nombre.
-- **Prefiere verificar el estado** (stub, fake) antes que las llamadas (spy, mock). Verifica llamadas solo cuando la llamada es el comportamiento: un correo que se envía, un mensaje que sale, un pago que se cobra.
-- Las librerías (Mockito, `vi.fn`, `vi.mock`, `MockLanguageModelV4`) crean dobles de cualquier tipo, aunque se llamen _mock_. El tipo lo da el uso: `given(...).willReturn(...)` sin `verify` es un stub; `verify(...)` sobre algo que no devuelve nada es un mock.
+- **El nombre dice el tipo**: `StubIdentity`, `SpyKapso`, `FakeSeen`, `DummyToken`, y lo mismo en variables y funciones que los crean (`stubFetch`, `spyLog`). `TestX`, o `FakeX` para algo que no es un Fake Object, no dice qué es.
+- **Stub o spy**: si la prueba solo usa las respuestas del doble, es un stub. Si revisa lo que el doble anotó, es un spy, aunque también responda. Un objeto no es «stub y spy a la vez».
+- **Prefiere verificar el estado** (stub, fake) antes que las llamadas (spy, mock): una prueba que fija la secuencia exacta de llamadas se rompe con cualquier cambio interno. Verifica llamadas solo cuando la llamada es el comportamiento: un correo que se envía, un mensaje que sale, un pago que se cobra.
+- **Las librerías no dan el tipo con su nombre.** Mockito (`mock()`, `@Mock`, `@MockitoBean`), Vitest (`vi.fn`, `vi.mock`) y `MockLanguageModelV4` crean dobles de cualquier tipo. Con `given(...).willReturn(...)` y sin `verify`, es un stub. Con `verify(...)` **después** de ejercitar, la prueba revisa lo anotado, así que es un spy. Es un mock solo si las expectativas se fijan antes y el doble falla por su cuenta.
+- Un Dummy Object no es un Null Object: el dummy no se usa, y el null object sí se usa pero no hace nada.
 
 ### Al bajar una prueba de nivel
 
