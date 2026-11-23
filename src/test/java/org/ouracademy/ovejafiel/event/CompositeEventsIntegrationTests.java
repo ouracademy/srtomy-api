@@ -107,33 +107,16 @@ class CompositeEventsIntegrationTests {
     assertThat(find(listed, "Taller").get("programSize").asInt()).isZero();
   }
 
+  /*
+   * Only that the rules of a sub-event are wired to the HTTP answer. Each rule is a unit test:
+   * the dates, nesting and series in EventCompositeTests, repeating and a missing container in
+   * CreateEventCommandHandlerImplTests, and the status of each exception in
+   * GlobalExceptionHandlerTests (the test-pyramid skill).
+   */
   @Test
-  void aSubEventMustFitInsideTheMegaEventAndCannotNestOrRepeat() {
-    var workshop = subEvent("Taller", "INHERIT");
-
+  void aSubEventOutsideTheMegaEventIsRefused() {
     assertThat(
             createEventStatus("Fuera", "2030-01-08T10:00:00Z", "2030-01-08T11:00:00Z", conference))
-        .isEqualTo(400);
-    assertThat(
-            createEventStatus("Anidado", "2030-01-06T10:00:00Z", "2030-01-06T11:00:00Z", workshop))
-        .isEqualTo(400);
-    assertThat(
-            createEventStatus(
-                "Inexistente",
-                "2030-01-06T10:00:00Z",
-                "2030-01-06T11:00:00Z",
-                UUID.randomUUID().toString()))
-        .isEqualTo(404);
-    assertThat(
-            status(
-                alice,
-                HttpMethod.POST,
-                "/events",
-                eventJson("Repetido", "2030-01-06T10:00:00Z", "2030-01-06T11:00:00Z", conference)
-                    .replace(
-                        "}",
-                        ",\"recurrence\":{\"frequency\":\"DAILY\",\"interval\":1,"
-                            + "\"endType\":\"COUNT\",\"count\":2}}")))
         .isEqualTo(400);
   }
 
