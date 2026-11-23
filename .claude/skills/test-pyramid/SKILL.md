@@ -58,8 +58,14 @@ Muévela al nivel correcto en vez de borrarla: escribe la prueba nueva abajo, co
 
 ### Comandos
 
+Los mismos del CI, que corre las etapas en este orden y se detiene en la primera que falla (`.github/workflows/ci.yml`):
+
 ```sh
-./mvnw test -Dtest=FooTests                 # una clase
-./mvnw test -Dtest='!*IntegrationTests,!*SmokeTests'   # unit y component, sin contexto
-./mvnw verify                               # todo, como el CI
+./mvnw test -Dtest=FooTests                                        # una clase
+./mvnw verify -Dtest='!*IntegrationTests,!*SmokeTests'             # 1: unit y component, formato y JaCoCo (sin base de datos)
+./mvnw test -Dtest='*IntegrationTests' -Djacoco.skip=true          # 2: integración (Postgres)
+./mvnw test -Dtest='*SmokeTests' -Djacoco.skip=true                # 3: smoke
+./mvnw verify                                                      # todo junto, antes de abrir el PR
 ```
+
+La cobertura (el piso de JaCoCo) se mide solo en la etapa 1.
