@@ -26,7 +26,7 @@ is documented in [docs/code-style.md](./docs/code-style.md) and enforced by
 `src/test/java/org/ouracademy/ovejafiel/ArchitectureTests.java` (ArchUnit), which runs
 as part of `./mvnw test`.
 
-A Claude Code Stop hook (`.claude/hooks/stop-check.sh`) runs `spotless:check` and `ArchitectureTests` when a turn ends with uncommitted Java or `pom.xml` changes, and keeps the agent working until they pass. Fix the code; never add entries to the exception lists of `ArchitectureTests` to make it pass.
+A Claude Code Stop hook (`.claude/hooks/stop-check.sh`) runs `spotless:check` and `ArchitectureTests` when a turn ends with uncommitted Java or `pom.xml` changes (and asks once for a test when a changed class under `src/main/java` has no changed test that names or mentions it, `.claude/hooks/companion-tests.py`), and keeps the agent working until they pass. Fix the code; never add entries to the exception lists of `ArchitectureTests` to make it pass.
 
 ## Tests
 

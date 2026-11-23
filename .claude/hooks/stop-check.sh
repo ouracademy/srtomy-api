@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Stop hook: before the agent may finish a turn with uncommitted changes, the
-# code must compile, be formatted and pass ArchitectureTests. On failure it
+# code must compile, be formatted and pass ArchitectureTests, and a changed
+# production class must come with a changed test. On failure it
 # exits 2, which keeps the agent working with the report in front of it. CI
 # runs the same checks inside `./mvnw verify`, so whatever slips past here is
 # stopped there.
@@ -24,6 +25,13 @@ except Exception:
 # Only Java or build changes need the check.
 changed="$(git status --porcelain 2>/dev/null | grep -E '\.java$|pom\.xml$' || true)"
 [ -z "$changed" ] && exit 0
+
+# Asked once: when a change truly needs no test, the agent says why and the next stop passes.
+companion=""
+if ! companion="$(python3 .claude/hooks/companion-tests.py 2>&1)"; then
+  echo "$companion" >&2
+  exit 2
+fi
 
 # -o: offline, so the hook never waits on the network; the dependencies are
 # already in ~/.m2 after the first build.

@@ -50,7 +50,7 @@ Muévela al nivel correcto en vez de borrarla: escribe la prueba nueva abajo, co
 | **smoke**       | `@SpringBootTest(webEnvironment = RANDOM_PORT)`: el contexto arranca, `/actuator/health` y `/v3/api-docs` responden. | `*SmokeTests`       | —                                              |
 | **e2e**         | No hay en este repo: los recorridos completos se prueban en srtomy-ui (`tests/`).                                    | —                   | —                                              |
 
-- El sufijo es el nivel: `*IntegrationTests` y `*SmokeTests` cargan el contexto completo y son lentos; todo lo demás es `*Tests` y no lo carga. Una clase con `@SpringBootTest` que no termina en uno de esos dos sufijos está mal nombrada.
+- El sufijo es el nivel, y `ArchitectureTests` lo comprueba (`full_context_tests_say_so_in_their_name`): `*IntegrationTests` y `*SmokeTests` cargan el contexto completo y son lentos; todo lo demás es `*Tests` y no lo carga. Una clase con `@SpringBootTest` que no termina en uno de esos dos sufijos está mal nombrada.
 - **Una regla de dominio** (fechas que deben caer dentro de un evento, cupos, estados permitidos) se prueba en unit, sobre el dominio o el handler. En `*IntegrationTests` queda el camino feliz y un caso de error que muestre que la regla está conectada (el 400 llega), no cada variante de la regla.
 - **Un controlador** se prueba con `@WebMvcTest`: el mapeo, la validación del cuerpo, los códigos HTTP y el permiso que pide (`AuthorizeQueryHandler` simulado).
 - **`@SpringBootTest` solo cuando hace falta el contexto completo**: la cadena de filtros de seguridad de punta a punta, Flyway, transacciones que cruzan módulos, consultas JPA no triviales, el outbox.

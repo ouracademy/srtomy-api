@@ -17,11 +17,15 @@ unit tests. Controllers MUST be tested with `@WebMvcTest` + `MockMvcTester` and 
 repositories/services, not a full `@SpringBootTest` against a real database, unless the behavior
 under test genuinely requires the full context (e.g. security filter chain end-to-end, Flyway
 migrations). Test classes MUST follow the naming convention: unit and slice tests end in `Tests`
-(e.g. `OrganizationControllerTests`); tests that load the full Spring context end in
-`IntegrationTests` (e.g. `SecurityConfigIntegrationTests`). A bug fix MUST include a test that fails
-without the fix.
+(e.g. `OrganizationControllerTests`) and MUST NOT load the full Spring context; tests that load it
+end in `IntegrationTests` (e.g. `SecurityConfigIntegrationTests`), or in `SmokeTests` for the few
+that only check that the application starts and answers the basics (the context loads,
+`/actuator/health`, `/v3/api-docs`). `ArchitectureTests` enforces the suffixes, and CI runs the
+levels in order, `*Tests` first, then `*IntegrationTests`, then `*SmokeTests`, stopping at the first
+that fails. The `test-pyramid` skill (`.claude/skills/test-pyramid/SKILL.md`) says which level a
+test belongs to. A bug fix MUST include a test that fails without the fix.
 Rationale: full-context tests are slow and couple unrelated concerns together; the suffix makes the
-cost of a test class visible without opening it.
+cost of a test class visible without opening it, and lets CI fail on the fast tests first.
 
 ### III. Security by Default
 
@@ -95,4 +99,4 @@ added principles or materially expanded guidance, PATCH for clarifications. Comp
 on every PR and revisited whenever a retrospective or incident shows a principle is missing or
 wrong.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-10-17
+**Version**: 1.1.0 | **Ratified**: 2026-10-17 | **Last Amended**: 2026-11-23
