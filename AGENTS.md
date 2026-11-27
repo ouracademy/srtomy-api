@@ -36,6 +36,8 @@ Choose the level of each test (unit, component, integration, smoke) and how to n
 
 Keep each PR short enough to review in one sitting, and stack PRs when a change does not fit in one: see the `small-prs` skill (`.claude/skills/small-prs/SKILL.md`).
 
+`scripts/check-docs.py` (the same script in srtomy-ui and srtomy-agent; CI job `docs`, and the Stop hook when a `.md` changed) checks the Markdown docs: every path a doc names in `code` exists (or is ignored by git), no doc restates another file, and no sentence is repeated across docs. Point to the file instead of copying what it says. A name a doc mentions on purpose without it existing goes in a `check-docs ignore` comment in that doc, with the reason.
+
 A pull request that only changes docs (`*.md` files or anything under `docs/`) skips the build and the three test stages in CI (`scripts/only-docs-changed.sh`); the language, commit and security checks still run, and a push to `main` always runs everything.
 
 ## Scheduled work and external systems
@@ -52,6 +54,8 @@ All code must be in English: file names, classes, methods, variables, comments. 
 Anything left to do or to clean up (unused secrets, dead code, legacy names...) goes into `docs/tech-debt-and-future-work.md`. What the product owner decided not to do goes into `docs/adr/` with the reason, not into that file. Ask the product owner before doing any item from that list, especially cleanups; never remove things on your own initiative.
 
 ## Specs and plans
+
+<!-- check-docs ignore: SPEC.md, tasks/plan.md (files this section says not to write) -->
 
 Use spec-kit (the `speckit-*` skills) for specs, plans and task lists. Specs live under `specs/<NNN-feature-name>/`. Do not use addy's `/spec` or `/planning` commands, the `spec-driven-development` and `planning-and-task-breakdown` skills, or write `SPEC.md` or `tasks/plan.md` at the repo root. Those write to a second place and split the plan.
 

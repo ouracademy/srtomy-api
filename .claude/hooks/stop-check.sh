@@ -22,6 +22,15 @@ except Exception:
 ')"
 [ "$stop_hook_active" = "true" ] && exit 0
 
+# Docs: what a .md names exists and no sentence repeats another doc (scripts/check-docs.py).
+if git status --porcelain 2>/dev/null | grep -qE '\.md$'; then
+  if ! docs="$(python3 -B scripts/check-docs.py 2>&1)"; then
+    echo "No termines todavía: la documentación no pasa scripts/check-docs.py." >&2
+    echo "$docs" >&2
+    exit 2
+  fi
+fi
+
 # Only Java or build changes need the check.
 changed="$(git status --porcelain 2>/dev/null | grep -E '\.java$|pom\.xml$' || true)"
 [ -z "$changed" ] && exit 0

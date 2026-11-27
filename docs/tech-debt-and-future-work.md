@@ -1,5 +1,7 @@
 # Deuda técnica y trabajo futuro
 
+<!-- check-docs ignore: app/portal/[nodeId]/location, app/(components)/NamesInput.tsx, positions/levels (paths of srtomy-ui, in its rows) -->
+
 Lista viva de lo que queda por limpiar o construir. Lo ya hecho vive en cada spec (`specs/NNN-*`) y en `docs/code-style.md`; aquí solo está lo pendiente.
 
 El diseño original del rediseño (IAM, jerarquía, invitaciones, visibilidad, compartir) se retiró de aquí. Para consultarlo: `git show e4026aa:docs/redesign.md`. Lo que el dueño del producto desestimó no se queda aquí: se guarda como decisión en [`docs/adr/`](adr/README.md), con el motivo.

@@ -5,6 +5,8 @@ description: Usar siempre antes de abrir un pull request o de empujar una rama p
 
 # PRs cortos
 
+<!-- check-docs ignore: openapi/*.json (only some repos keep a copy) -->
+
 Un PR lo revisa una persona. Si no lo puede leer de una sentada, no lo revisa de verdad. Esta regla es la misma en srtomy-api, srtomy-ui y srtomy-agent.
 
 ## La regla

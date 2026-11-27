@@ -124,6 +124,15 @@ jobs:
       - name: smoke tests
         run: ./mvnw -B -ntp test -Dtest='*SmokeTests' -Djacoco.skip=true
 
+  docs:
+    name: docs (references, repetition)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # scripts/check-docs.py, the same file in srtomy-ui and srtomy-agent, and its tests.
+      - run: python3 -B scripts/check-docs.py
+      - run: python3 -B -m unittest discover -q -s scripts -p check_docs_test.py
+
   language-check:
     name: language policy (code must be in English)
     runs-on: ubuntu-latest
