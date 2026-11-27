@@ -201,6 +201,31 @@ módulos (incluyendo violaciones temporales durante una migración) se
 registra explícitamente en el mapa `PENDING_MIGRATION_EXCEPTIONS` de ese
 test, con un comentario de qué paso la resuelve — nunca queda implícita.
 
+## Ciclos de vida (estados y transiciones)
+
+Un estado con más de dos valores (`OutboxStatus`, `InvitationStatus`...) es un
+enum, y quien lo cambia es el agregado, no el handler:
+
+- **El agregado valida cada cambio.** Un método como `markSent` o `accept`
+  comprueba el estado de origen y falla si la transición no existe. La guarda
+  no se queda en el handler que lo llama: otro handler la olvidaría.
+- **Qué excepción.** Lo que el usuario puede provocar (aceptar una invitación
+  ya aceptada) lanza `DomainValidationException`, o `ConflictException` si el
+  cliente debe reaccionar. Lo que solo un bug puede provocar (marcar como
+  enviado un mensaje que ya falló) lanza `IllegalStateException`: el 500 y el
+  log son lo correcto, porque ningún flujo normal llega ahí.
+- **Las transiciones idempotentes se dicen.** Si repetir una transición no
+  hace nada a propósito (reintentos de un webhook, `revoke` sobre algo que ya
+  no está pendiente), el método lo documenta y una prueba lo fija; no es un
+  `if` olvidado.
+- **Un estado derivado no se guarda.** Si se calcula (una invitación vencida,
+  `Invitation.effectiveStatus`), el cálculo vive en el agregado y los demás lo
+  llaman.
+- **Una prueba recorre todos los pares** origen-destino y comprueba que solo
+  las transiciones de la tabla pasan (ver `OutboxMessageTests`).
+- No se añaden librerías de máquinas de estado (Spring Statemachine, etc.):
+  un enum y sus guardas bastan para estos tamaños.
+
 ## Lo compartido
 
 - Clases base comunes (`DomainObject`, `EntityId`, `IdGenerator`,
