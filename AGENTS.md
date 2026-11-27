@@ -32,11 +32,19 @@ A Claude Code Stop hook (`.claude/hooks/stop-check.sh`) runs `spotless:check` an
 
 Choose the level of each test (unit, component, integration, smoke) and how to name its class with the `test-pyramid` skill (`.claude/skills/test-pyramid/SKILL.md`), which expands principle II of the constitution: the lowest level that can catch the failure.
 
+## Docs
+
+- Each fact lives in one place. Before you write something in a doc, look for whether another doc or a file already says it; if one does, link to it instead of copying it.
+- Do not restate a config file (package.json, pom.xml, tsconfig.json, the CI workflows, the lint rules): name the file. A copy goes stale, and then two places disagree.
+- When you change behaviour, update the one doc that describes it, and remove what no longer exists.
+- In a review, a repeated or stale fact is a defect, like a bug.
+- `scripts/check-docs.py` catches what needs no judgement (a path that does not exist, a package that is not a dependency, a sentence copied word for word); the rest is this rule.
+
 ## Pull requests
 
 Keep each PR short enough to review in one sitting, and stack PRs when a change does not fit in one: see the `small-prs` skill (`.claude/skills/small-prs/SKILL.md`).
 
-`scripts/check-docs.py` (the same script in srtomy-ui and srtomy-agent; CI job `docs`, and the Stop hook when a `.md` changed) checks the Markdown docs: every path a doc names in `code` exists (or is ignored by git), no doc restates another file, and no sentence is repeated across docs. Point to the file instead of copying what it says. A name a doc mentions on purpose without it existing goes in a `check-docs ignore` comment in that doc, with the reason.
+`scripts/check-docs.py` (the same script in srtomy-ui and srtomy-agent; CI job `docs`, and the Stop hook when a `.md` changed) checks the Markdown docs: every path a doc names in `code` exists (or is ignored by git), and no sentence is repeated word for word across docs (see Docs). A name a doc mentions on purpose without it existing goes in a `check-docs ignore` comment in that doc, with the reason.
 
 A pull request that only changes docs (`*.md` files or anything under `docs/`) skips the build and the three test stages in CI (`scripts/only-docs-changed.sh`); the language, commit and security checks still run, and a push to `main` always runs everything.
 

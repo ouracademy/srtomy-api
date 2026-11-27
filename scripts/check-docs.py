@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Checks the Markdown docs of this repo (the same script lives in srtomy-api, srtomy-ui and
-srtomy-agent):
+srtomy-agent). Only what needs no judgement:
 
 1. Every path a doc names in `code` exists in the repo, or is ignored by git (build output,
    generated code), or is a subpath of a declared dependency (`langsmith/anonymizer`).
-2. Every package a doc names in `code` (`@scope/name`) is a dependency in package.json.
-3. A doc does not restate package.json: no "`x` is a devDependency" or "`x` is not installed yet".
-4. A doc does not repeat a sentence of another doc: say it once and link to it.
+2. Every package a doc names in `code` (`@scope/name`) is a dependency in package.json (only
+   where there is a package.json).
+3. A doc does not repeat, word for word, a sentence of another doc.
+
+Whether a doc says again, in other words, what another doc or a config file already says is a
+judgement call: that rule is in AGENTS.md ("Docs"), for whoever writes or reviews.
 
 Not checked: fenced code blocks, specs/ and .specify/ (they record history), lines that name
 another repo (srtomy-api, srtomy-ui, srtomy-agent, ouracademy/…), and placeholders such as
@@ -35,11 +38,6 @@ EXTENSIONS = (
 FILE_NAME = re.compile(r"^[\w.()\[\]-]+\.(" + EXTENSIONS + r")$")
 PATH = re.compile(r"^\.{0,2}[\w.()\[\]@-]*(/[\w.()\[\]@*-]*)+$")
 PLACEHOLDER = re.compile(r"(^|[/.])(foo|Foo|bar|NNN\w*)([/.-]|$)|[<>{}…]")
-RESTATES = re.compile(
-    r"\b(is|are) (a |an )?(dev)?dependenc|devDependenc|peer dependenc|\bas its peer\b"
-    r"|\b(is|are) (not )?installed\b|does not have .* yet|está(n)? instalad|no tiene .* (aún|todavía)",
-    re.I,
-)
 MIN_SENTENCE = 80
 
 
@@ -119,10 +117,6 @@ def check(docs, repo):
                 if PACKAGE.match(token) or (repo.dependencies and token in repo.dependencies):
                     if PACKAGE.match(token) and repo.dependencies and token not in repo.dependencies:
                         problems.append(f"{where}: `{token}` no es una dependencia de package.json")
-                    elif token in repo.dependencies and RESTATES.search(line):
-                        problems.append(
-                            f"{where}: repite package.json sobre `{token}`; quítalo, el agente lo lee allí"
-                        )
                     continue
                 if " " in token or "://" in token or token.startswith(("/", "-", "@/", "~", "#")):
                     continue

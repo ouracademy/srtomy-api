@@ -60,9 +60,6 @@ class Packages(unittest.TestCase):
             ["docs/guide.md:1: `@hello-pangea/dnd` no es una dependencia de package.json"],
         )
 
-    def test_refuses_restating_package_json(self):
-        self.assertEqual(len(problems("`@testing-library/user-event` is a devDependency.")), 1)
-
     def test_accepts_naming_a_dependency_for_what_it_does(self):
         self.assertEqual(problems("Prefiere `@testing-library/user-event` para tipear."), [])
 
