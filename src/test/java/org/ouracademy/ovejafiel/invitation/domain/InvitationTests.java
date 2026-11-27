@@ -2,6 +2,7 @@ package org.ouracademy.ovejafiel.invitation.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.ouracademy.ovejafiel.invitation.InvitationFixtures.invitation;
 import static org.ouracademy.ovejafiel.invitation.InvitationFixtures.organization;
@@ -63,6 +64,30 @@ class InvitationTests {
 
     assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.ACCEPTED);
     assertThat(invitation.getAcceptedBy()).isSameAs(bob);
+  }
+
+  @Test
+  void anInvitationThatIsNotPendingCannotBeAcceptedAgain() {
+    var bob = user("auth0|b", "b@x.org");
+    var accepted = pending(now.plusDays(1));
+    accepted.accept(bob);
+    var revoked = pending(now.plusDays(1));
+    revoked.revoke();
+
+    assertThatIllegalStateException().isThrownBy(() -> accepted.accept(bob));
+    assertThatIllegalStateException().isThrownBy(() -> revoked.accept(bob));
+    assertThat(accepted.getStatus()).isEqualTo(InvitationStatus.ACCEPTED);
+    assertThat(revoked.getStatus()).isEqualTo(InvitationStatus.REVOKED);
+  }
+
+  @Test
+  void revokingTwiceChangesNothing() {
+    var invitation = pending(now.plusDays(1));
+    invitation.revoke();
+
+    invitation.revoke();
+
+    assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.REVOKED);
   }
 
   @Test
