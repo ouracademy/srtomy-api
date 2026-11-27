@@ -108,11 +108,20 @@ public class Invitation extends DomainObject {
     return otherEmail != null && email.equalsIgnoreCase(otherEmail.trim());
   }
 
+  /**
+   * Only a pending invitation is accepted. The handler calls {@link #requireAcceptable} first,
+   * which gives the person the reason; reaching this with another status is a bug, not a user
+   * mistake.
+   */
   public void accept(AppUser user) {
+    if (status != InvitationStatus.PENDING) {
+      throw new IllegalStateException("Cannot accept a " + status + " invitation");
+    }
     status = InvitationStatus.ACCEPTED;
     acceptedBy = user;
   }
 
+  /** Cancelling is idempotent: anything that is not pending (accepted, already revoked) stays. */
   public void revoke() {
     if (status == InvitationStatus.PENDING) {
       status = InvitationStatus.REVOKED;
