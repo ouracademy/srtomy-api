@@ -48,8 +48,6 @@ Keep each PR short enough to review in one sitting, and stack PRs when a change 
 
 `scripts/check-docs.py` (the same script in srtomy-ui and srtomy-agent; CI job `docs`, and the Stop hook when a `.md` changed) checks the Markdown docs: every path a doc names in `code` exists (or is ignored by git), and no sentence is repeated word for word across docs (see Docs). A name a doc mentions on purpose without it existing goes in a `check-docs ignore` comment in that doc, with the reason.
 
-A pull request that only changes docs (`*.md` files or anything under `docs/`) skips the build and the three test stages in CI (`scripts/only-docs-changed.sh`); the language, commit and security checks still run, and a push to `main` always runs everything.
-
 ## Scheduled work and external systems
 
 - **Never use `@Scheduled` or `@EnableScheduling`; use Cloud Scheduler (work on a calendar) or Cloud Tasks (work that must happen later or be retried).** Both call an internal endpoint under `/v1/internal/**`, which only the scheduler's service account may call (see `InternalSecurityConfig`). A calendar job is one `google_cloud_scheduler_job` in `infra/terraform/modules/scheduler`; a queue is in `infra/terraform/modules/tasks`. `ArchitectureTests` fails the build if `@Scheduled` appears.
