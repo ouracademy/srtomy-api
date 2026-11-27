@@ -60,7 +60,9 @@ public class OutboxMessage extends DomainObject {
     this.payload = payload;
   }
 
+  /** Only a waiting message can be sent. */
   public void markSent(String providerMessageId, LocalDateTime now) {
+    requirePending("send");
     attempts++;
     status = OutboxStatus.SENT;
     sentAt = now;
@@ -71,12 +73,14 @@ public class OutboxMessage extends DomainObject {
 
   /** An attempt that did not work but may work later: the queue calls again. */
   public void recordFailedAttempt(String error) {
+    requirePending("record an attempt of");
     attempts++;
     lastError = truncated(error);
   }
 
-  /** Nothing will be tried again. */
+  /** Nothing will be tried again. Only a waiting message can fail. */
   public void markFailed(String error) {
+    requirePending("fail");
     status = OutboxStatus.FAILED;
     lastError = truncated(error);
     payload = null;
@@ -90,6 +94,16 @@ public class OutboxMessage extends DomainObject {
     status = OutboxStatus.CANCELLED;
     payload = null;
     return true;
+  }
+
+  /**
+   * A message that already left, failed or was withdrawn is final. Reaching one of these methods
+   * from another state is a bug (the handler checks first), not something a user can cause.
+   */
+  private void requirePending(String action) {
+    if (status != OutboxStatus.PENDING) {
+      throw new IllegalStateException("Cannot " + action + " a " + status + " outbox message");
+    }
   }
 
   private static String truncated(String error) {
