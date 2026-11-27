@@ -32,9 +32,19 @@ A Claude Code Stop hook (`.claude/hooks/stop-check.sh`) runs `spotless:check` an
 
 Choose the level of each test (unit, component, integration, smoke) and how to name its class with the `test-pyramid` skill (`.claude/skills/test-pyramid/SKILL.md`), which expands principle II of the constitution: the lowest level that can catch the failure.
 
+## Docs
+
+- Each fact lives in one place. Before you write something in a doc, look for whether another doc or a file already says it; if one does, link to it instead of copying it.
+- Do not restate a config file (package.json, pom.xml, tsconfig.json, the CI workflows, the lint rules): name the file. A copy goes stale, and then two places disagree.
+- When you change behaviour, update the one doc that describes it, and remove what no longer exists.
+- In a review, a repeated or stale fact is a defect, like a bug.
+- `scripts/check-docs.py` catches what needs no judgement (a path that does not exist, a package that is not a dependency, a sentence copied word for word); the rest is this rule.
+
 ## Pull requests
 
 Keep each PR short enough to review in one sitting, and stack PRs when a change does not fit in one: see the `small-prs` skill (`.claude/skills/small-prs/SKILL.md`).
+
+`scripts/check-docs.py` (the same script in srtomy-ui and srtomy-agent; CI job `docs`, and the Stop hook when a `.md` changed) checks the Markdown docs: every path a doc names in `code` exists (or is ignored by git), and no sentence is repeated word for word across docs (see Docs). A name a doc mentions on purpose without it existing goes in a `check-docs ignore` comment in that doc, with the reason.
 
 ## Scheduled work and external systems
 
@@ -50,6 +60,8 @@ All code must be in English: file names, classes, methods, variables, comments. 
 Anything left to do or to clean up (unused secrets, dead code, legacy names...) goes into `docs/tech-debt-and-future-work.md`. What the product owner decided not to do goes into `docs/adr/` with the reason, not into that file. Ask the product owner before doing any item from that list, especially cleanups; never remove things on your own initiative.
 
 ## Specs and plans
+
+<!-- check-docs ignore: SPEC.md, tasks/plan.md (files this section says not to write) -->
 
 Use spec-kit (the `speckit-*` skills) for specs, plans and task lists. Specs live under `specs/<NNN-feature-name>/`. Do not use addy's `/spec` or `/planning` commands, the `spec-driven-development` and `planning-and-task-breakdown` skills, or write `SPEC.md` or `tasks/plan.md` at the repo root. Those write to a second place and split the plan.
 

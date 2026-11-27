@@ -4,6 +4,8 @@ El código vive bajo `org.ouracademy.ovejafiel.<modulo>`. Los módulos actuales 
 `party`, `person`, `organization`, `accountability`, `event`, `attendance`,
 `complaint`, `user`, `iam`, `invitation`, `notification`, `directory`, y `shared` (no es un módulo de dominio, ver más abajo).
 
+<!-- check-docs ignore: module-info.java (the file this project does not have) -->
+
 Son paquetes Java dentro del mismo proyecto Maven/JAR — no hay `module-info.java`
 ni multi-módulo Maven. La regla de aislamiento entre módulos no la impone el
 compilador: la impone `src/test/java/org/ouracademy/ovejafiel/ArchitectureTests.java`
@@ -42,8 +44,8 @@ clase `Command`/`Query` sin el sufijo, pasado de UpperCamelCase a
 snake_case: `CreateChurchCommand` → `command/create_church/`,
 `FindOrganizationByIdQuery` → `query/find_organization_by_id/`. Un `Result`
 usado por una sola acción vive en la carpeta de esa acción aunque no se
-llame `<Accion>Result` (ej. `MemberStateResult` en
-`organization/query/get_member_state/`).
+llame `<Accion>Result` (ej. `AccountabilityResult` en
+`accountability/query/get_accountabilities_by_parent_and_types/`).
 
 Excepción: una clase usada por más de una acción del mismo `command/` o
 `query/` (un `Result` compartido o un helper tipo `*Info`/`*Writer`/
@@ -51,7 +53,6 @@ Excepción: una clase usada por más de una acción del mismo `command/` o
 carpeta de una de ellas, y es `public` para que las subcarpetas la vean.
 Ejemplos reales: `organization/command/OrganizationWriter`,
 `organization/query/PersonDetailsResolver`,
-`accountability/query/AccountabilityTypeResult`,
 `person/query/FindPersonResult`. Los `*HandlerImpl` siguen siendo
 package-private, así que sus tests viven en la misma subcarpeta (un test por
 acción) y una acción que usa otra depende de su `*Handler` (interfaz), nunca
