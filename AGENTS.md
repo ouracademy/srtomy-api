@@ -30,6 +30,8 @@ A Claude Code Stop hook (`.claude/hooks/stop-check.sh`) runs `spotless:check` an
 
 ## Tests
 
+The integration and smoke tests need Postgres (`docker compose up -d`); in a Claude Code cloud session `.claude/hooks/session-start.sh` starts the system Postgres and installs the JDK of `.java-version` if it is missing.
+
 Choose the level of each test (unit, component, integration, smoke) and how to name its class with the `test-pyramid` skill (`.claude/skills/test-pyramid/SKILL.md`), which expands principle II of the constitution: the lowest level that can catch the failure.
 
 ## Docs
