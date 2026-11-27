@@ -146,29 +146,39 @@ def load_repo():
             dependencies.update(manifest.get(key, {}))
 
     folders = sorted({p.rsplit("/", 1)[0] for p in tracked if "/" in p})
+    name = os.path.basename(os.getcwd())
+    return Repo(tracked, dependencies, lambda token: git_ignored(token, folders), name)
 
-    def ignored(token):
-        """Ignored by git (build output, generated code, node_modules), whole or under a folder."""
-        path = token.rstrip("/")
-        parts = path.split("/")
-        # Each prefix on its own: past an ignored folder git may refuse the path (pnpm symlinks).
-        candidates = ["/".join(parts[:i]) for i in range(1, len(parts) + 1)]
-        candidates += [f"{folder}/{path}" for folder in folders]
-        result = subprocess.run(
-            ["git", "check-ignore", "--no-index", "--stdin"],
-            input="\n".join(candidates),
-            capture_output=True,
-            text=True,
-        )
-        if result.stdout.strip():
-            return True
-        for prefix in candidates[: len(parts)]:
-            check = subprocess.run(["git", "check-ignore", "-q", "--no-index", prefix])
+
+def git_ignored(token, folders=()):
+    """Ignored by git (build output, generated code, node_modules), whole or under a folder.
+
+    Each candidate is asked as a file and as a folder (`dist/`): a `.gitignore` rule such as
+    `dist/` only matches a folder, and git cannot tell a folder that is not on disk (a fresh
+    checkout has no build output) from a file. Each prefix is asked on its own too, since past an
+    ignored folder git may refuse the path (pnpm symlinks under node_modules).
+    """
+    path = token.rstrip("/")
+    parts = path.split("/")
+    prefixes = ["/".join(parts[:i]) for i in range(1, len(parts) + 1)]
+    candidates = prefixes + [f"{folder}/{path}" for folder in folders]
+    candidates += [c + "/" for c in candidates]
+    result = subprocess.run(
+        ["git", "check-ignore", "--no-index", "--stdin"],
+        input="\n".join(candidates),
+        capture_output=True,
+        text=True,
+    )
+    if result.stdout.strip():
+        return True
+    for prefix in prefixes:
+        for candidate in (prefix, prefix + "/"):
+            check = subprocess.run(["git", "check-ignore", "-q", "--no-index", candidate])
             if check.returncode == 0:
                 return True
-        return False
+    return False
 
-    return Repo(tracked, dependencies, ignored, os.path.basename(os.getcwd()))
+
 
 
 def main():

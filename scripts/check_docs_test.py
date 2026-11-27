@@ -2,6 +2,8 @@
 
 import importlib.util
 import os
+import subprocess
+import tempfile
 import unittest
 
 spec = importlib.util.spec_from_file_location(
@@ -74,6 +76,32 @@ class Repetition(unittest.TestCase):
 
     def test_accepts_short_or_distinct_sentences(self):
         self.assertEqual(check_docs.check({"a.md": "Corre `pnpm check`.", "b.md": "Corre `pnpm check`."}, REPO), [])
+
+
+class Ignored(unittest.TestCase):
+    """git_ignored asks the real git, in a throwaway repo."""
+
+    def setUp(self):
+        self.cwd = os.getcwd()
+        self.dir = tempfile.TemporaryDirectory()
+        os.chdir(self.dir.name)
+        subprocess.run(["git", "init", "-q"], check=True)
+        with open(".gitignore", "w") as f:
+            f.write("dist/\nnode_modules\n")
+
+    def tearDown(self):
+        os.chdir(self.cwd)
+        self.dir.cleanup()
+
+    def test_a_folder_rule_matches_a_folder_that_is_not_on_disk(self):
+        self.assertTrue(check_docs.git_ignored("dist/"))
+        self.assertTrue(check_docs.git_ignored("dist/main.js"))
+
+    def test_a_path_under_an_ignored_folder(self):
+        self.assertTrue(check_docs.git_ignored("node_modules/ai/docs"))
+
+    def test_a_path_that_is_not_ignored(self):
+        self.assertFalse(check_docs.git_ignored("src/app.ts"))
 
 
 if __name__ == "__main__":
